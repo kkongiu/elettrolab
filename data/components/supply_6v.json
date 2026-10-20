@@ -1,0 +1,9 @@
+{
+  "id": "supply_6v",
+  "kind": "V",
+  "name": "Alimentatore 6 V",
+  "pins": ["+", "-"],
+  "params": {"v": 6},
+  "limits": {"imax": 1},
+  "learn": "Alimentazione a 6 V, adatta ai circuiti con PUT e a bassa tensione."
+}

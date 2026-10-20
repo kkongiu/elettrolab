@@ -211,6 +211,13 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
                         b[c] += gs * p.num("vcesat")
                     if e >= 0:
                         b[e] -= gs * p.num("vcesat")
+        elif kind == "PUT":
+            a, k = circ.node(pid, "A"), circ.node(pid, "K")
+            st = q_on.get(pid, 0)
+            if st == 0:
+                _stamp_g(A, a, k, 1e-9)
+            else:
+                _stamp_g(A, a, k, 1.0 / max(p.num("ron"), 1e-6))
         elif kind == "GND":
             continue
         else:
@@ -289,6 +296,27 @@ def _update_transistors(circ, x, state):
     return out
 
 
+def _update_puts(circ, x, state):
+    out = dict(state)
+    for pid, p in circ.by_kind("PUT"):
+        a = circ.node(pid, "A")
+        g = circ.node(pid, "G")
+        k = circ.node(pid, "K")
+        va = x[a] if a >= 0 else 0.0
+        vg = x[g] if g >= 0 else 0.0
+        vk = x[k] if k >= 0 else 0.0
+        vf = p.num("vf")
+        st = state.get(pid, 0)
+        if st == 0:
+            if va > vg + vf + 1e-6:
+                out[pid] = 1
+        else:
+            iak = (va - vk) / max(p.num("ron"), 1e-6)
+            if iak < p.num("ihold"):
+                out[pid] = 0
+    return out
+
+
 def _pin_v(x, idx):
     return x[idx] if idx >= 0 else 0.0
 
@@ -351,6 +379,12 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
             else:
                 i = max(0.0, (vce - p.num("vcesat")) / max(p.num("ron"), 1e-6))
             pw = i * vce
+        elif kind == "PUT":
+            a, k = circ.node(pid, "A"), circ.node(pid, "K")
+            vv = _pin_v(x, a) - _pin_v(x, k)
+            st = q_on.get(pid, 0)
+            i = vv / max(p.num("ron"), 1e-6) if st else 0.0
+            pw = i * vv
         elif kind == "GND":
             i = 0.0
             pw = 0.0
@@ -404,6 +438,14 @@ def _violations(circ, res, x, led_on):
                     "message": f"{pid}: {abs(i) * 1e3:.0f} mA di collettore superano il massimo di "
                                f"{to_float(imax) * 1e3:.0f} mA, il transistor si brucia",
                     "value": abs(i), "limit": to_float(imax)})
+        elif kind == "PUT":
+            imax = p.get("imax")
+            if imax is not None and abs(i) > to_float(imax) * 1.02:
+                res.violations.append({
+                    "part": pid, "code": "overcurrent",
+                    "message": f"{pid}: {abs(i) * 1e3:.0f} mA di anodo superano il massimo di "
+                               f"{to_float(imax) * 1e3:.0f} mA, il PUT si brucia",
+                    "value": abs(i), "limit": to_float(imax)})
         elif kind == "V":
             imax = p.get("imax")
             if imax is not None and abs(i) > to_float(imax) * 1.02:
@@ -417,7 +459,7 @@ def _dc(circ):
     res = Result(circ, "dc")
     led = {pid: False for pid, _ in circ.by_kind("LED")}
     relay = {pid: False for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")}
-    q = {pid: 0 for pid, _ in circ.by_kind("NPN")}
+    q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     seen = set()
     x = None
     br = None
@@ -427,6 +469,7 @@ def _dc(circ):
         nl = _update_leds(circ, x, led)
         nr = _update_relays(circ, x, relay)
         nq = _update_transistors(circ, x, q)
+        nq = _update_puts(circ, x, nq)
         if nl == led and nr == relay and nq == q:
             break
         key = (tuple(sorted((k, v) for k, v in nl.items())),
@@ -495,7 +538,7 @@ def _tran(circ):
     relays = [(pid, p) for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")]
     relay = {pid: False for pid, _ in relays}
     relay_last = {pid: -1e9 for pid, _ in relays}
-    q = {pid: 0 for pid, _ in circ.by_kind("NPN")}
+    q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     time = np.zeros(nsteps)
     relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
 
@@ -512,6 +555,7 @@ def _tran(circ):
         for _ in range(4):
             nl = _update_leds(circ, x, led)
             nq = _update_transistors(circ, x, q)
+            nq = _update_puts(circ, x, nq)
             if nl == led and nq == q:
                 break
             led, q = nl, nq

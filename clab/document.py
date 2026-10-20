@@ -8,7 +8,8 @@ from .units import to_float
 
 META_KEYS = ("id", "title", "notes", "ref", "analysis", "tstop", "dt", "expect")
 PREFIX = {"R": "R", "V": "V", "LED": "D", "SW": "SW", "C": "C", "L": "L",
-          "POT": "POT", "RELAY": "RY", "RELAY2": "RY", "GND": "GND", "NPN": "Q"}
+          "POT": "POT", "RELAY": "RY", "RELAY2": "RY", "GND": "GND",
+          "NPN": "Q", "PUT": "Q"}
 
 
 class Document:

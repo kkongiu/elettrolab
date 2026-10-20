@@ -11,6 +11,8 @@ def part_voltage(circ, res, pid):
         return None
     if p.kind == "NPN":
         pin_a, pin_b = "C", "E"
+    elif p.kind == "PUT":
+        pin_a, pin_b = "A", "K"
     else:
         pin_a, pin_b = pins[0], pins[1]
     net_a, net_b = circ.net_of(pid, pin_a), circ.net_of(pid, pin_b)

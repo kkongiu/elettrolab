@@ -1,0 +1,9 @@
+{
+  "id": "put",
+  "kind": "PUT",
+  "name": "PUT 2N6027",
+  "pins": ["A", "G", "K"],
+  "params": {"vf": 0.6, "ron": 50, "ihold": "50u", "imax": 0.15},
+  "limits": {"imax": 0.15},
+  "learn": "Transistor unigiunzione programmabile: conduce da anodo (A) a catodo (K) quando la tensione di anodo supera quella di gate (G) piu' una soglia. Con un condensatore forma un oscillatore a rilassamento."
+}

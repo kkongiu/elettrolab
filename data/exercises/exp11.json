@@ -1,0 +1,72 @@
+{
+  "id": "exp11",
+  "title": "Oscillatore a rilassamento con PUT",
+  "notes": "Un PUT (transistor unigiunzione programmabile) fa lampeggiare un LED. Il condensatore si carica attraverso R1; quando la tensione di anodo supera quella di gate (fissata dal partitore R2-R3) piu' la soglia, il PUT conduce e scarica il condensatore attraverso il LED, che lampeggia. Poi il ciclo ricomincia.",
+  "analysis": "transient",
+  "tstop": 6,
+  "dt": 0.001,
+  "parts": {
+    "V1": {
+      "type": "supply_6v"
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "470k"
+    },
+    "R2": {
+      "type": "resistor",
+      "r": "15k"
+    },
+    "R3": {
+      "type": "resistor",
+      "r": "27k"
+    },
+    "C1": {
+      "type": "capacitor",
+      "c": "2.2u"
+    },
+    "Q1": {
+      "type": "put"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "R1.1",
+      "R2.1"
+    ],
+    "a": [
+      "R1.2",
+      "Q1.A",
+      "C1.+"
+    ],
+    "g": [
+      "R2.2",
+      "R3.1",
+      "Q1.G"
+    ],
+    "k": [
+      "Q1.K",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "R3.2",
+      "C1.-",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "V(a)": {
+      "min": 0,
+      "max": 5
+    },
+    "I(D1)": {
+      "min": 0,
+      "max": 0.02
+    }
+  }
+}
