@@ -160,6 +160,12 @@ def cmd_db(args):
     return 0
 
 
+def cmd_gui(args):
+    from .gui import main as gui_main
+    gui_main(args.id)
+    return 0
+
+
 def cmd_menu(args):
     ids = exercise_ids()
     while True:
@@ -306,6 +312,10 @@ def main(argv=None):
 
     s = sub.add_parser("menu", help="menu interattivo degli esercizi")
     s.set_defaults(fn=cmd_menu)
+
+    s = sub.add_parser("gui", help="visualizzatore grafico degli esercizi")
+    s.add_argument("id", nargs="?")
+    s.set_defaults(fn=cmd_gui)
 
     s = sub.add_parser("selftest", help="verifica il motore di simulazione")
     s.set_defaults(fn=cmd_selftest)

@@ -38,16 +38,25 @@ Specifica: `docs/MCP-SERVER.md`.
 
 Obiettivo: l'esperienza da laboratorio, senza perdere il testo come sorgente.
 
+Fatto (prototipo):
+
+- [x] Visualizzatore schematico con simboli per R, C, L, V, LED, SW, pot, rele'
+- [x] Corrente animata con verso e velocita' per ramo
+- [x] LED che si accendono e "bruciatura" visibile
+- [x] Grafico delle forme d'onda integrato con cursore temporale
+- [x] Pausa/ripresa, scelta del segnale, scheda dati
+- [x] Layout separato dal JSON del circuito
+
+Da fare:
+
 - [ ] Editor schematico con snap e trascinamento
 - [ ] Pannello componenti alimentato dal catalogo
 - [ ] Slider collegati ai parametri (tensione, potenziometro)
-- [ ] LED che si accendono, corrente animata, "bruciatura" visibile
-- [ ] Grafico delle forme d'onda integrato
 - [ ] Vista breadboard 2D con occupazione dei fori
-- [ ] Salvataggio del layout separato dal circuito
+- [ ] Salvataggio del layout dall'editor
 
-Tecnologia da decidere: PySide6 desktop oppure backend Python con frontend web.
-Il motore resta identico.
+Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
+Un frontend web resta possibile; il motore e il formato non cambiano.
 
 ## Fase 3 - Modelli avanzati
 

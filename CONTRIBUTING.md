@@ -58,7 +58,8 @@ non implementato a mano nel solver.
 3. Simulare e leggere i valori con `./lab run <id>`.
 4. Scrivere `expect` con tolleranze sensate.
 5. Eseguire `./lab check`.
-6. Aggiornare la tabella in `docs/EXERCISES.md` e nel README.
+6. Aggiungere un layout in `clab/layouts.py` e provarlo con `./lab gui <id>`.
+7. Aggiornare la tabella in `docs/EXERCISES.md` e nel README.
 
 ## Documentazione
 
@@ -68,6 +69,7 @@ formato o ai comandi richiede un aggiornamento contestuale di:
 - `README.md`
 - `docs/CIRCUIT-FORMAT.md`
 - `docs/COMPONENTS.md` o `docs/EXERCISES.md`
+- `docs/GUI.md` se cambia lo schema o l'animazione
 - `docs/MCP-SERVER.md` se cambia l'interfaccia per gli LLM
 
 ## Contenuti di terzi

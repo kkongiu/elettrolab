@@ -15,14 +15,17 @@ database sono generici e non legati a un corso specifico.
 - Violazioni didattiche: LED bruciato, resistenza in sovrapotenza, condensatore
   in sovratensione, cortocircuito della sorgente
 - CLI con menu, grafico ASCII, CSV, sweep di parametri
+- GUI con schema animato: corrente che scorre, LED che si accendono, guasti
 - 7 esercizi verificati automaticamente, 5 test del motore
-- GUI e server MCP: pianificati (vedi `docs/MCP-SERVER.md` e `docs/ROADMAP.md`)
+- Server MCP: pianificato (vedi `docs/MCP-SERVER.md` e `docs/ROADMAP.md`)
 
 ## Avvio rapido
 
 ```bash
 cd /home/kongiu/elettrolab
-./lab                      # menu interattivo
+./lab gui                  # laboratorio grafico animato
+./lab gui exp09            # apre direttamente un esercizio
+./lab                      # menu interattivo da terminale
 ./lab run exp09 --plot "V(m)"
 ./lab run exp04 --set POT1.pos=0.2
 ./lab sweep exp04 --sweep POT1.pos=0,0.25,0.5,0.75,1
@@ -38,7 +41,8 @@ cd /home/kongiu/elettrolab
 python3 -m clab run exp03
 ```
 
-Dipendenze: Python 3.10+ e NumPy. Nessun'altra libreria.
+Dipendenze: Python 3.10+ e NumPy per il motore. La GUI richiede anche Tkinter
+(incluso in Python su Linux) e Matplotlib; il resto funziona senza.
 
 ## Comandi
 
@@ -55,9 +59,32 @@ Dipendenze: Python 3.10+ e NumPy. Nessun'altra libreria.
 | `selftest` | test numerici del solver |
 | `db` | elenca il catalogo componenti |
 | `menu` | menu interattivo (default del launcher) |
+| `gui [ID]` | laboratorio grafico con schema animato |
 
 Codici di uscita: `0` successo, `1` controlli falliti (solo con `--strict` o
 `check`), `2` errore di circuito o di simulazione.
+
+## Interfaccia grafica
+
+![Laboratorio grafico](docs/gui.png)
+
+`./lab gui` apre il laboratorio: elenco a sinistra con PASS/FAIL, schema del
+circuito al centro, grafico e dati sotto.
+
+- simboli disegnati dal motore: resistenze, condensatori, induttori, batterie,
+  LED, interruttori, potenziometri e rele'
+- i puntini arancioni sono la corrente: velocita' e verso seguono la corrente
+  di ogni ramo; i LED si accendono in proporzione e mostrano una X quando si
+  bruciano
+- il transitorio scorre in loop (Pausa/Riprendi) e il cursore sul grafico segue
+  l'animazione
+- il selettore "Segnale" cambia la forma d'onda; la scheda "Dati" mostra min,
+  max e valore finale
+
+I layout stanno in `clab/layouts.py`, separati dal circuito: il JSON resta
+senza coordinate. Dettagli in `docs/GUI.md`.
+
+![Oscillatore a rele'](docs/gui-relay.png)
 
 ## Come funziona
 
@@ -155,6 +182,7 @@ I test coprono partitore, LED, RC, RLC e la bruciatura del LED.
 ## Documentazione
 
 - `docs/ARCHITECTURE.md` - moduli, solver, scelte numeriche, limiti
+- `docs/GUI.md` - schema animato, simboli, layout, animazione
 - `docs/CIRCUIT-FORMAT.md` - schema JSON dei circuiti e delle attese
 - `docs/COMPONENTS.md` - catalogo, tipi, come estendere il database
 - `docs/EXERCISES.md` - esercizi, valori attesi, cosa e' simulabile

@@ -27,6 +27,9 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 | `clab/solver.py` | matrici MNA, DC e transitorio, stati, violazioni, controlli |
 | `clab/report.py` | tabelle testuali, grafico ASCII, CSV |
 | `clab/cli.py` | comandi, overrides, sweep, selftest |
+| `clab/gui.py` | finestra Tk, elenco esercizi, controlli, animazione |
+| `clab/schematic.py` | simboli, fili, puntini di corrente, LED |
+| `clab/layouts.py` | posizioni e rotazioni dei componenti per esercizio |
 | `data/components/*.json` | un file per tipo di componente |
 | `data/exercises/*.json` | un file per esercizio, con attese |
 
@@ -129,6 +132,34 @@ sorgente oltre `imax` in `short`.
 `check` restituisce una lista di esiti con segnale, esito e dettaglio leggibile.
 Il server MCP usera' lo stesso formato, con codici macchina.
 
+## Interfaccia grafica
+
+La GUI e' un consumatore del `Result`, non un secondo motore.
+
+- `clab/gui.py` costruisce la finestra, esegue i controlli, gestisce il tempo
+  dell'animazione e incorpora Matplotlib per il grafico.
+- `clab/schematic.py` disegna su un `tk.Canvas`: simboli, fili, giunzioni,
+  puntini di corrente e alone dei LED.
+- `clab/layouts.py` contiene solo geometria: centro, rotazione e, se serve,
+  percorsi espliciti dei fili. Il JSON del circuito resta senza coordinate.
+
+Gli ingressi dell'animazione sono le forme d'onda gia' calcolate: per ogni
+componente la corrente e' interpolata a `t`, quindi i puntini si muovono con
+velocita' proporzionale a `|I|` e verso dato dal segno. Per le sorgenti di
+tensione il verso viene invertito, perche' la corrente convenzionale esce dal
+terminale positivo.
+
+La luminosita' del LED usa una scala logaritmica fra 1 uA e `imax`, cosi' anche
+correnti didattiche piccole (meno di 1 mA) restano visibili. Un LED che supera
+`imax` viene mostrato con una X al posto dell'alone.
+
+I fili sono instradati in modo ortogonale: rete di massa su una rotaia in
+basso, reti a due pin con un percorso a L, reti a tre o piu' pin con un bus.
+Per i casi in cui il routing automatico non basta, il layout puo' fornire un
+percorso esplicito. Il canvas viene ridisegnato a circa 30 fps; i circuiti
+didattici hanno poche decine di elementi, quindi non serve una scena
+incrementale.
+
 ## Limiti attuali
 
 - Solo componenti primitivi elencati sopra: niente transistori, 555, logica,
@@ -140,6 +171,10 @@ Il server MCP usera' lo stesso formato, con codici macchina.
 - Matrice densa: adatta a circuiti didattici, non a netlist grandi.
 - Nessun controllo di topologia ridondante: un nodo isolato produce una matrice
   singolare, riportata come errore `singular`.
+- GUI: layout disponibili solo per gli esercizi inclusi; un circuito nuovo
+  mostra un avviso finche' non si aggiunge un layout in `clab/layouts.py`.
+- GUI: visualizzatore, non editor; non si trascinano componenti ne' si salva
+  una disposizione.
 
 ## Dipendenze
 
