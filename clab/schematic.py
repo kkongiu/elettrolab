@@ -649,15 +649,13 @@ class Schematic:
     def _put(self, x, y, rot):
         def L(u, v):
             return self._loc(x, y, rot, u, v)
-        self.line([L(0, -45), L(0, -13)])
-        tri = [L(-13, -13), L(13, -13), L(0, 8)]
-        self.c.create_polygon(*self.flat(tri), outline=INK, fill="",
-                              width=max(1.1, 1.8 * self.s))
-        self.line([L(-13, 8), L(13, 8)])
-        self.line([L(0, 8), L(0, 45)])
-        self.line([L(-45, 0), L(-13, 0)])
-        gt = [L(-13, 0), L(-20, -6), L(-20, 6)]
-        self.c.create_polygon(*self.flat(gt), outline=INK, fill=INK)
+        r = 30
+        self.c.create_oval(*self.flat([L(-r, -r), L(r, r)]), outline=INK, fill="",
+                            width=max(1.1, 1.8 * self.s))
+        self.line([L(0, -45), L(0, 45)])
+        self.line([L(-45, 0), L(-8, 0)])
+        tri = [L(0, 12), L(-8, 0), L(8, 0)]
+        self.c.create_polygon(*self.flat(tri), outline=INK, fill=INK)
 
     def _relay_on(self, pid, t):
         if self.res is None:
