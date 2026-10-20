@@ -213,6 +213,7 @@ def cmd_selftest(args):
         ("RC 10k 1000u a 10 s", _test_rc),
         ("RLC serie: picco", _test_rlc),
         ("LED senza resistenza si brucia", _test_burn),
+        ("NPN in zona attiva: amplificazione", _test_transistor),
     ]
     ok = 0
     for name, fn in tests:
@@ -282,6 +283,21 @@ def _test_burn():
     res = simulate(circ)
     return any(v["part"] == "D1" and v["code"] == "burned" for v in res.violations), \
         f"I(D1) = {fmt(res.currents['D1'], 'A')}, violazioni: {[v['code'] for v in res.violations]}"
+
+
+def _test_transistor():
+    circ = _c({"V1": {"type": "supply_12v"},
+               "R1": {"type": "resistor", "r": "1k"},
+               "R2": {"type": "resistor", "r": "1M"},
+               "Q1": {"type": "transistor_npn"}},
+              {"p": ["V1.+", "R1.1", "R2.1"],
+               "c": ["R1.2", "Q1.C"],
+               "b": ["R2.2", "Q1.B"],
+               "gnd": ["V1.-", "Q1.E"]})
+    res = simulate(circ)
+    ic = res.currents["Q1"]
+    return abs(ic - 0.00271) < 5e-5, \
+        f"I(Q1) = {fmt(ic, 'A')} (atteso ~2.71 mA con beta=240)"
 
 
 def main(argv=None):

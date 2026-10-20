@@ -1,0 +1,9 @@
+{
+  "id": "supply_12v",
+  "kind": "V",
+  "name": "Alimentatore 12 V",
+  "pins": ["+", "-"],
+  "params": {"v": 12},
+  "limits": {"imax": 1},
+  "learn": "Alimentazione da banco a 12 V. Piu' tensione di una batteria da 9 V; va usata con resistenze adeguate."
+}

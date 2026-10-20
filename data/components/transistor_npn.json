@@ -1,0 +1,9 @@
+{
+  "id": "transistor_npn",
+  "kind": "NPN",
+  "name": "Transistor NPN",
+  "pins": ["C", "B", "E"],
+  "params": {"vbe": 0.7, "beta": 240, "vcesat": 0.2, "ron": 0.05, "rb": 10, "imax": 0.6},
+  "limits": {"imax": 0.6},
+  "learn": "Interruttore a stato solido: una piccola corrente di base (B) controlla una corrente di collettore (C) beta volte piu' grande. Serve una resistenza per limitare la corrente di base e una sul collettore."
+}

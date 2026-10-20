@@ -95,7 +95,7 @@ def _switch_closed(p, t, mode):
     return closed
 
 
-def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on):
+def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
     n = circ.n
     N = n + circ.n_branches
     A = np.zeros((N, N))
@@ -175,6 +175,42 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on):
                     if circ.connected(pid, pin):
                         _stamp_g(A, a, circ.node(pid, pin),
                                  1.0 / max(ron if closed else roff, 1e-6))
+        elif kind == "NPN":
+            c, b_, e = circ.node(pid, "C"), circ.node(pid, "B"), circ.node(pid, "E")
+            vbe = p.num("vbe")
+            rb = max(p.num("rb"), 1e-3)
+            st = q_on.get(pid, 0)
+            if st == 0:
+                _stamp_g(A, b_, e, 1e-9)
+                _stamp_g(A, c, e, 1e-9)
+            else:
+                gb = 1.0 / rb
+                _stamp_g(A, b_, e, gb)
+                if b_ >= 0:
+                    b[b_] += gb * vbe
+                if e >= 0:
+                    b[e] -= gb * vbe
+                if st == 1:
+                    gm = p.num("beta") / rb
+                    if c >= 0 and b_ >= 0:
+                        A[c, b_] += gm
+                    if c >= 0 and e >= 0:
+                        A[c, e] -= gm
+                    if e >= 0 and b_ >= 0:
+                        A[e, b_] -= gm
+                    if e >= 0:
+                        A[e, e] += gm
+                    if c >= 0:
+                        b[c] += gm * vbe
+                    if e >= 0:
+                        b[e] -= gm * vbe
+                else:
+                    gs = 1.0 / max(p.num("ron"), 1e-6)
+                    _stamp_g(A, c, e, gs)
+                    if c >= 0:
+                        b[c] += gs * p.num("vcesat")
+                    if e >= 0:
+                        b[e] -= gs * p.num("vcesat")
         elif kind == "GND":
             continue
         else:
@@ -228,11 +264,36 @@ def _update_relays(circ, x, state):
     return out
 
 
+def _update_transistors(circ, x, state):
+    out = dict(state)
+    for pid, p in circ.by_kind("NPN"):
+        c = circ.node(pid, "C")
+        b_ = circ.node(pid, "B")
+        e = circ.node(pid, "E")
+        vbe = (x[b_] if b_ >= 0 else 0.0) - (x[e] if e >= 0 else 0.0)
+        vce = (x[c] if c >= 0 else 0.0) - (x[e] if e >= 0 else 0.0)
+        vbe_on = p.num("vbe")
+        vcesat = p.num("vcesat")
+        st = state.get(pid, 0)
+        if st == 0:
+            if vbe > vbe_on + 1e-6:
+                out[pid] = 1
+        elif st == 1:
+            if vbe < vbe_on - 1e-9:
+                out[pid] = 0
+            elif vce < vcesat:
+                out[pid] = 2
+        else:
+            if vbe < vbe_on - 1e-9:
+                out[pid] = 0
+    return out
+
+
 def _pin_v(x, idx):
     return x[idx] if idx >= 0 else 0.0
 
 
-def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, t=0.0):
+def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
     v = _volts(circ, x)
     for i, name in enumerate(circ.node_names):
         res.nodes[name] = float(v[i])
@@ -278,6 +339,18 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, t=0.0):
             cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
             i = (_pin_v(x, cp) - _pin_v(x, cm)) / max(p.num("rcoil"), 1e-6)
             pw = i * i * p.num("rcoil")
+        elif kind == "NPN":
+            c, b_, e = circ.node(pid, "C"), circ.node(pid, "B"), circ.node(pid, "E")
+            vbe = _pin_v(x, b_) - _pin_v(x, e)
+            vce = _pin_v(x, c) - _pin_v(x, e)
+            st = q_on.get(pid, 0)
+            if st == 0:
+                i = 0.0
+            elif st == 1:
+                i = max(0.0, p.num("beta") * (vbe - p.num("vbe")) / max(p.num("rb"), 1e-3))
+            else:
+                i = max(0.0, (vce - p.num("vcesat")) / max(p.num("ron"), 1e-6))
+            pw = i * vce
         elif kind == "GND":
             i = 0.0
             pw = 0.0
@@ -323,6 +396,14 @@ def _violations(circ, res, x, led_on):
                     "part": pid, "code": "overvoltage",
                     "message": f"{pid}: {vv:.1f} V superano i {to_float(vmax)} V, il condensatore si danneggia",
                     "value": vv, "limit": to_float(vmax)})
+        elif kind == "NPN":
+            imax = p.get("imax")
+            if imax is not None and abs(i) > to_float(imax) * 1.02:
+                res.violations.append({
+                    "part": pid, "code": "overcurrent",
+                    "message": f"{pid}: {abs(i) * 1e3:.0f} mA di collettore superano il massimo di "
+                               f"{to_float(imax) * 1e3:.0f} mA, il transistor si brucia",
+                    "value": abs(i), "limit": to_float(imax)})
         elif kind == "V":
             imax = p.get("imax")
             if imax is not None and abs(i) > to_float(imax) * 1.02:
@@ -336,23 +417,27 @@ def _dc(circ):
     res = Result(circ, "dc")
     led = {pid: False for pid, _ in circ.by_kind("LED")}
     relay = {pid: False for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")}
+    q = {pid: 0 for pid, _ in circ.by_kind("NPN")}
     seen = set()
     x = None
     br = None
     for it in range(40):
-        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay)
+        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay, q)
         x = _solve(A, b)
         nl = _update_leds(circ, x, led)
         nr = _update_relays(circ, x, relay)
-        if nl == led and nr == relay:
+        nq = _update_transistors(circ, x, q)
+        if nl == led and nr == relay and nq == q:
             break
-        key = (tuple(sorted((k, v) for k, v in nl.items())), tuple(sorted((k, v) for k, v in nr.items())))
+        key = (tuple(sorted((k, v) for k, v in nl.items())),
+               tuple(sorted((k, v) for k, v in nr.items())),
+               tuple(sorted((k, v) for k, v in nq.items())))
         if key in seen:
             res.notes.append("nessun punto di riposo stabile: il circuito oscilla, usa analysis 'transient'")
             break
         seen.add(key)
-        led, relay = nl, nr
-    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay)
+        led, relay, q = nl, nr, nq
+    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q)
     res.relay_states = dict(relay)
     return res
 
@@ -410,6 +495,7 @@ def _tran(circ):
     relays = [(pid, p) for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")]
     relay = {pid: False for pid, _ in relays}
     relay_last = {pid: -1e9 for pid, _ in relays}
+    q = {pid: 0 for pid, _ in circ.by_kind("NPN")}
     time = np.zeros(nsteps)
     relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
 
@@ -421,16 +507,17 @@ def _tran(circ):
         t = (step + 1) * dt
         for pid in relay_hist:
             relay_hist[pid][step] = 1.0 if relay[pid] else 0.0
-        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay)
+        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q)
         x = _solve(A, b)
         for _ in range(4):
             nl = _update_leds(circ, x, led)
-            if nl == led:
+            nq = _update_transistors(circ, x, q)
+            if nl == led and nq == q:
                 break
-            led = nl
-            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay)
+            led, q = nl, nq
+            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q)
             x = _solve(A, b)
-        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, t)
+        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, t)
         time[step] = t
         for i, name in enumerate(circ.node_names):
             waves[f"V({name})"][step] = v[i]

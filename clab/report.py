@@ -9,7 +9,11 @@ def part_voltage(circ, res, pid):
     pins = p.spec.pins
     if len(pins) < 2:
         return None
-    net_a, net_b = circ.net_of(pid, pins[0]), circ.net_of(pid, pins[1])
+    if p.kind == "NPN":
+        pin_a, pin_b = "C", "E"
+    else:
+        pin_a, pin_b = pins[0], pins[1]
+    net_a, net_b = circ.net_of(pid, pin_a), circ.net_of(pid, pin_b)
     if net_a is None or net_b is None:
         return None
     va = 0.0 if net_a in GROUND else res.nodes.get(net_a, 0.0)

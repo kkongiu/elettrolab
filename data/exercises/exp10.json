@@ -1,0 +1,74 @@
+{
+  "id": "exp10",
+  "title": "Il transistor come interruttore",
+  "notes": "Un transistor NPN e' un interruttore a stato solido: senza corrente di base resta aperto e il LED e' spento. Premendo il pulsante, una piccola corrente entra nella base (attraverso R2 da 10 kohm) e il transistor lascia passare una corrente molto piu' grande dal collettore all'emettitore, accendendo il LED. R1 protegge il collettore e R3 l'emettitore. Prova --set SW1.closed=false per simulare il pulsante rilasciato.",
+  "analysis": "dc",
+  "parts": {
+    "V1": {
+      "type": "supply_12v"
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "180"
+    },
+    "R2": {
+      "type": "resistor",
+      "r": "10k"
+    },
+    "SW1": {
+      "type": "switch_spst",
+      "closed": true
+    },
+    "Q1": {
+      "type": "transistor_npn"
+    },
+    "R3": {
+      "type": "resistor",
+      "r": "680"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "R1.1",
+      "R2.1"
+    ],
+    "c": [
+      "R1.2",
+      "Q1.C"
+    ],
+    "bb": [
+      "R2.2",
+      "SW1.1"
+    ],
+    "b": [
+      "SW1.2",
+      "Q1.B"
+    ],
+    "e": [
+      "Q1.E",
+      "R3.1"
+    ],
+    "m": [
+      "R3.2",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "I(D1)": {
+      "approx": 0.0115,
+      "tol": 0.08
+    },
+    "I(Q1)": {
+      "approx": 0.0115,
+      "tol": 0.08
+    }
+  }
+}

@@ -98,6 +98,8 @@ class Schematic:
             return (x - 55, y - 58, x + 55, y + 22)
         if kind == "GND":
             return (x - 30, y - 32, x + 32, y + 22)
+        if kind == "NPN":
+            return (x - 50, y - 50, x + 50, y + 50)
         if rot in (90, 270):
             w, h = 36, 58
         else:
@@ -147,6 +149,10 @@ class Schematic:
                     "COM": (10, -50), "NC": (60, -50), "NO": (80, 0)}
             dx, dy = offs[pin]
             return (x + dx, y + dy)
+        if p.kind == "NPN":
+            offs = {"C": (0, -45), "B": (-45, 0), "E": (26, 26)}
+            dx, dy = offs[pin]
+            return self._loc(x, y, rot, dx, dy)
         i = pins.index(pin)
         return self._loc(x, y, rot, -45 if i == 0 else 45, 0)
 
@@ -185,7 +191,7 @@ class Schematic:
             else:
                 ys = sum(p[1] for p in pts) / len(pts)
                 xs = [p[0] for p in pts]
-                self.buses.append((min(xs) - 10, max(xs) + 10, ys))
+                self.buses.append((net, min(xs) - 10, max(xs) + 10, ys))
                 for i, ((pid, pin), pt) in enumerate(zip(refs, pts)):
                     self.paths.append(Path([pt, (pt[0], ys)], f"{net}|{i}", pid, pin))
                     self.junctions.append(pt)
@@ -351,7 +357,7 @@ class Schematic:
         if self.rail:
             x0, x1, y = self.rail
             self.line([(x0, y), (x1, y)], color=WIRE, width=2.2)
-        for x0, x1, y in self.buses:
+        for name, x0, x1, y in self.buses:
             self.line([(x0, y), (x1, y)], color=WIRE, width=2.0)
         for path in self.paths:
             self._draw_path(path)
@@ -397,6 +403,8 @@ class Schematic:
             return f"{pid}  {fmt(p.num('l'), 'H')}"
         if k == "POT":
             return f"{pid}  {fmt(p.num('rtotal'), '\u03a9')}"
+        if k == "NPN":
+            return f"{pid}  NPN"
         if k == "GND":
             return "GND"
         return pid
@@ -432,12 +440,20 @@ class Schematic:
             self._relay(pid, x, y, t)
         elif kind == "RELAY2":
             self._relay(pid, x, y, t)
+        elif kind == "NPN":
+            self._npn(x, y, rot)
         elif kind == "GND":
             self._ground(x, y)
 
         i = self._cur(pid, t)
         if kind == "GND":
             self.text(x + 16, y + 2, "GND", anchor="w", size=8, color=MUTED)
+        elif kind == "NPN":
+            self.text(x, y - 52, self._label(pid), anchor="s", size=9, color=INK)
+            self.text(x, y + 52, f"I = {fmt(i, 'A')}", anchor="n", size=8, color=DOT)
+            self.text(*self._loc(x, y, rot, 10, -45), "C", anchor="w", size=7, color=MUTED)
+            self.text(*self._loc(x, y, rot, -48, 3), "B", anchor="e", size=7, color=MUTED)
+            self.text(*self._loc(x, y, rot, 34, 29), "E", anchor="w", size=7, color=MUTED)
         elif kind == "RELAY2":
             self.text(x, y + 100, f"{self._label(pid)}   I = {fmt(i, 'A')}",
                       size=9, color=INK)
@@ -601,6 +617,18 @@ class Schematic:
         self.line([(x, y - 24), (x, y)], width=2.0)
         for w, dy in ((18, 0), (12, 5), (6, 10)):
             self.line([(x - w, y + dy), (x + w, y + dy)], width=2.0)
+
+    def _npn(self, x, y, rot):
+        def L(u, v):
+            return self._loc(x, y, rot, u, v)
+        r = 30
+        self.c.create_oval(*self.flat([L(-r, -r), L(r, r)]), outline=INK, fill="",
+                            width=max(1.1, 1.8 * self.s))
+        self.line([L(0, -45), L(0, 0)])
+        self.line([L(-45, 0), L(0, 0)])
+        self.line([L(0, 0), L(18, 18)])
+        tri = [L(26, 26), L(16, 20), L(20, 16)]
+        self.c.create_polygon(*self.flat(tri), outline=INK, fill=INK)
 
     def _relay_on(self, pid, t):
         if self.res is None:
