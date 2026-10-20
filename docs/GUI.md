@@ -117,6 +117,16 @@ secondi. Ogni componente ha una corrente interpolata all'istante corrente:
   piccole restano visibili; un LED bruciato mostra una X;
 - il cursore sul grafico segue l'animazione; `Pausa` ferma tutto.
 
+## Convenzioni di disegno
+
+- un **pallino scuro** su un nodo indica una connessione;
+- quando due fili di reti diverse si incrociano, il filo verticale viene
+  **interrotto**: non c'e' collegamento;
+- un incrocio tra fili della **stessa rete** ha il pallino, perche' e' una
+  connessione.
+
+La stessa legenda compare sotto lo schema.
+
 ## Simboli
 
 | Tipo | Simbolo |

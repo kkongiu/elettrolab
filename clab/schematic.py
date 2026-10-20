@@ -25,6 +25,7 @@ class Path:
     def __init__(self, poly, key, pid, pin):
         self.poly = [(float(x), float(y)) for x, y in poly]
         self.key = key
+        self.net = key.split("|")[0]
         self.pid = pid
         self.pin = pin
         self.cum = [0.0]
@@ -58,9 +59,12 @@ class Schematic:
         self.rail = None
         self.buses = []
         self.junctions = []
+        self.cross = {}
+        self.gaps = []
         self.phase = {}
         if self.layout and self.layout.get("parts"):
             self._build_routes()
+            self._compute_crossings()
 
     def virtual(self, x, y):
         if self.s <= 0:
@@ -196,11 +200,103 @@ class Schematic:
             out.extend((X, Y))
         return out
 
-    def line(self, pts, color=INK, width=2.0, dash=None):
-        args = dict(fill=color, width=max(1.1, width * self.s), capstyle="round")
+    def line(self, pts, color=INK, width=2.0, dash=None, capstyle="round"):
+        args = dict(fill=color, width=max(1.1, width * self.s), capstyle=capstyle)
         if dash:
             args["dash"] = dash
         return self.c.create_line(*self.flat(pts), **args)
+
+    @staticmethod
+    def _orient(a, b):
+        if abs(a[1] - b[1]) < 1e-9:
+            return "H"
+        if abs(a[0] - b[0]) < 1e-9:
+            return "V"
+        return None
+
+    @staticmethod
+    def _interior(p, a, b):
+        if abs(a[1] - b[1]) < 1e-9:
+            return (abs(p[1] - a[1]) < 1e-9 and
+                    min(a[0], b[0]) < p[0] < max(a[0], b[0]))
+        if abs(a[0] - b[0]) < 1e-9:
+            return (abs(p[0] - a[0]) < 1e-9 and
+                    min(a[1], b[1]) < p[1] < max(a[1], b[1]))
+        return False
+
+    @staticmethod
+    def _cross_hv(h1, h2, v1, v2):
+        hy = h1[1]
+        vx = v1[0]
+        if (min(h1[0], h2[0]) < vx < max(h1[0], h2[0]) and
+                min(v1[1], v2[1]) < hy < max(v1[1], v2[1])):
+            return (vx, hy)
+        return None
+
+    def _compute_crossings(self):
+        segs = []
+        if self.rail:
+            x0, x1, y = self.rail
+            segs.append((self.doc.ground or "gnd", (x0, y), (x1, y), None, 0))
+        for name, x0, x1, y in self.buses:
+            segs.append((name, (x0, y), (x1, y), None, 0))
+        for p in self.paths:
+            for i, (a, b) in enumerate(zip(p.poly, p.poly[1:])):
+                segs.append((p.net, a, b, p, i))
+        dots = {tuple(j) for j in self.junctions}
+        self.cross = {}
+        self.gaps = []
+        for i in range(len(segs)):
+            n1, a1, b1, p1, i1 = segs[i]
+            o1 = self._orient(a1, b1)
+            if o1 is None:
+                continue
+            for j in range(i + 1, len(segs)):
+                n2, a2, b2, p2, i2 = segs[j]
+                o2 = self._orient(a2, b2)
+                if o2 is None:
+                    continue
+                if o1 != o2:
+                    h1, h2 = (a1, b1) if o1 == "H" else (a2, b2)
+                    v1, v2 = (a1, b1) if o1 == "V" else (a2, b2)
+                    pt = self._cross_hv(h1, h2, v1, v2)
+                    if pt:
+                        if n1 == n2:
+                            dots.add(pt)
+                        else:
+                            vp = p1 if o1 == "V" else p2
+                            vi = i1 if o1 == "V" else i2
+                            if vp is not None:
+                                self.cross.setdefault((vp.key, vi), []).append(pt)
+                                self.gaps.append((pt, h1, h2))
+                if n1 == n2:
+                    for p in (a1, b1):
+                        if self._interior(p, a2, b2):
+                            dots.add(p)
+                    for p in (a2, b2):
+                        if self._interior(p, a1, b1):
+                            dots.add(p)
+        self.junctions = sorted(dots)
+
+    def _draw_path(self, path):
+        for i, (a, b) in enumerate(zip(path.poly, path.poly[1:])):
+            splits = self.cross.get((path.key, i), [])
+            if not splits or abs(a[0] - b[0]) > 1e-9:
+                self.line([a, b], color=WIRE, width=1.9)
+                continue
+            x = a[0]
+            y0, y1 = sorted((a[1], b[1]))
+            cur = y0
+            for _, cy in sorted(splits, key=lambda p: p[1]):
+                top = max(y0, cy - 6)
+                bot = min(y1, cy + 6)
+                if top > cur:
+                    self.line([(x, cur), (x, top)], color=WIRE, width=1.9,
+                              capstyle="butt")
+                cur = max(cur, bot)
+            if cur < y1:
+                self.line([(x, cur), (x, y1)], color=WIRE, width=1.9,
+                          capstyle="butt")
 
     def text(self, x, y, txt, anchor="center", color=MUTED, size=9):
         return self.c.create_text(*self.T(x, y), text=txt, anchor=anchor,
@@ -258,11 +354,11 @@ class Schematic:
         for x0, x1, y in self.buses:
             self.line([(x0, y), (x1, y)], color=WIRE, width=2.0)
         for path in self.paths:
-            self.line(path.poly, color=WIRE, width=1.9)
+            self._draw_path(path)
         for x, y in self.junctions:
             X, Y = self.T(x, y)
-            r = 2.6 * self.s
-            c.create_oval(X - r, Y - r, X + r, Y + r, fill=WIRE, outline="")
+            r = 3.0 * self.s
+            c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
 
         for pid in self.layout["parts"]:
             if pid in self.doc.parts:
@@ -270,6 +366,12 @@ class Schematic:
 
         for path in self.paths:
             self._dots(path, t, dreal, playing)
+        for (x, y), h1, h2 in self.gaps:
+            a = self.T(x, y - 6)
+            b = self.T(x, y + 6)
+            c.create_line(a[0], a[1], b[0], b[1], fill=BG,
+                          width=max(2.8, 3.4 * self.s))
+            self.line([h1, h2], color=WIRE, width=1.9)
 
     def _label(self, pid):
         p = self.doc.part(pid)

@@ -196,6 +196,8 @@ class App:
         self.scv.bind("<B1-Motion>", self._on_motion)
         self.scv.bind("<ButtonRelease-1>", self._on_release)
         self.scv.bind("<Motion>", self._on_hover)
+        ttk.Label(main, text="\u25cf = connessione      linea interrotta = incrocio senza collegamento",
+                  style="Muted.TLabel").pack(anchor="e")
 
         self.nb = ttk.Notebook(main)
         self.nb.pack(fill="both", expand=True)

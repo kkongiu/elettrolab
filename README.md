@@ -91,6 +91,8 @@ grafico e dati sotto.
   eliminarlo o vedere i pin e la rete
 - **Codice**: la scheda mostra il JSON del circuito o del layout, con copia,
   modifica e "Applica"; è lo stesso linguaggio usato dagli LLM
+- nel disegno, un pallino scuro è una connessione; un filo interrotto è un
+  incrocio senza collegamento
 - **progetti**: "Nuovo", "Salva", "Salva copia"; gli esercizi integrati restano
   protetti, i progetti finiscono in `data/projects/`
 
