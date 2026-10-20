@@ -30,6 +30,20 @@ WARN = "#b45309"
 ACCENT = "#0a5bd3"
 AMBER = "#f59e0b"
 
+KIND_LABELS = {
+    "R": "Resistenze",
+    "V": "Alimentazioni",
+    "C": "Condensatori",
+    "L": "Induttori",
+    "LED": "LED",
+    "SW": "Interruttori",
+    "POT": "Potenziometri",
+    "RELAY": "Relè",
+    "RELAY2": "Relè",
+    "GND": "Massa",
+    "NPN": "Transistor",
+}
+
 
 class App:
     def __init__(self, root, start=None):
@@ -88,7 +102,8 @@ class App:
                         font=("DejaVu Sans", 14, "bold"))
         style.configure("Status.TLabel", background=CARD, foreground=MUTED,
                         font=("DejaVu Sans", 10, "bold"))
-        style.configure("Treeview", background=CARD, fieldbackground=CARD, rowheight=22)
+        style.configure("Treeview", background=CARD, fieldbackground=CARD, rowheight=22,
+                        foreground=TEXT)
         style.configure("Treeview.Heading", font=("DejaVu Sans", 9, "bold"))
         style.configure("TNotebook", background=BG, borderwidth=0)
         style.configure("TNotebook.Tab", padding=(10, 4))
@@ -128,16 +143,16 @@ class App:
         ttk.Button(row, text="Salva copia", command=self._save_as, width=10).pack(side="left")
 
         ttk.Label(left, text="Componenti", style="TLabel",
-                  font=("DejaVu Sans", 11, "bold")).pack(anchor="w")
+                  font=("DejaVu Sans", 11, "bold")).pack(anchor="w", pady=(0, 2))
         pal = ttk.Frame(left)
-        pal.pack(fill="x")
-        specs = sorted(self.db.types.values(), key=lambda s: (s.kind, s.name))
-        for i, spec in enumerate(specs):
-            b = ttk.Button(pal, text=spec.name, width=15,
-                           command=lambda t=spec.id: self._arm(t))
-            b.grid(row=i // 2, column=i % 2, sticky="ew", padx=1, pady=1)
-        pal.columnconfigure(0, weight=1)
-        pal.columnconfigure(1, weight=1)
+        pal.pack(fill="both", expand=True)
+        self.pal = ttk.Treeview(pal, show="tree", selectmode="browse", height=12)
+        self.pal.pack(side="left", fill="both", expand=True)
+        sb = ttk.Scrollbar(pal, orient="vertical", command=self.pal.yview)
+        sb.pack(side="right", fill="y")
+        self.pal.configure(yscrollcommand=sb.set)
+        self._fill_palette()
+        self.pal.bind("<<TreeviewSelect>>", self._on_palette_select)
         self.hint = ttk.Label(left, text="", style="TLabel", foreground=MUTED,
                               wraplength=220, justify="left")
         self.hint.pack(anchor="w", pady=(8, 0))
@@ -286,6 +301,24 @@ class App:
 
     def _hint(self, text):
         self.hint.configure(text=text)
+
+    def _fill_palette(self):
+        groups = {}
+        for spec in sorted(self.db.types.values(), key=lambda s: (s.kind, s.name)):
+            label = KIND_LABELS.get(spec.kind, spec.kind)
+            groups.setdefault(label, []).append(spec)
+        for label in sorted(groups):
+            gid = self.pal.insert("", "end", iid=f"k:{label}", text=label, open=True)
+            for spec in groups[label]:
+                self.pal.insert(gid, "end", iid=spec.id, text=spec.name)
+
+    def _on_palette_select(self, _event):
+        sel = self.pal.selection()
+        if not sel:
+            return
+        iid = sel[0]
+        if iid in self.db.types:
+            self._arm(iid)
 
     def _check_all(self):
         self.results = {}
