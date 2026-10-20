@@ -11,7 +11,7 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 7 esercizi e 5 test del motore
+- [x] 8 esercizi, 5 test del motore e 7 test unitari
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (prossima)
@@ -38,7 +38,7 @@ Specifica: `docs/MCP-SERVER.md`.
 
 Obiettivo: l'esperienza da laboratorio, senza perdere il testo come sorgente.
 
-Fatto (prototipo):
+Fatto:
 
 - [x] Visualizzatore schematico con simboli per R, C, L, V, LED, SW, pot, rele'
 - [x] Corrente animata con verso e velocita' per ramo
@@ -46,14 +46,22 @@ Fatto (prototipo):
 - [x] Grafico delle forme d'onda integrato con cursore temporale
 - [x] Pausa/ripresa, scelta del segnale, scheda dati
 - [x] Layout separato dal JSON del circuito
+- [x] Editor: palette, posizionamento, trascinamento, rotazione, cancellazione
+- [x] Collegamento pin-to-pin con merge delle reti e instradamento automatico
+- [x] Pannello proprieta' con validazione e simulazione live
+- [x] Undo/redo, scorciatoie, problemi del circuito
+- [x] Pannello Codice con vista circuito/layout, modifica e applicazione
+- [x] Progetti in `data/projects/` con file di layout affiancato
+- [x] Simbolo di massa e rele' a due poli con pin opzionali
 
 Da fare:
 
-- [ ] Editor schematico con snap e trascinamento
-- [ ] Pannello componenti alimentato dal catalogo
-- [ ] Slider collegati ai parametri (tensione, potenziometro)
+- [ ] Slider collegati ai parametri (tensione, potenziometro) senza Applica
+- [ ] Trascinamento dei punti di piega dei fili
+- [ ] Rinomina delle reti dall'interfaccia
+- [ ] Creazione di un nuovo tipo di componente dall'editor
+- [ ] "Fissa i valori attuali come attesi" per generare `expect`
 - [ ] Vista breadboard 2D con occupazione dei fori
-- [ ] Salvataggio del layout dall'editor
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.

@@ -28,6 +28,7 @@ indicizza per `id`.
 | `limits` | no | soglie per le violazioni |
 | `learn` | no | nota didattica mostrata da `show` |
 | `numeric` | no | forza quali parametri sono numerici |
+| `optional` | no | pin che possono restare scollegati |
 
 I parametri di istanza nel circuito sovrascrivono i default:
 
@@ -46,7 +47,9 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `C` | condensatori | `+`, `-` | `c` | `vmax` |
 | `L` | induttori | `1`, `2` | `l` | `imax` |
 | `POT` | potenziometri | `1`, `2`, `W` | `rtotal`, `pos`, `mode` | - |
-| `RELAY` | rele' | `COIL+`, `COIL-`, `COM`, `NC`, `NO` | `rcoil`, `vpull`, `vdrop`, `ron`, `roff`, `td` | - |
+| `RELAY` | rele' a un polo | `COIL+`, `COIL-`, `COM`, `NC`, `NO` | `rcoil`, `vpull`, `vdrop`, `ron`, `roff`, `td` | - |
+| `RELAY2` | rele' a due poli | `COIL+`, `COIL-`, `COM1`, `NC1`, `NO1`, `COM2`, `NC2`, `NO2` | come `RELAY` | - |
+| `GND` | simbolo di massa | `1` | - | - |
 
 Un `kind` non presente in questa tabella produce l'errore `unsupported`. I
 componenti non primitivi saranno delegati a ngspice in una fase successiva
@@ -105,6 +108,19 @@ componenti non primitivi saranno delegati a ngspice in una fase successiva
 - `ron`, `roff`: resistenze dei contatti.
 - `td`: tempo minimo di permanenza dello stato, in secondi (default 0.01).
 - Il contatto `COM-NC` e' chiuso a rele' a riposo, `COM-NO` quando eccitato.
+- `td` e' anche il tempo minimo di permanenza dello stato nel transitorio.
+
+### RELAY2
+
+Due deviatori indipendenti mossi dalla stessa bobina. I contatti sono
+`COM1/NC1/NO1` e `COM2/NC2/NO2`; i contatti `NO1` e `NO2` sono dichiarati
+opzionali nel catalogo, quindi un polo puo' restare inutilizzato. Il parametro
+`td` permette di rendere visibile la fase a riposo nei dimostratori didattici.
+
+### GND
+
+Un solo pin, che deve appartenere alla rete `gnd`. Non ha effetto elettrico: e'
+il simbolo con cui l'editor collega una massa. Il motore lo ignora.
 
 ## Unita' e valori
 

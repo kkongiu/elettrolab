@@ -13,6 +13,7 @@ Nessuna dipendenza di sistema oltre a Python.
 ```bash
 git clone https://github.com/kkongiu/elettrolab.git
 cd elettrolab
+./lab test
 ./lab selftest
 ./lab check
 ```
@@ -22,9 +23,9 @@ Il launcher usa `python3 -m clab` dalla radice del progetto.
 ## Prima di proporre una modifica
 
 ```bash
+./lab test
 ./lab selftest
 ./lab check
-./lab db
 ```
 
 Tutti gli esercizi devono restare verdi. Se un controllo cambia per una scelta
@@ -45,7 +46,7 @@ voluta, aggiornare sia il circuito sia la documentazione.
 1. Creare `data/components/<id>.json` seguendo `docs/COMPONENTS.md`.
 2. Se serve un nuovo `kind`, aggiungere la stampa MNA in `clab/solver.py` e il
    calcolo delle correnti in `_extract`.
-3. Aggiungere un test in `cmd_selftest` o in un nuovo test.
+3. Aggiungere un test in `tests/` (o in `cmd_selftest` per il motore).
 4. Aggiornare `docs/COMPONENTS.md`.
 
 Un componente che non e' un primitivo va nella roadmap come fallback ngspice,
@@ -58,8 +59,12 @@ non implementato a mano nel solver.
 3. Simulare e leggere i valori con `./lab run <id>`.
 4. Scrivere `expect` con tolleranze sensate.
 5. Eseguire `./lab check`.
-6. Aggiungere un layout in `clab/layouts.py` e provarlo con `./lab gui <id>`.
+6. Aprire `./lab gui <id>` e sistemare la disposizione; per gli esercizi
+   integrati il layout va in `clab/layouts.py`.
 7. Aggiornare la tabella in `docs/EXERCISES.md` e nel README.
+
+I progetti utente usano due file: `<nome>.json` (circuito) e
+`<nome>.layout.json` (geometria). Il primo deve restare privo di coordinate.
 
 ## Documentazione
 

@@ -199,6 +199,13 @@ def cmd_menu(args):
             return 0
 
 
+def cmd_test(args):
+    import unittest
+    suite = unittest.TestLoader().discover(str(ROOT / "tests"))
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    return 0 if result.wasSuccessful() else 1
+
+
 def cmd_selftest(args):
     tests = [
         ("partitore 1k/1k", _test_divider),
@@ -319,6 +326,9 @@ def main(argv=None):
 
     s = sub.add_parser("selftest", help="verifica il motore di simulazione")
     s.set_defaults(fn=cmd_selftest)
+
+    s = sub.add_parser("test", help="esegue i test unitari del progetto")
+    s.set_defaults(fn=cmd_test)
 
     args = p.parse_args(argv)
     return args.fn(args) or 0

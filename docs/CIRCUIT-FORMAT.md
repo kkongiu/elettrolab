@@ -51,6 +51,27 @@ riusare gli stessi nomi, altrimenti i riferimenti nelle reti si rompono.
   Deve esistere, altrimenti il caricamento fallisce con `no_ground`.
 - Una rete con un solo pin e' un nodo flottante: il motore avvisa.
 
+## Pin opzionali e massa
+
+Alcuni pin possono restare scollegati se il catalogo li dichiara `optional`,
+per esempio i contatti non usati di un rele' a due poli. Il simbolo `GND` ha un
+solo pin, che appartiene sempre alla rete `gnd`: non ha effetto elettrico ed è
+il modo in cui l'editor collega una massa.
+
+## Layout affiancato
+
+La disposizione grafica non sta in questo JSON. Per i progetti l'editor scrive
+un file affiancato:
+
+```
+data/projects/mio_circuito.json
+data/projects/mio_circuito.layout.json
+```
+
+Il file di layout contiene `parts` (posizione e rotazione), `gnd_y` e, se
+servono, `routes` con percorsi espliciti. Un LLM può ignorarlo: il circuito è
+completo senza geometria. Specifica in `docs/GUI.md`.
+
 ## Nomi dei segnali
 
 - Tensione di una rete: `V(nome_rete)`, per esempio `V(m)`.

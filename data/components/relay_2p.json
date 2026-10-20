@@ -1,0 +1,9 @@
+{
+  "id": "relay_2p",
+  "kind": "RELAY2",
+  "name": "Relè DPDT (2 poli)",
+  "pins": ["COIL+", "COIL-", "COM1", "NC1", "NO1", "COM2", "NC2", "NO2"],
+  "params": {"rcoil": 400, "vpull": 6, "vdrop": 3, "ron": 0.05, "roff": 1000000000.0, "td": 0.01},
+  "optional": ["NO1", "NO2"],
+  "learn": "Due deviatori indipendenti mossi dalla stessa bobina: un polo puo' pilotare il circuito, l'altro due LED alternati."
+}

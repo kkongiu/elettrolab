@@ -11,6 +11,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp04` | Variare la tensione | DC | `I(D1) = 0.906 mA` a `pos = 0.5` | partitore resistivo, dimming |
 | `exp06` | Accendere e spegnere | DC | `I(D1) = 15 mA` chiuso, `0` aperto | interruttore in serie |
 | `exp08` | Oscillatore a rele' | Transitorio | `V(nc)` fra 2.98 e 9.0 V, periodo ~0.46 s | retroazione, isteresi, condensatore |
+| `exp08b` | Rele' con due LED alternati | Transitorio | 10.4 mA sul rosso, 10.0 mA sul verde | due poli, LED che si scambiano |
 | `exp09` | Tempo e condensatori | Transitorio | `V(m) = 5.68 V` a 10 s | costante di tempo `tau = R*C` |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
@@ -78,6 +79,26 @@ permanenza `td` del rele'.
 
 In DC questo circuito non ha punto di riposo: il motore lo segnala e suggerisce
 il transitorio.
+
+### exp08b - Rele' con due LED alternati
+
+Variante a due poli: il polo 1 fa oscillare la bobina con il condensatore, il
+polo 2 accende alternativamente i due LED. `NC2` alimenta il LED rosso tramite
+680 ohm, `NO1` alimenta il verde tramite altri 680 ohm.
+
+Con `td = 0.2 s` la fase a riposo dura 0.2 s, quella eccitata circa 0.44 s:
+
+- `I(D1)` (rosso) e' circa 10.43 mA quando `NC2` e' chiuso;
+- `I(D2)` (verde) e' circa 10.0 mA quando `NO1` e' chiuso;
+- i due LED non sono mai accesi insieme.
+
+```bash
+./lab run exp08b --plot "I(D1)"
+./lab gui exp08b
+```
+
+Nell'editor si vedono i due bracci del rele' muoversi e i due LED scambiarsi.
+Il contatto `NO2` resta scollegato ed e' marcato opzionale.
 
 ### exp09 - Tempo e condensatori
 

@@ -1,0 +1,8 @@
+{
+  "id": "ground",
+  "kind": "GND",
+  "name": "Massa",
+  "pins": ["1"],
+  "params": {},
+  "learn": "Riferimento a 0 V. Il pin appartiene sempre alla rete gnd."
+}

@@ -46,10 +46,10 @@ class Path:
 
 
 class Schematic:
-    def __init__(self, canvas, circ, layout, res):
+    def __init__(self, canvas, doc, res=None):
         self.c = canvas
-        self.circ = circ
-        self.layout = layout
+        self.doc = doc
+        self.layout = doc.layout
         self.res = res
         self.s = 1.0
         self.ox = 0.0
@@ -59,8 +59,55 @@ class Schematic:
         self.buses = []
         self.junctions = []
         self.phase = {}
-        if layout and layout.get("parts"):
+        if self.layout and self.layout.get("parts"):
             self._build_routes()
+
+    def virtual(self, x, y):
+        if self.s <= 0:
+            return (x, y)
+        return ((x - self.ox) / self.s, (y - self.oy) / self.s)
+
+    def pin_position(self, pid, pin):
+        return self._pin(pid, pin)
+
+    def pin_at(self, vx, vy, radius=13):
+        best = None
+        best_d = radius
+        for pid in self.layout.get("parts", {}):
+            if pid not in self.doc.parts:
+                continue
+            for pin in self.doc.pins(pid):
+                px, py = self._pin(pid, pin)
+                d = math.hypot(px - vx, py - vy)
+                if d < best_d:
+                    best, best_d = (pid, pin), d
+        return best
+
+    def part_bbox(self, pid):
+        x, y, rot = self.layout["parts"].get(pid, (0, 0, 0))
+        kind = self.doc.kind(pid)
+        if kind == "RELAY2":
+            return (x - 110, y - 92, x + 112, y + 92)
+        if kind == "RELAY":
+            return (x - 90, y - 62, x + 92, y + 62)
+        if kind == "POT":
+            return (x - 55, y - 58, x + 55, y + 22)
+        if kind == "GND":
+            return (x - 30, y - 32, x + 32, y + 22)
+        if rot in (90, 270):
+            w, h = 36, 58
+        else:
+            w, h = 58, 36
+        return (x - w, y - h, x + w, y + h)
+
+    def part_at(self, vx, vy):
+        for pid in reversed(list(self.layout.get("parts", {}))):
+            if pid not in self.doc.parts:
+                continue
+            x0, y0, x1, y1 = self.part_bbox(pid)
+            if x0 <= vx <= x1 and y0 <= vy <= y1:
+                return pid
+        return None
 
     def _loc(self, x, y, rot, u, v):
         if rot == 90:
@@ -73,8 +120,18 @@ class Schematic:
 
     def _pin(self, pid, pin):
         x, y, rot = self.layout["parts"][pid]
-        p = self.circ.part(pid)
+        p = self.doc.part(pid)
+        if p is None:
+            return (x, y)
         pins = p.spec.pins
+        if p.kind == "GND":
+            return (x, y - 24)
+        if p.kind == "RELAY2":
+            offs = {"COIL+": (-70, -80), "COIL-": (-70, 80),
+                    "COM1": (-30, -80), "NC1": (20, -80), "NO1": (100, -40),
+                    "COM2": (-30, 80), "NC2": (20, 80), "NO2": (100, 40)}
+            dx, dy = offs[pin]
+            return (x + dx, y + dy)
         if p.kind == "POT":
             if pin == pins[0]:
                 return self._loc(x, y, rot, -45, 0)
@@ -91,17 +148,17 @@ class Schematic:
 
     def _refs(self, net):
         out = []
-        for ref in self.circ.nets[net]:
+        for ref in self.doc.nets[net]:
             pid, pin = ref.rsplit(".", 1)
             out.append((pid, pin))
         return out
 
     def _build_routes(self):
         routes = self.layout.get("routes", {})
-        for net in self.circ.nets:
+        for net in self.doc.nets:
             refs = self._refs(net)
             pts = [self._pin(pid, pin) for pid, pin in refs]
-            if net == self.circ.ground:
+            if net == self.doc.ground:
                 ys = self.layout.get("gnd_y", 340)
                 xs = [p[0] for p in pts]
                 self.rail = (min(xs) - 20, max(xs) + 20, ys)
@@ -150,6 +207,8 @@ class Schematic:
                                   fill=color, font=(FONT, size))
 
     def _cur(self, pid, t):
+        if self.res is None:
+            return 0.0
         if self.res.time is None or t is None:
             return float(self.res.currents.get(pid, 0.0))
         key = f"I({pid})"
@@ -158,10 +217,12 @@ class Schematic:
         return float(np.interp(t, self.res.time, self.res.waves[key]))
 
     def _volt(self, pid, pin, t):
-        net = self.circ.net_of(pid, pin)
+        if self.res is None:
+            return 0.0
+        net = self.doc.net_of(pid, pin)
         if net is None:
             return 0.0
-        if net == self.circ.ground:
+        if net == self.doc.ground:
             return 0.0
         if self.res.time is None or t is None:
             return float(self.res.nodes.get(net, 0.0))
@@ -169,7 +230,9 @@ class Schematic:
         return float(np.interp(t, self.res.time, self.res.waves[key]))
 
     def _out(self, pid, pin, i):
-        p = self.circ.part(pid)
+        p = self.doc.part(pid)
+        if p is None:
+            return i
         first = p.spec.pins[0]
         if p.kind == "V":
             return i if pin == first else -i
@@ -178,8 +241,8 @@ class Schematic:
     def draw(self, t=None, dreal=0.0, playing=True):
         c = self.c
         c.delete("all")
-        if not self.paths and not self.layout:
-            self.text(450, 200, "Schema non disponibile per questo circuito", size=11)
+        if not self.layout or not self.layout.get("parts"):
+            self.text(450, 200, "Nessun componente: aggiungine uno dalla palette", size=11)
             return
         w = c.winfo_width()
         h = c.winfo_height()
@@ -202,14 +265,16 @@ class Schematic:
             c.create_oval(X - r, Y - r, X + r, Y + r, fill=WIRE, outline="")
 
         for pid in self.layout["parts"]:
-            if pid in self.circ.parts:
+            if pid in self.doc.parts:
                 self._draw_part(pid, t)
 
         for path in self.paths:
             self._dots(path, t, dreal, playing)
 
     def _label(self, pid):
-        p = self.circ.part(pid)
+        p = self.doc.part(pid)
+        if p is None:
+            return pid
         k = p.kind
         if k == "R":
             return f"{pid}  {fmt(p.num('r'), '\u03a9')}"
@@ -221,22 +286,28 @@ class Schematic:
             return f"{pid}  {'chiuso' if p.get('closed', True) else 'aperto'}"
         if k == "C":
             c = p.num("c")
-            if c < 1e-3:
-                return f"{pid}  {fmt(c * 1e6, '\u00b5F')}"
-            return f"{pid}  {fmt(c, 'F')}"
+            if c <= 1e-3:
+                return f"{pid}  {c * 1e6:g} \u00b5F"
+            if c < 1:
+                return f"{pid}  {c * 1e3:g} mF"
+            return f"{pid}  {c:g} F"
         if k == "L":
             return f"{pid}  {fmt(p.num('l'), 'H')}"
         if k == "POT":
             return f"{pid}  {fmt(p.num('rtotal'), '\u03a9')}"
+        if k == "GND":
+            return "GND"
         return pid
 
     def _draw_part(self, pid, t):
-        p = self.circ.part(pid)
+        p = self.doc.part(pid)
+        if p is None:
+            return
         x, y, rot = self.layout["parts"][pid]
         kind = p.kind
         if kind == "LED":
-            burned = any(v.get("part") == pid and v["code"] == "burned"
-                         for v in self.res.violations)
+            viol = self.res.violations if self.res is not None else []
+            burned = any(v.get("part") == pid and v["code"] == "burned" for v in viol)
             if burned:
                 self._burn(x, y)
             else:
@@ -257,9 +328,18 @@ class Schematic:
             self._pot(x, y, rot)
         elif kind == "RELAY":
             self._relay(pid, x, y, t)
+        elif kind == "RELAY2":
+            self._relay(pid, x, y, t)
+        elif kind == "GND":
+            self._ground(x, y)
 
         i = self._cur(pid, t)
-        if kind == "RELAY":
+        if kind == "GND":
+            self.text(x + 16, y + 2, "GND", anchor="w", size=8, color=MUTED)
+        elif kind == "RELAY2":
+            self.text(x, y + 100, f"{self._label(pid)}   I = {fmt(i, 'A')}",
+                      size=9, color=INK)
+        elif kind == "RELAY":
             self.text(x, y + 64, f"{self._label(pid)}   I = {fmt(i, 'A')}",
                       size=9, color=INK)
         elif kind == "POT":
@@ -336,8 +416,10 @@ class Schematic:
         self.text(*self._loc(x, y, rot, 34, -16), "\u2212", size=10, color=INK)
 
     def _sw_closed(self, pid, t):
-        p = self.circ.part(pid)
-        if self.res.time is None or t is None:
+        p = self.doc.part(pid)
+        if p is None:
+            return False
+        if self.res is None or self.res.time is None or t is None:
             return bool(p.get("closed", True))
         closed = bool(p.get("closed", True))
         if "t_close" in p.params and t >= p.num("t_close"):
@@ -376,10 +458,12 @@ class Schematic:
 
     def _led_glow(self, pid, x, y, t):
         i = abs(self._cur(pid, t))
-        p = self.circ.part(pid)
+        p = self.doc.part(pid)
+        if p is None:
+            return
         imax = float(p.get("imax", 0.03))
-        burned = any(v.get("part") == pid and v["code"] == "burned"
-                     for v in self.res.violations)
+        viol = self.res.violations if self.res is not None else []
+        burned = any(v.get("part") == pid and v["code"] == "burned" for v in viol)
         if burned:
             return
         if i < 1e-6:
@@ -404,11 +488,20 @@ class Schematic:
                self._loc(x, y, rot, 0, -9)]
         self.c.create_polygon(*self.flat(tri), outline=INK, fill=INK)
 
+    def _ground(self, x, y):
+        self.line([(x, y - 24), (x, y)], width=2.0)
+        for w, dy in ((18, 0), (12, 5), (6, 10)):
+            self.line([(x - w, y + dy), (x + w, y + dy)], width=2.0)
+
     def _relay(self, pid, x, y, t):
-        p = self.circ.part(pid)
-        it = self._cur(pid, t)
+        p = self.doc.part(pid)
+        if p is None:
+            return
         vc = self._volt(pid, "COIL+", t) - self._volt(pid, "COIL-", t)
         on = vc > float(p.get("vpull", 6))
+        if p.kind == "RELAY2":
+            self._relay2(x, y, on)
+            return
         box = [(x - 80, y - 50), (x + 80, y + 50)]
         self.c.create_rectangle(*self.flat([box[0], box[1]]), outline=INK, fill="",
                                 width=max(1.1, 1.8 * self.s))
@@ -433,6 +526,37 @@ class Schematic:
         self.c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
         arm = (x + 55, y - 50) if not on else (x + 78, y)
         self.line([(x + 10, y - 18), arm], width=2.0)
+
+    def _relay2(self, x, y, on):
+        self.c.create_rectangle(*self.flat([(x - 100, y - 80), (x + 100, y + 80)]),
+                                outline=INK, fill="", width=max(1.1, 1.8 * self.s))
+        self.c.create_rectangle(*self.flat([(x - 90, y - 30), (x - 50, y + 30)]),
+                                outline=INK, fill="", width=max(1.0, 1.4 * self.s))
+        for k in range(1, 5):
+            yy = y - 30 + k * 12
+            self.line([(x - 86, yy), (x - 54, yy)], width=0.9)
+        X, Y = self.T(x - 70, y)
+        self.c.create_text(X, Y, text="COIL", angle=90, fill=MUTED,
+                           font=(FONT, 7))
+        for px, py in ((x - 30, y - 80), (x + 20, y - 80), (x + 100, y - 40),
+                       (x - 30, y + 80), (x + 20, y + 80), (x + 100, y + 40)):
+            X, Y = self.T(px, py)
+            r = 2.6 * self.s
+            self.c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
+        self.text(x - 26, y - 68, "COM1", anchor="w", size=6)
+        self.text(x + 12, y - 68, "NC1", anchor="w", size=6)
+        self.text(x + 88, y - 44, "NO1", anchor="e", size=6)
+        self.text(x - 26, y + 62, "COM2", anchor="w", size=6)
+        self.text(x + 12, y + 62, "NC2", anchor="w", size=6)
+        self.text(x + 88, y + 36, "NO2", anchor="e", size=6)
+        for py, pivot, nc, no in ((y - 80, y - 24, (x + 20, y - 80), (x + 100, y - 40)),
+                                  (y + 80, y + 24, (x + 20, y + 80), (x + 100, y + 40))):
+            self.line([(x - 30, py), (x - 30, pivot)], width=1.1)
+            X, Y = self.T(x - 30, pivot)
+            r = 2.2 * self.s
+            self.c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
+            arm = nc if not on else no
+            self.line([(x - 30, pivot), arm], width=2.0)
 
     def _burn(self, x, y):
         X, Y = self.T(x, y)

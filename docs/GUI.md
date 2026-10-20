@@ -1,55 +1,121 @@
-# Interfaccia grafica
+# Interfaccia grafica ed editor
 
-![Laboratorio grafico](gui.png)
+![Editor grafico](gui-editor.png)
 
 ## Avvio
 
 ```bash
 ./lab gui              # apre il primo esercizio
-./lab gui exp08        # apre un esercizio specifico
+./lab gui exp08b       # apre un esercizio specifico
 ```
 
 Richiede Tkinter (incluso in Python su Linux) e Matplotlib. Il motore e la CLI
 non ne hanno bisogno.
 
-## Cosa si vede
+## Struttura della finestra
 
-- **Sinistra**: elenco degli esercizi con `PASS`/`FAIL`; il pulsante "Riesegui
-  i controlli" ricalcola tutti gli esiti.
-- **Intestazione**: titolo, note, stato del test e violazioni in rosso.
-- **Schema**: il circuito disegnato, con corrente animata e LED accesi.
-- **Sotto**: scheda "Grafico" con la forma d'onda selezionata e cursore
-  temporale; scheda "Dati" con minimo, massimo e valore finale di ogni segnale,
-  oppure correnti, tensioni e potenze in DC.
+- **Sinistra**: esercizi con `PASS`/`FAIL`, progetti utente, pulsanti
+  `Nuovo`/`Salva`/`Salva copia`, palette dei componenti.
+- **Centro**: schema del circuito. Sopra ci sono modalità, undo/redo, stato,
+  segnale, orologio e pausa.
+- **Destra**: proprietà del componente selezionato e problemi del circuito.
+- **Sotto**: schede `Codice`, `Grafico`, `Dati`.
 
-Controlli:
+## Modalità
 
-| Controllo | Effetto |
+| Modalità | Come si usa |
 |---|---|
-| `Pausa` / `Riprendi` | ferma o riavvia l'animazione e il cursore |
-| `Segnale` | sceglie la forma d'onda da graficare |
-| `Grafico` / `Dati` | cambia la scheda inferiore |
-| `Riesegui i controlli` | ripete la verifica di tutti gli esercizi |
+| `Seleziona` | clicca un componente per selezionarlo, trascinalo per spostarlo |
+| `Filo` | clicca il primo pin, poi il secondo; la rete viene creata o unita |
+| palette | clicca un componente, poi clicca sulla tela per posizionarlo |
+
+Tasti:
+
+| Tasto | Azione |
+|---|---|
+| `R` | ruota il componente selezionato di 90 gradi |
+| `Canc` | elimina il componente selezionato |
+| `Esc` | annulla filo, posizionamento o selezione |
+| `Ctrl+Z` / `Ctrl+Y` | undo / redo |
+| `Ctrl+S` | salva |
+| `Ctrl+N` | nuovo circuito |
+
+La griglia di posizionamento e' da 10 px. I fili sono instradati
+automaticamente: rotaia di massa in basso, percorsi a L per le reti a due pin,
+bus per le reti con piu' pin. I layout possono dichiarare percorsi espliciti.
+
+## Componenti
+
+La palette e' generata dal catalogo `data/components/`: aggiungere un file JSON
+aggiunge un pulsante. Sono disponibili resistenze, condensatori, induttori,
+batterie, LED rossi e verdi, interruttori, potenziometri, rele' a un polo, rele'
+a due poli e il simbolo di massa.
+
+La **massa** e' un componente con un pin: quando lo posizioni, il pin entra
+nella rete `gnd`. Collegando qualunque altro pin al simbolo di massa, l'intera
+rete viene unita a `gnd`.
+
+Il **rele' a due poli** (`relay_2p`) ha due deviatori indipendenti mossi dalla
+stessa bobina. I contatti `NO1` e `NO2` sono opzionali: un polo puo' restare
+inutilizzato senza generare errori.
+
+## Proprietà
+
+Selezionando un componente compaiono:
+
+- identificatore e tipo;
+- i parametri del catalogo, modificabili (valori con suffissi SI come `4.7k`);
+- `Applica`, `Ruota`, `Elimina`;
+- l'elenco dei pin con la rete a cui sono collegati.
+
+I valori numerici vengono validati prima dell'applicazione. Dopo ogni modifica
+la simulazione viene ricalcolata e lo schema aggiornato.
+
+## Pannello Codice
+
+La scheda `Codice` mostra il linguaggio che genera il circuito.
+
+- `Circuito`: il JSON semantico, lo stesso che userebbe un LLM.
+- `Layout`: il JSON della disposizione (posizioni, rotazioni, percorsi).
+- `Copia`: copia negli appunti.
+- `Modifica` / `Applica`: abilita la modifica del testo, valida il JSON e
+  ricostruisce il documento.
+
+Quando si applica il circuito, i componenti già presenti mantengono la loro
+posizione; quelli nuovi vengono posizionati automaticamente. I componenti
+rimossi spariscono anche dal layout. Se il JSON non è valido, il testo resta
+aperto e il motivo compare nel messaggio in basso a sinistra.
+
+## Progetti
+
+- `Nuovo`: documento vuoto.
+- `Salva`: salva il progetto corrente.
+- `Salva copia`: chiede un nome e scrive in `data/projects/`.
+- Selezionare un progetto dalla lista lo apre.
+
+Ogni progetto ha due file:
+
+```
+data/projects/mio_circuito.json
+data/projects/mio_circuito.layout.json
+```
+
+Il primo è il circuito, il secondo è solo geometria. Gli esercizi integrati
+sono protetti: per modificarli bisogna salvarne una copia. Se ci sono modifiche
+non salvate, il passaggio a un altro esercizio o progetto chiede conferma.
 
 ## Animazione
 
-Il tempo del transitorio scorre in loop: la durata reale e' compresa fra 3 e 8
-secondi, indipendentemente dalla durata simulata. Per esempio `exp09` (30 s)
-scorre in 8 s, `lrc` (1.2 s) in 3 s.
+Il tempo del transitorio scorre in loop: la durata reale è compresa fra 3 e 8
+secondi. Ogni componente ha una corrente interpolata all'istante corrente:
 
-Ogni componente ha una corrente interpolata all'istante corrente. I puntini
-arancioni lungo i fili:
-
-- si muovono con velocita' proporzionale a `|I|`, con un minimo e un massimo;
-- cambiano verso con il segno della corrente;
-- per le sorgenti di tensione il verso e' invertito, perche' la corrente
-  convenzionale esce dal terminale positivo e all'interno torna indietro.
-
-I LED si accendono con una scala logaritmica fra 1 uA e `imax`: correnti molto
-piccole restano visibili, correnti vicine al massimo saturano. Il guasto
-`burned` sostituisce l'alone con una X scura.
-
-![Oscillatore a rele'](gui-relay.png)
+- i puntini arancioni lungo i fili si muovono con velocità proporzionale a
+  `|I|` e cambiano verso con il segno;
+- per le sorgenti di tensione il verso è invertito, perché la corrente
+  convenzionale esce dal positivo;
+- i LED usano una scala logaritmica fra 1 uA e `imax`, così anche correnti
+  piccole restano visibili; un LED bruciato mostra una X;
+- il cursore sul grafico segue l'animazione; `Pausa` ferma tutto.
 
 ## Simboli
 
@@ -60,83 +126,56 @@ piccole restano visibili, correnti vicine al massimo saturano. Il guasto
 | L | quattro semicerchi |
 | V | pila a piastre alternate, `+` e `-` |
 | LED | triangolo con barra e alone luminoso |
-| SW | lama aperta o chiusa secondo lo stato e `t_close`/`t_open` |
+| SW | lama aperta o chiusa |
 | POT | rettangolo con freccia del cursore |
-| RELAY | scatola con bobina, contatti COM/NC/NO e braccio mobile |
-
-I valori accanto ai simboli mostrano nome, valore e corrente istantanea.
+| RELAY | scatola con bobina, COM/NC/NO e braccio mobile |
+| RELAY2 | scatola con bobina e due bracci, COM/NC/NO per polo |
+| GND | tre linee decrescenti |
 
 ## Layout
 
-La geometria non sta nel JSON del circuito. `clab/layouts.py` associa a ogni
-esercizio le posizioni:
+Per gli esercizi integrati i layout stanno in `clab/layouts.py`; per i progetti
+nel file `.layout.json` affiancato. Formato:
 
-```python
-"exp03": {
-    "gnd_y": 330,
-    "parts": {
-        "V1": (110, 230, 90),
-        "R1": (330, 120, 0),
-        "D1": (620, 210, 90),
-    },
-},
+```json
+{
+  "version": 1,
+  "gnd_y": 330,
+  "parts": {
+    "V1": [110, 230, 90],
+    "R1": [330, 120, 0],
+    "D1": [620, 210, 90]
+  },
+  "routes": {
+    "nc": [
+      [[490, 180], [490, 150], [380, 150], [380, 180]]
+    ]
+  }
+}
 ```
 
 - coordinate virtuali su una tela `900 x 420`, scalata alla finestra;
-- `(x, y, rot)` con `rot` in `{0, 90, 180, 270}` per i componenti a due pin;
+- `(x, y, rot)`; `rot` in `{0, 90, 180, 270}` per i componenti a due pin;
 - `rot = 0`: pin 1 a sinistra, pin 2 a destra;
 - `rot = 90`: pin 1 in alto, pin 2 in basso;
-- `gnd_y`: quota della rotaia di massa.
+- `gnd_y`: quota della rotaia di massa;
+- `routes`: polilinee esplicite, usate quando l'instradamento automatico non
+  basta.
 
-Pin speciali:
-
-- potenziometro: `1` a sinistra, `2` a destra, `W` in alto;
-- rele': `COIL+` e `COIL-` a sinistra, `COM` e `NC` in alto, `NO` a destra,
-  con offset fissi rispetto al centro.
-
-### Instradamento
-
-1. La massa diventa una rotaia orizzontale a `gnd_y`, con una discesa da ogni
-   pin e un puntino di giunzione.
-2. Una rete a due pin usa un percorso ortogonale a L.
-3. Una rete a tre o piu' pin usa un bus orizzontale alla quota media.
-
-Quando il routing automatico non basta, il layout puo' dichiarare percorsi
-espliciti:
-
-```python
-"routes": {
-    "nc": [
-        [(490, 180), (490, 150), (380, 150), (380, 180)],
-        [(490, 180), (490, 160), (620, 160), (620, 195)],
-    ],
-},
-```
-
-Ogni lista e' una polilinea in coordinate virtuali. Serve per i casi con
-contatti, diodi o incroci, come l'oscillatore a rele'.
-
-### Aggiungere un layout
-
-1. Simulare il circuito e leggere le reti con `./lab show <id>`.
-2. Scegliere le posizioni su una griglia mentale `900 x 420`, lasciando spazio
-   per le etichette a destra dei componenti verticali.
-3. Aggiungere la voce in `clab/layouts.py`.
-4. Aprire `./lab gui <id>` e correggere i fili con `routes` se serve.
-
-Senza layout la GUI mostra un avviso: il circuito resta valido e simulabile da
-CLI.
+Pin speciali: potenziometro `1` a sinistra, `2` a destra, `W` in alto; rele' a
+due poli con bobina a sinistra, polo 1 in alto, polo 2 in basso e `NO` sul lato
+destro.
 
 ## Limiti
 
-- E' un visualizzatore, non un editor: non si trascinano componenti.
-- Niente zoom ne' pan; il disegno si adatta alla finestra.
-- Il disegno viene ricreato a ogni frame: adatto a circuiti didattici, non a
-  netlist grandi.
-- Le sorgenti sono ideali: nell'oscillatore a rele' la ricarica del
-  condensatore produce picchi di corrente molto brevi, visibili come spike.
-- Il braccio del rele' segue la tensione di bobina con la sola isteresi
-  `vpull`/`vdrop`; non c'e' rimbalzo meccanico.
-- I layout coprono gli esercizi inclusi; per gli altri serve aggiungerne uno.
+- La tela non ha zoom né pan.
+- Il disegno viene ricreato a ogni frame: adatto a circuiti didattici.
+- I fili sono instradati automaticamente; non si trascinano i punti di piega.
+- Il braccio del relè segue la tensione di bobina con isteresi; non c'è rimbalzo
+  meccanico.
+- Le sorgenti sono ideali: nell'oscillatore la ricarica del condensatore produce
+  picchi di corrente molto brevi.
+- Il pannello Codice applica il JSON in un colpo solo; non c'è merging con le
+  modifiche fatte nel frattempo sulla tela.
 
 ![LED bruciato](gui-burn.png)

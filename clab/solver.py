@@ -157,14 +157,25 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on):
             _stamp_g(A, r1, w, 1.0 / max(rt * pos, 1e-6))
             if p.get("mode", "divider") != "rheostat" and circ.connected(pid, "2"):
                 _stamp_g(A, w, r2, 1.0 / max(rt * (1.0 - pos), 1e-6))
-        elif kind == "RELAY":
+        elif kind in ("RELAY", "RELAY2"):
             cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
-            com, nc, no = circ.node(pid, "COM"), circ.node(pid, "NC"), circ.node(pid, "NO")
             _stamp_g(A, cp, cm, 1.0 / max(p.num("rcoil"), 1e-6))
             ron, roff = p.num("ron"), p.num("roff")
             on = bool(relay_on.get(pid))
-            _stamp_g(A, com, nc, 1.0 / max(roff if on else ron, 1e-6))
-            _stamp_g(A, com, no, 1.0 / max(ron if on else roff, 1e-6))
+            if kind == "RELAY":
+                poles = [("COM", "NC", "NO")]
+            else:
+                poles = [("COM1", "NC1", "NO1"), ("COM2", "NC2", "NO2")]
+            for com, nc, no in poles:
+                if not circ.connected(pid, com):
+                    continue
+                a = circ.node(pid, com)
+                for pin, closed in ((nc, not on), (no, on)):
+                    if circ.connected(pid, pin):
+                        _stamp_g(A, a, circ.node(pid, pin),
+                                 1.0 / max(ron if closed else roff, 1e-6))
+        elif kind == "GND":
+            continue
         else:
             raise SolveError("unsupported", f"{pid}: componente non simulabile ({p.type})", part=pid)
     return A, b, br
@@ -202,7 +213,9 @@ def _update_leds(circ, x, state):
 
 def _update_relays(circ, x, state):
     out = dict(state)
-    for pid, p in circ.by_kind("RELAY"):
+    for pid, p in circ.parts.items():
+        if p.kind not in ("RELAY", "RELAY2"):
+            continue
         cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
         v = (x[cp] if cp >= 0 else 0.0) - (x[cm] if cm >= 0 else 0.0)
         if not state.get(pid):
@@ -260,10 +273,13 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, t=0.0):
             pos = min(max(p.num("pos"), 0.0), 1.0)
             i = (v[a] - v[w]) / max(rt * pos, 1e-6) if (a >= 0 and w >= 0) else 0.0
             pw = i * i * rt
-        elif kind == "RELAY":
+        elif kind in ("RELAY", "RELAY2"):
             cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
             i = (_pin_v(x, cp) - _pin_v(x, cm)) / max(p.num("rcoil"), 1e-6)
             pw = i * i * p.num("rcoil")
+        elif kind == "GND":
+            i = 0.0
+            pw = 0.0
         res.currents[pid] = float(i)
         res.power[pid] = float(abs(pw))
     _violations(circ, res, x, led_on)
@@ -318,7 +334,7 @@ def _violations(circ, res, x, led_on):
 def _dc(circ):
     res = Result(circ, "dc")
     led = {pid: False for pid, _ in circ.by_kind("LED")}
-    relay = {pid: False for pid, _ in circ.by_kind("RELAY")}
+    relay = {pid: False for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")}
     seen = set()
     x = None
     br = None
@@ -349,7 +365,7 @@ def _auto_timing(circ):
             rsum += p.num("r")
         elif k == "POT":
             rsum += p.num("rtotal")
-        elif k == "RELAY":
+        elif k in ("RELAY", "RELAY2"):
             rsum += p.num("rcoil")
         elif k == "LED":
             rsum += p.num("rd")
@@ -389,8 +405,9 @@ def _tran(circ):
     vprev = np.zeros(n)
     iprev = {pid: 0.0 for pid, _ in circ.by_kind("L")}
     led = {pid: False for pid, _ in circ.by_kind("LED")}
-    relay = {pid: False for pid, _ in circ.by_kind("RELAY")}
-    relay_last = {pid: -1e9 for pid, _ in circ.by_kind("RELAY")}
+    relays = [(pid, p) for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")]
+    relay = {pid: False for pid, _ in relays}
+    relay_last = {pid: -1e9 for pid, _ in relays}
     time = np.zeros(nsteps)
 
     waves = {f"V({name})": np.zeros(nsteps) for name in circ.node_names}
@@ -414,7 +431,7 @@ def _tran(circ):
             waves[f"V({name})"][step] = v[i]
         for pid in circ.parts:
             waves[f"I({pid})"][step] = res.currents[pid]
-        for pid, p in circ.by_kind("RELAY"):
+        for pid, p in relays:
             cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
             vc = (_pin_v(x, cp) - _pin_v(x, cm)) if (cp >= 0 or cm >= 0) else 0.0
             td = p.num("td") if "td" in p.params else 0.01

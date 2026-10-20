@@ -16,7 +16,10 @@ database sono generici e non legati a un corso specifico.
   in sovratensione, cortocircuito della sorgente
 - CLI con menu, grafico ASCII, CSV, sweep di parametri
 - GUI con schema animato: corrente che scorre, LED che si accendono, guasti
-- 7 esercizi verificati automaticamente, 5 test del motore
+- Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
+- Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
+- Progetti utente salvati in `data/projects/`
+- 8 esercizi verificati automaticamente, 5 test del motore, 7 test unitari
 - Server MCP: pianificato (vedi `docs/MCP-SERVER.md` e `docs/ROADMAP.md`)
 
 ## Avvio rapido
@@ -31,6 +34,7 @@ cd /home/kongiu/elettrolab
 ./lab sweep exp04 --sweep POT1.pos=0,0.25,0.5,0.75,1
 ./lab check                # esegue e verifica tutti gli esercizi
 ./lab selftest             # verifica il motore di simulazione
+./lab test                 # test unitari di documento, reti, layout
 ./lab db                   # catalogo componenti
 ```
 
@@ -57,6 +61,7 @@ Dipendenze: Python 3.10+ e NumPy per il motore. La GUI richiede anche Tkinter
 | `show ID` | mostra componenti, reti, attese e note didattiche |
 | `check` | esegue tutti gli esercizi e confronta con le attese |
 | `selftest` | test numerici del solver |
+| `test` | test unitari di documento, reti e layout |
 | `db` | elenca il catalogo componenti |
 | `menu` | menu interattivo (default del launcher) |
 | `gui [ID]` | laboratorio grafico con schema animato |
@@ -66,37 +71,50 @@ Codici di uscita: `0` successo, `1` controlli falliti (solo con `--strict` o
 
 ## Interfaccia grafica
 
-![Laboratorio grafico](docs/gui.png)
+![Editor grafico](docs/gui-editor.png)
 
-`./lab gui` apre il laboratorio: elenco a sinistra con PASS/FAIL, schema del
-circuito al centro, grafico e dati sotto.
+`./lab gui` apre il laboratorio e l'editor: esercizi e progetti a sinistra,
+palette componenti, schema al centro, proprietà e problemi a destra, JSON,
+grafico e dati sotto.
 
 - simboli disegnati dal motore: resistenze, condensatori, induttori, batterie,
-  LED, interruttori, potenziometri e rele'
+  LED, interruttori, potenziometri, rele' a uno o due poli e massa
 - i puntini arancioni sono la corrente: velocita' e verso seguono la corrente
   di ogni ramo; i LED si accendono in proporzione e mostrano una X quando si
   bruciano
 - il transitorio scorre in loop (Pausa/Riprendi) e il cursore sul grafico segue
   l'animazione
-- il selettore "Segnale" cambia la forma d'onda; la scheda "Dati" mostra min,
-  max e valore finale
+- **editor**: scegli un componente dalla palette e cliccalo sulla tela; trascina
+  per spostare, `R` per ruotare, `Canc` per eliminare, "Filo" per collegare due
+  pin; `Ctrl+Z`/`Ctrl+Y` annullano
+- **proprietà**: seleziona un componente per modificarne i parametri, ruotarlo,
+  eliminarlo o vedere i pin e la rete
+- **Codice**: la scheda mostra il JSON del circuito o del layout, con copia,
+  modifica e "Applica"; è lo stesso linguaggio usato dagli LLM
+- **progetti**: "Nuovo", "Salva", "Salva copia"; gli esercizi integrati restano
+  protetti, i progetti finiscono in `data/projects/`
 
-I layout stanno in `clab/layouts.py`, separati dal circuito: il JSON resta
-senza coordinate. Dettagli in `docs/GUI.md`.
+I layout dei circuiti nuovi stanno nel file affiancato `.layout.json`; il JSON
+del circuito resta senza coordinate. Dettagli in `docs/GUI.md`.
 
 ![Oscillatore a rele'](docs/gui-relay.png)
 
 ## Come funziona
 
 1. `clab/db.py` carica `data/components/*.json` in un catalogo di tipi.
-2. `clab/circuit.py` legge il circuito, assegna un nodo a ogni rete, valida i
-   pin e costruisce la mappa pin -> nodo. La massa e' la rete `gnd`.
-3. `clab/solver.py` costruisce la matrice MNA e risolve:
+2. `clab/document.py` tiene il circuito modificabile (`parts`, `nets`,
+   `layout`) e permette stati incompleti mentre si disegna.
+3. `clab/circuit.py` compila il documento in una netlist rigorosa: assegna un
+   nodo a ogni rete, valida i pin e costruisce la mappa pin -> nodo. La massa
+   e' la rete `gnd`.
+4. `clab/solver.py` costruisce la matrice MNA e risolve:
    - DC: condensatori aperti, induttori in corto, punto di riposo;
    - transitorio: companion model di C e L, passo fisso, retroazione di stato
      per LED, rele' e contatti.
-4. `clab/report.py` formatta risultati, violazioni e grafici.
-5. `clab/cli.py` espone tutto come comandi.
+5. `clab/schematic.py` disegna simboli, fili, corrente e LED; `clab/gui.py`
+   assembla laboratorio, editor e pannello codice.
+6. `clab/report.py` formatta risultati, violazioni e grafici.
+7. `clab/cli.py` espone tutto come comandi.
 
 Dettagli in `docs/ARCHITECTURE.md`.
 
@@ -124,8 +142,9 @@ Dettagli in `docs/ARCHITECTURE.md`.
 }
 ```
 
-Regola per gli LLM: si scrivono solo componenti, reti e attese. Mai coordinate.
-Specifica completa in `docs/CIRCUIT-FORMAT.md`.
+Regola per gli LLM: si scrivono solo componenti, reti e attese. Mai coordinate:
+la disposizione grafica vive nel file `.layout.json` affiancato, che l'editor
+aggiorna da solo. Specifica completa in `docs/CIRCUIT-FORMAT.md`.
 
 ## Database componenti
 
@@ -154,6 +173,7 @@ Aggiungere un componente = aggiungere un file. Dettagli e tipi supportati in
 | `exp04` | Variare la tensione | DC | partitore con potenziometro |
 | `exp06` | Accendere e spegnere | DC | interruttore in serie |
 | `exp08` | Oscillatore a rele' | Transitorio | retroazione, isteresi, condensatore |
+| `exp08b` | Rele' con due LED alternati | Transitorio | due poli, LED che si scambiano |
 | `exp09` | Tempo e condensatori | Transitorio | tau = R*C, 63% dopo una costante |
 | `exp13` | Friggere un LED | DC | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | risonanza e ringing, dal circuito CircuitJS dell'autore |
@@ -173,11 +193,13 @@ Il progetto del server, i tool, le risorse e il formato degli errori sono in
 ## Test
 
 ```bash
-python3 -m clab selftest   # 5 test numerici del solver
-python3 -m clab check      # 7 esercizi contro le attese
+./lab test                 # 7 test unitari (documento, reti, layout)
+./lab selftest             # 5 test numerici del solver
+./lab check                # 8 esercizi contro le attese
 ```
 
-I test coprono partitore, LED, RC, RLC e la bruciatura del LED.
+I test coprono partitore, LED, RC, RLC, la bruciatura del LED, il rele' a due
+poli con LED alternati, il merge delle reti e il salvataggio con layout.
 
 ## Documentazione
 

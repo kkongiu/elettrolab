@@ -23,6 +23,7 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 |---|---|
 | `clab/units.py` | parsing e formattazione SI (`4.7k`, `1000u`, `meg`) |
 | `clab/db.py` | caricamento del catalogo, merge dei parametri di istanza |
+| `clab/document.py` | documento modificabile, reti, layout, undo, serializzazione |
 | `clab/circuit.py` | indicizzazione dei nodi, validazione, mappa pin -> nodo |
 | `clab/solver.py` | matrici MNA, DC e transitorio, stati, violazioni, controlli |
 | `clab/report.py` | tabelle testuali, grafico ASCII, CSV |
@@ -132,6 +133,38 @@ sorgente oltre `imax` in `short`.
 `check` restituisce una lista di esiti con segnale, esito e dettaglio leggibile.
 Il server MCP usera' lo stesso formato, con codici macchina.
 
+## Documento ed editor
+
+Il motore distingue due rappresentazioni:
+
+- **Document**: il circuito mentre lo si modifica. Puo' contenere pin
+  scollegati, componenti sconosciuti, reti incomplete. Espone `problems()`,
+  `snapshot()`/`restore()` e `to_circuit()`.
+- **Circuit**: la netlist rigorosa. Accetta solo componenti noti, pin collegati
+  (salvo quelli opzionali) e una massa. E' quella che il solver puo' risolvere.
+
+L'editor lavora sempre sul Document e compila un Circuit solo per simulare.
+Quando il circuito e' incompleto la GUI mostra i problemi e mantiene lo schema,
+senza risultati.
+
+La geometria vive in due posti:
+
+- `clab/layouts.py` per gli esercizi integrati, in sola lettura;
+- `<progetto>.layout.json` per i progetti salvati.
+
+Il JSON del circuito non contiene coordinate. Il pannello Codice mostra l'una o
+l'altra rappresentazione; applicando il circuito, i componenti esistenti
+mantengono la posizione e quelli nuovi vengono disposti in griglia.
+
+Operazioni dell'editor: posizionamento dalla palette, trascinamento con snap a
+10 px, rotazione, cancellazione, collegamento pin-to-pin con merge delle reti,
+modifica dei parametri, undo/redo a snapshot. L'hit-testing usa la stessa
+geometria del disegno (`Schematic.pin_at`, `part_at`, `part_bbox`).
+
+I pin possono essere marcati `optional` nel catalogo: i contatti non usati di un
+rele' a due poli non sono un errore. Il simbolo `GND` ha un solo pin e vive
+nella rete `gnd`; il motore lo ignora elettricamente.
+
 ## Interfaccia grafica
 
 La GUI e' un consumatore del `Result`, non un secondo motore.
@@ -171,10 +204,13 @@ incrementale.
 - Matrice densa: adatta a circuiti didattici, non a netlist grandi.
 - Nessun controllo di topologia ridondante: un nodo isolato produce una matrice
   singolare, riportata come errore `singular`.
-- GUI: layout disponibili solo per gli esercizi inclusi; un circuito nuovo
-  mostra un avviso finche' non si aggiunge un layout in `clab/layouts.py`.
-- GUI: visualizzatore, non editor; non si trascinano componenti ne' si salva
-  una disposizione.
+- GUI: i fili sono instradati automaticamente; non si trascinano i punti di
+  piega.
+- GUI: niente zoom/pan; la tela si adatta alla finestra.
+- Editor: il pannello Codice applica il JSON in blocco, senza merging con
+  modifiche fatte nel frattempo sulla tela.
+- Editor: se un tipo di componente non e' nel catalogo, il documento lo
+  conserva e lo segnala, ma non lo disegna ne' lo simula.
 
 ## Dipendenze
 

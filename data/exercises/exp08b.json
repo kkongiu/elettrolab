@@ -1,0 +1,97 @@
+{
+  "id": "exp08b",
+  "title": "Relè con due LED alternati",
+  "notes": "Variante a due poli del relè: un polo fa oscillare la bobina con il condensatore, l'altro accende alternativamente i due LED. Il ritardo meccanico td=0.2 s rende visibile la fase del LED su NC.",
+  "analysis": "transient",
+  "tstop": 3,
+  "dt": 0.005,
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "SW1": {
+      "type": "switch_spst",
+      "closed": true
+    },
+    "RY1": {
+      "type": "relay_2p",
+      "rcoil": 400,
+      "vpull": 6,
+      "vdrop": 3,
+      "td": 0.2
+    },
+    "C1": {
+      "type": "capacitor",
+      "c": "1000u"
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "680"
+    },
+    "R2": {
+      "type": "resistor",
+      "r": "680"
+    },
+    "D1": {
+      "type": "led_red"
+    },
+    "D2": {
+      "type": "led_green"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "SW1.1"
+    ],
+    "com": [
+      "SW1.2",
+      "RY1.COM1",
+      "RY1.COM2"
+    ],
+    "nc": [
+      "RY1.NC1",
+      "RY1.COIL+",
+      "C1.+"
+    ],
+    "n1": [
+      "RY1.NC2",
+      "R1.1"
+    ],
+    "m1": [
+      "R1.2",
+      "D1.A"
+    ],
+    "no": [
+      "RY1.NO1",
+      "R2.1"
+    ],
+    "m2": [
+      "R2.2",
+      "D2.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "RY1.COIL-",
+      "C1.-",
+      "D1.K",
+      "D2.K"
+    ]
+  },
+  "expect": {
+    "I(D1)": {
+      "at": 0.5,
+      "approx": 0.01043,
+      "tol": 0.12,
+      "min": 0.0,
+      "max": 0.012
+    },
+    "I(D2)": {
+      "at": 0.1,
+      "approx": 0.01,
+      "tol": 0.12,
+      "min": 0.0,
+      "max": 0.012
+    }
+  }
+}

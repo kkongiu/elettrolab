@@ -83,6 +83,7 @@ class Circuit:
     def _validate(self):
         for pid, p in self.parts.items():
             missing = [pin for pin in p.spec.pins if (pid, pin) not in self.pin_net]
+            missing = [m for m in missing if m not in p.spec.optional]
             if missing:
                 if p.kind == "POT" and p.get("mode", "divider") == "rheostat":
                     missing = [m for m in missing if m != "2"]

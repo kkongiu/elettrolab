@@ -18,6 +18,7 @@ class PartType:
         self.limits = dict(data.get("limits", {}))
         self.learn = data.get("learn", "")
         self.numeric = set(data.get("numeric", []))
+        self.optional = list(data.get("optional", []))
 
     def numeric_keys(self):
         if self.numeric:
