@@ -1,0 +1,9 @@
+{
+  "id": "led_green",
+  "kind": "LED",
+  "name": "LED verde",
+  "pins": ["A", "K"],
+  "params": {"vf": 2.1, "rd": 10, "imax": 0.025},
+  "limits": {"imax": 0.025},
+  "learn": "Come il rosso ma con tensione di soglia piu' alta."
+}

@@ -1,0 +1,60 @@
+{
+  "id": "lrc",
+  "title": "Circuito RLC serie: ringing",
+  "notes": "Scalino di 5 V su R=10 ohm, L=1 H, C=100 uF. f0 = 15.9 Hz, smorzamento zeta = 0.05: il condensatore supera i 9 V prima di assestarsi a 5 V.",
+  "analysis": "transient",
+  "tstop": 1.2,
+  "dt": 0.0002,
+  "parts": {
+    "V1": {
+      "type": "battery_9v",
+      "v": 5
+    },
+    "SW1": {
+      "type": "switch_spst",
+      "closed": true
+    },
+    "R1": {
+      "type": "resistor",
+      "r": 10
+    },
+    "L1": {
+      "type": "inductor",
+      "l": 1
+    },
+    "C1": {
+      "type": "capacitor",
+      "c": "100u"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "SW1.1"
+    ],
+    "a": [
+      "SW1.2",
+      "R1.1"
+    ],
+    "b": [
+      "R1.2",
+      "L1.1"
+    ],
+    "m": [
+      "L1.2",
+      "C1.+"
+    ],
+    "gnd": [
+      "V1.-",
+      "C1.-"
+    ]
+  },
+  "expect": {
+    "V(m)": {
+      "approx": 5.0,
+      "tol": 0.05,
+      "min": 0.0,
+      "max": 9.6
+    }
+  }
+}

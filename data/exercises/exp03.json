@@ -1,0 +1,42 @@
+{
+  "id": "exp03",
+  "title": "Il primo circuito: accendere un LED",
+  "notes": "Batteria 9 V, resistenza da 470 ohm, LED rosso. La resistenza e' quello che impedisce al LED di bruciarsi.",
+  "analysis": "dc",
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "470"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "R1.1"
+    ],
+    "m": [
+      "R1.2",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "I(D1)": {
+      "approx": 0.015,
+      "tol": 0.05
+    },
+    "V(m)": {
+      "approx": 1.95,
+      "tol": 0.03
+    }
+  }
+}

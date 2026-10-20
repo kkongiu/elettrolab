@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+here="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+cd "$here" || exit 1
+if [ $# -eq 0 ]; then
+  set -- menu
+fi
+exec python3 -m clab "$@"

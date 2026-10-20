@@ -1,0 +1,9 @@
+{
+  "id": "resistor",
+  "kind": "R",
+  "name": "Resistenza",
+  "pins": ["1", "2"],
+  "params": {"r": "1k"},
+  "limits": {"pmax": 0.25},
+  "learn": "Limita la corrente. Il valore si legge dalle fasce colorate: 470 ohm = giallo-viola-marrone."
+}

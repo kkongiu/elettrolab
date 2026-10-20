@@ -1,0 +1,48 @@
+{
+  "id": "exp04",
+  "title": "Variare la tensione con un potenziometro",
+  "notes": "Il potenziometro fa da partitore: con pos=0 il cursore sta sui 9 V e il LED e' acceso, con pos=1 sta a 0 V e il LED e' spento. Prova --sweep POT1.pos=0,0.25,0.5,0.75,1",
+  "analysis": "dc",
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "POT1": {
+      "type": "potentiometer",
+      "rtotal": "10k",
+      "pos": 0.5
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "470"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "POT1.1"
+    ],
+    "w": [
+      "POT1.W",
+      "R1.1"
+    ],
+    "m": [
+      "R1.2",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "POT1.2",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "I(D1)": {
+      "approx": 0.000906,
+      "tol": 0.05
+    }
+  }
+}

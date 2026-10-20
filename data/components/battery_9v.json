@@ -1,0 +1,9 @@
+{
+  "id": "battery_9v",
+  "kind": "V",
+  "name": "Batteria 9 V",
+  "pins": ["+", "-"],
+  "params": {"v": 9},
+  "limits": {"imax": 2},
+  "learn": "Tensione fissa. Se la corrente supera il massimo la batteria si scalda: e' un cortocircuito."
+}

@@ -1,0 +1,8 @@
+{
+  "id": "switch_spst",
+  "kind": "SW",
+  "name": "Interruttore",
+  "pins": ["1", "2"],
+  "params": {"closed": true, "ron": 0.05, "roff": 1000000000.0},
+  "learn": "Aperto o chiuso. Puoi simulare una pressione con t_close / t_open (secondi)."
+}

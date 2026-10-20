@@ -1,0 +1,9 @@
+{
+  "id": "inductor",
+  "kind": "L",
+  "name": "Induttore",
+  "pins": ["1", "2"],
+  "params": {"l": 1, "imax": 1},
+  "limits": {"imax": 1},
+  "learn": "Si oppone alle variazioni di corrente. Con un condensatore forma un circuito risonante."
+}

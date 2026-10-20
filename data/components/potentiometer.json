@@ -1,0 +1,8 @@
+{
+  "id": "potentiometer",
+  "kind": "POT",
+  "name": "Potenziometro",
+  "pins": ["1", "2", "W"],
+  "params": {"rtotal": "10k", "pos": 0.5, "mode": "divider"},
+  "learn": "Resistenza variabile. pos=0 porta il cursore verso il pin 1, pos=1 verso il pin 2."
+}

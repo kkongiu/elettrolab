@@ -1,0 +1,9 @@
+{
+  "id": "led_red",
+  "kind": "LED",
+  "name": "LED rosso",
+  "pins": ["A", "K"],
+  "params": {"vf": 1.8, "rd": 10, "imax": 0.03},
+  "limits": {"imax": 0.03},
+  "learn": "Diodo che emette luce. Ha bisogno di una resistenza in serie: senza, la corrente lo distrugge."
+}

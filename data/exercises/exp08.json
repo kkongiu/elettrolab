@@ -1,0 +1,73 @@
+{
+  "id": "exp08",
+  "title": "Oscillatore a rele'",
+  "notes": "Il contatto NC alimenta la bobina; appena la bobina si eccita il contatto apre, il condensatore tiene eccitata la bobina e il ciclo riparte. Il LED sul contatto NO resta acceso mentre la bobina si scarica e si spegne brevemente a ogni rilascio.",
+  "analysis": "transient",
+  "tstop": 4,
+  "dt": 0.005,
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "SW1": {
+      "type": "switch_spst",
+      "closed": true
+    },
+    "RY1": {
+      "type": "relay_dpdt",
+      "rcoil": 400,
+      "vpull": 6,
+      "vdrop": 3
+    },
+    "C1": {
+      "type": "capacitor",
+      "c": "1000u"
+    },
+    "R2": {
+      "type": "resistor",
+      "r": "680"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "SW1.1"
+    ],
+    "com": [
+      "SW1.2",
+      "RY1.COM"
+    ],
+    "nc": [
+      "RY1.NC",
+      "RY1.COIL+",
+      "C1.+"
+    ],
+    "no": [
+      "RY1.NO",
+      "R2.1"
+    ],
+    "m": [
+      "R2.2",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "RY1.COIL-",
+      "C1.-",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "I(D1)": {
+      "min": 0.0,
+      "max": 0.012
+    },
+    "V(nc)": {
+      "min": 2.0,
+      "max": 9.2
+    }
+  }
+}

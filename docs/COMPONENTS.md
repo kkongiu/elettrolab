@@ -1,0 +1,170 @@
+# Catalogo componenti
+
+Il database e' composto da un file JSON per tipo in `data/components/`. Non
+esiste un elenco centrale da aggiornare: il caricamento legge la cartella e
+indicizza per `id`.
+
+## Schema di un componente
+
+```json
+{
+  "id": "led_red",
+  "kind": "LED",
+  "name": "LED rosso",
+  "pins": ["A", "K"],
+  "params": {"vf": 1.8, "rd": 10, "imax": 0.03},
+  "limits": {"imax": 0.03},
+  "learn": "Ha bisogno di una resistenza in serie."
+}
+```
+
+| Campo | Obbligatorio | Descrizione |
+|---|---|---|
+| `id` | si | identificatore usato in `"type"`; coincide col nome file |
+| `kind` | si | modello di simulazione (vedi tabella) |
+| `name` | no | nome mostrato nei report |
+| `pins` | si | elenco ordinato dei pin |
+| `params` | no | valori di default |
+| `limits` | no | soglie per le violazioni |
+| `learn` | no | nota didattica mostrata da `show` |
+| `numeric` | no | forza quali parametri sono numerici |
+
+I parametri di istanza nel circuito sovrascrivono i default:
+
+```json
+"R1": {"type": "resistor", "r": "470"}
+```
+
+## Tipi supportati
+
+| `kind` | Componenti | Pin | Parametri | Limiti |
+|---|---|---|---|---|
+| `R` | resistenze | `1`, `2` | `r` | `pmax` |
+| `V` | sorgenti di tensione | `+`, `-` | `v` | `imax` |
+| `LED` | LED | `A`, `K` | `vf`, `rd`, `imax` | `imax` |
+| `SW` | interruttori | `1`, `2` | `closed`, `ron`, `roff`, `t_close`, `t_open` | - |
+| `C` | condensatori | `+`, `-` | `c` | `vmax` |
+| `L` | induttori | `1`, `2` | `l` | `imax` |
+| `POT` | potenziometri | `1`, `2`, `W` | `rtotal`, `pos`, `mode` | - |
+| `RELAY` | rele' | `COIL+`, `COIL-`, `COM`, `NC`, `NO` | `rcoil`, `vpull`, `vdrop`, `ron`, `roff`, `td` | - |
+
+Un `kind` non presente in questa tabella produce l'errore `unsupported`. I
+componenti non primitivi saranno delegati a ngspice in una fase successiva
+(vedi `docs/ROADMAP.md`).
+
+## Parametri
+
+### R
+
+- `r`: resistenza in ohm.
+- `pmax`: potenza massima in watt; oltre questa soglia scatta `overpower`.
+
+### V
+
+- `v`: tensione in volt.
+- `imax`: corrente massima erogabile; oltre scatta `short`.
+- La sorgente e' ideale: non ha resistenza interna.
+
+### LED
+
+- `vf`: tensione di soglia.
+- `rd`: resistenza dinamica, usata nel modello a tratti `V = vf + rd*I`.
+- `imax`: corrente massima; oltre scatta `burned`.
+- Il LED spento e' modellato con una conduttanza trascurabile.
+
+### SW
+
+- `closed`: stato iniziale (in DC anche stato finale).
+- `ron`, `roff`: resistenze di chiusura e apertura.
+- `t_close`, `t_open`: istanti di commutazione nel transitorio, in secondi.
+
+### C
+
+- `c`: capacita' in farad.
+- `vmax`: tensione massima; oltre scatta `overvoltage`.
+- In DC e' un circuito aperto; nel transitorio usa backward Euler.
+
+### L
+
+- `l`: induttanza in henry.
+- `imax`: corrente massima.
+- In DC e' un corto; nel transitorio e' un ramo con resistenza equivalente
+  `L/dt`.
+
+### POT
+
+- `rtotal`: resistenza totale.
+- `pos`: posizione del cursore, da 0 (verso il pin 1) a 1 (verso il pin 2).
+- `mode`: `divider` usa entrambe le sezioni; `rheostat` usa solo `1`-`W` e
+  lascia il pin `2` scollegabile.
+
+### RELAY
+
+- `rcoil`: resistenza della bobina.
+- `vpull`, `vdrop`: isteresi di eccitazione e rilascio, in volt.
+- `ron`, `roff`: resistenze dei contatti.
+- `td`: tempo minimo di permanenza dello stato, in secondi (default 0.01).
+- Il contatto `COM-NC` e' chiuso a rele' a riposo, `COM-NO` quando eccitato.
+
+## Unita' e valori
+
+I parametri numerici accettano stringhe con suffisso SI (`4.7k`, `1000u`,
+`1meg`). Vedi `docs/CIRCUIT-FORMAT.md` per la tabella completa.
+
+Un parametro e' considerato numerico se il suo valore di default e' convertibile
+con il parser SI. Per forzare il comportamento si puo' usare la lista
+`"numeric": ["parametro"]` nel file del componente.
+
+## Convenzioni di corrente
+
+| Segnale | Verso positivo |
+|---|---|
+| `I(R1)` | dal pin `1` al pin `2` |
+| `I(D1)` | da `A` a `K` |
+| `I(SW1)` | dal pin `1` al pin `2` |
+| `I(C1)` | da `+` a `-` |
+| `I(V1)` | erogata dal terminale `+` |
+| `I(POT1)` | dal pin `1` al cursore `W` |
+| `I(RY1)` | nella bobina, da `COIL+` a `COIL-` |
+
+## Aggiungere un componente
+
+Esempio: una batteria da 5 V.
+
+1. Creare `data/components/battery_5v.json`:
+
+```json
+{
+  "id": "battery_5v",
+  "kind": "V",
+  "name": "Batteria 5 V",
+  "pins": ["+", "-"],
+  "params": {"v": 5},
+  "limits": {"imax": 1},
+  "learn": "Sorgente ideale da 5 V."
+}
+```
+
+2. Usarla in un circuito:
+
+```json
+"V1": {"type": "battery_5v"}
+```
+
+3. Verificare:
+
+```bash
+./lab db
+./lab run exp03 --set V1=v
+```
+
+Il passaggio 3 e' solo un controllo che il tipo venga caricato; per una prova
+completa conviene creare un esercizio dedicato.
+
+## Regole
+
+- Il nome del file deve essere `<id>.json`.
+- I pin devono essere univoci e non vuoti.
+- I parametri sono numeri o stringhe; i booleani vanno scritti `true`/`false`.
+- Le note didattiche non devono contenere materiale di terzi.
+- Aggiungere un componente non richiede modifiche al codice.

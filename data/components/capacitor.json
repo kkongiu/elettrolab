@@ -1,0 +1,9 @@
+{
+  "id": "capacitor",
+  "kind": "C",
+  "name": "Condensatore",
+  "pins": ["+", "-"],
+  "params": {"c": "1000u", "vmax": 16},
+  "limits": {"vmax": 16},
+  "learn": "Accumula carica. Si carica con costante di tempo tau = R*C: dopo 1 tau e' al 63%."
+}

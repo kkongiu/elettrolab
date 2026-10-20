@@ -1,0 +1,8 @@
+{
+  "id": "relay_dpdt",
+  "kind": "RELAY",
+  "name": "Relè DPDT",
+  "pins": ["COIL+", "COIL-", "COM", "NC", "NO"],
+  "params": {"rcoil": 400, "vpull": 6, "vdrop": 3, "ron": 0.05, "roff": 1000000000.0},
+  "learn": "Elettrocalamita che muove contatti. Con i suoi stessi contatti puo' far vibrare se stessa."
+}

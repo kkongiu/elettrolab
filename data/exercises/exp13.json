@@ -1,0 +1,29 @@
+{
+  "id": "exp13",
+  "title": "Friggere un LED (e capire perche' serve la resistenza)",
+  "notes": "LED collegato direttamente ai 9 V: la corrente supera il massimo e il componente si brucia. Confronta con exp03.",
+  "analysis": "dc",
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "violations": [
+      "D1"
+    ]
+  }
+}

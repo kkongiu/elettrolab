@@ -1,0 +1,52 @@
+{
+  "id": "exp09",
+  "title": "Tempo e condensatori",
+  "notes": "Carica di un condensatore da 1000 uF attraverso 10 kohm. tau = R*C = 10 s: dopo 10 s il condensatore e' al 63% dei 9 V.",
+  "analysis": "transient",
+  "tstop": 30,
+  "dt": 0.05,
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "SW1": {
+      "type": "switch_spst",
+      "closed": true
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "10k"
+    },
+    "C1": {
+      "type": "capacitor",
+      "c": "1000u"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "SW1.1"
+    ],
+    "a": [
+      "SW1.2",
+      "R1.1"
+    ],
+    "m": [
+      "R1.2",
+      "C1.+"
+    ],
+    "gnd": [
+      "V1.-",
+      "C1.-"
+    ]
+  },
+  "expect": {
+    "V(m)": {
+      "at": 10,
+      "approx": 5.69,
+      "tol": 0.03,
+      "min": 0.0,
+      "max": 9.1
+    }
+  }
+}

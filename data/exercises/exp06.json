@@ -1,0 +1,46 @@
+{
+  "id": "exp06",
+  "title": "Accendere e spegnere",
+  "notes": "Un interruttore in serie. Simula l'interruttore aperto con --set SW1.closed=false",
+  "analysis": "dc",
+  "parts": {
+    "V1": {
+      "type": "battery_9v"
+    },
+    "SW1": {
+      "type": "switch_spst",
+      "closed": true
+    },
+    "R1": {
+      "type": "resistor",
+      "r": "470"
+    },
+    "D1": {
+      "type": "led_red"
+    }
+  },
+  "nets": {
+    "p": [
+      "V1.+",
+      "SW1.1"
+    ],
+    "s": [
+      "SW1.2",
+      "R1.1"
+    ],
+    "m": [
+      "R1.2",
+      "D1.A"
+    ],
+    "gnd": [
+      "V1.-",
+      "D1.K"
+    ]
+  },
+  "expect": {
+    "I(D1)": {
+      "approx": 0.015,
+      "tol": 0.05
+    }
+  }
+}
