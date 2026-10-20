@@ -342,6 +342,13 @@ class Schematic:
         elif kind == "RELAY":
             self.text(x, y + 64, f"{self._label(pid)}   I = {fmt(i, 'A')}",
                       size=9, color=INK)
+        elif kind == "LED":
+            if rot in (90, 270):
+                self.text(x + 40, y - 7, self._label(pid), anchor="w", size=9, color=INK)
+                self.text(x + 40, y + 8, f"I = {fmt(i, 'A')}", anchor="w", size=8, color=DOT)
+            else:
+                self.text(x, y - 40, self._label(pid), anchor="s", size=9, color=INK)
+                self.text(x, y + 40, f"I = {fmt(i, 'A')}", anchor="n", size=8, color=DOT)
         elif kind == "POT":
             self.text(x + 42, y - 14, self._label(pid), anchor="w", size=9, color=INK)
             self.text(x + 42, y + 2, f"I = {fmt(i, 'A')}", anchor="w", size=8, color=DOT)
@@ -493,12 +500,24 @@ class Schematic:
         for w, dy in ((18, 0), (12, 5), (6, 10)):
             self.line([(x - w, y + dy), (x + w, y + dy)], width=2.0)
 
+    def _relay_on(self, pid, t):
+        if self.res is None:
+            return False
+        states = getattr(self.res, "relay_states", None)
+        st = states.get(pid) if states else None
+        if st is not None:
+            if isinstance(st, np.ndarray) and self.res.time is not None and t is not None:
+                return bool(np.interp(t, self.res.time, st) >= 0.5)
+            return bool(st)
+        vc = self._volt(pid, "COIL+", t) - self._volt(pid, "COIL-", t)
+        p = self.doc.part(pid)
+        return vc > float(p.get("vpull", 6)) if p else False
+
     def _relay(self, pid, x, y, t):
         p = self.doc.part(pid)
         if p is None:
             return
-        vc = self._volt(pid, "COIL+", t) - self._volt(pid, "COIL-", t)
-        on = vc > float(p.get("vpull", 6))
+        on = self._relay_on(pid, t)
         if p.kind == "RELAY2":
             self._relay2(x, y, on)
             return

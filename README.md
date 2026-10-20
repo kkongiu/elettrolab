@@ -172,8 +172,8 @@ Aggiungere un componente = aggiungere un file. Dettagli e tipi supportati in
 | `exp03` | Il primo circuito | DC | LED con resistenza, 15 mA |
 | `exp04` | Variare la tensione | DC | partitore con potenziometro |
 | `exp06` | Accendere e spegnere | DC | interruttore in serie |
-| `exp08` | Oscillatore a rele' | Transitorio | retroazione, isteresi, condensatore |
-| `exp08b` | Rele' con due LED alternati | Transitorio | due poli, LED che si scambiano |
+| `exp08` | Oscillatore a rele' con due LED | Transitorio | contatti NC/NO, 10.4 mA per LED |
+| `exp08b` | Variante a due poli | Transitorio | LED alternati su due contatti indipendenti |
 | `exp09` | Tempo e condensatori | Transitorio | tau = R*C, 63% dopo una costante |
 | `exp13` | Friggere un LED | DC | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | risonanza e ringing, dal circuito CircuitJS dell'autore |

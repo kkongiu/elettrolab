@@ -10,8 +10,8 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp03` | Il primo circuito | DC | `I(D1) = 15 mA`, `V(m) = 1.95 V` | la resistenza limita la corrente |
 | `exp04` | Variare la tensione | DC | `I(D1) = 0.906 mA` a `pos = 0.5` | partitore resistivo, dimming |
 | `exp06` | Accendere e spegnere | DC | `I(D1) = 15 mA` chiuso, `0` aperto | interruttore in serie |
-| `exp08` | Oscillatore a rele' | Transitorio | `V(nc)` fra 2.98 e 9.0 V, periodo ~0.46 s | retroazione, isteresi, condensatore |
-| `exp08b` | Rele' con due LED alternati | Transitorio | 10.4 mA sul rosso, 10.0 mA sul verde | due poli, LED che si scambiano |
+| `exp08` | Oscillatore a rele' con due LED | Transitorio | 10.43 mA per LED, D1 0.2 s e D2 0.44 s | contatti NC/NO, condensatore, isteresi |
+| `exp08b` | Variante a due poli | Transitorio | 10.4 mA sul rosso, 10.0 mA sul verde | LED alternati su due contatti indipendenti |
 | `exp09` | Tempo e condensatori | Transitorio | `V(m) = 5.68 V` a 10 s | costante di tempo `tau = R*C` |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
@@ -59,26 +59,29 @@ Interruttore in serie al gruppo resistenza-LED.
 Nel secondo caso la corrente e' nulla e l'attesa non e' soddisfatta: e' utile
 per mostrare la differenza, non per validare l'esercizio.
 
-### exp08 - Oscillatore a rele'
+### exp08 - Oscillatore a rele' con due LED
 
-Il contatto NC alimenta la bobina (400 ohm). Appena la bobina si eccita il
-contatto apre; il condensatore da 1000 uF in parallelo alla bobina la mantiene
-eccitata mentre si scarica. Sotto la soglia di rilascio (3 V) il contatto
-richiude e il ciclo riparte. Il LED sul contatto NO resta acceso durante la
-scarica e si spegne brevemente a ogni rilascio.
+![exp08: rele' con due LED](exp08-two-led.png)
 
-Misure della simulazione: `V(nc)` fra 2.98 e 9.0 V, periodo circa 0.46 s,
-`I(D1)` massima 10.4 mA. La sorgente e' ideale, quindi la ricarica del
-condensatore e' istantanea e la fase di LED spento dura solo il tempo di
-permanenza `td` del rele'.
+Il contatto NC alimenta la bobina (400 ohm), il condensatore da 1000 uF in
+parallelo e il LED sinistro D1. Il contatto NO alimenta il LED destro D2. I due
+catodi si uniscono e passano per la resistenza da 680 ohm verso massa.
+
+- A riposo: NC chiuso, bobina e D1 alimentati, D2 spento.
+- Eccitato: NC apre, NO chiude; D2 si accende, D1 resta acceso finche' il
+  condensatore non scende sotto la tensione del nodo comune, poi si spegne.
+- Il condensatore tiene eccitata la bobina per circa 0.44 s; sotto 3 V il rele'
+  rilascia. Con `td = 0.2 s` la fase a riposo dura 0.2 s.
+
+Misure: `I(D1) = I(D2) = 10.43 mA` quando il rispettivo contatto e' chiuso;
+`V(nc)` scende da 9 V a 3 V durante la scarica. La sorgente e' ideale, quindi la
+ricarica e' istantanea e la fase a riposo e' determinata da `td`.
 
 ```bash
-./lab run exp08 --plot "V(nc)"
 ./lab run exp08 --plot "I(D1)"
+./lab run exp08 --plot "I(D2)"
+./lab gui exp08
 ```
-
-In DC questo circuito non ha punto di riposo: il motore lo segnala e suggerisce
-il transitorio.
 
 ### exp08b - Rele' con due LED alternati
 

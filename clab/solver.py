@@ -29,6 +29,7 @@ class Result:
         self.checks = []
         self.ok = True
         self.notes = []
+        self.relay_states = {}
 
     def value(self, sig):
         if self.waves and sig in self.waves:
@@ -242,7 +243,7 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, t=0.0):
         if kind == "R":
             a, c = circ.node(pid, "1"), circ.node(pid, "2")
             r = p.num("r")
-            i = (v[a] - v[c]) / r if (a >= 0 and c >= 0) else 0.0
+            i = (_pin_v(x, a) - _pin_v(x, c)) / r
             pw = i * i * r
         elif kind == "V":
             a, c = circ.node(pid, "+"), circ.node(pid, "-")
@@ -265,13 +266,13 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, t=0.0):
         elif kind == "SW":
             a, c = circ.node(pid, "1"), circ.node(pid, "2")
             r = p.num("ron") if _switch_closed(p, t, mode) else p.num("roff")
-            i = (v[a] - v[c]) / max(r, 1e-6) if (a >= 0 and c >= 0) else 0.0
+            i = (_pin_v(x, a) - _pin_v(x, c)) / max(r, 1e-6)
             pw = i * i * max(r, 1e-6)
         elif kind == "POT":
             a, w = circ.node(pid, "1"), circ.node(pid, "W")
             rt = p.num("rtotal")
             pos = min(max(p.num("pos"), 0.0), 1.0)
-            i = (v[a] - v[w]) / max(rt * pos, 1e-6) if (a >= 0 and w >= 0) else 0.0
+            i = (_pin_v(x, a) - _pin_v(x, w)) / max(rt * pos, 1e-6)
             pw = i * i * rt
         elif kind in ("RELAY", "RELAY2"):
             cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
@@ -352,6 +353,7 @@ def _dc(circ):
         seen.add(key)
         led, relay = nl, nr
     _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay)
+    res.relay_states = dict(relay)
     return res
 
 
@@ -409,6 +411,7 @@ def _tran(circ):
     relay = {pid: False for pid, _ in relays}
     relay_last = {pid: -1e9 for pid, _ in relays}
     time = np.zeros(nsteps)
+    relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
 
     waves = {f"V({name})": np.zeros(nsteps) for name in circ.node_names}
     for pid in circ.parts:
@@ -416,6 +419,8 @@ def _tran(circ):
 
     for step in range(nsteps):
         t = (step + 1) * dt
+        for pid in relay_hist:
+            relay_hist[pid][step] = 1.0 if relay[pid] else 0.0
         A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay)
         x = _solve(A, b)
         for _ in range(4):
@@ -448,6 +453,7 @@ def _tran(circ):
 
     res.time = time
     res.waves = waves
+    res.relay_states = relay_hist
     res.nodes = {name: float(waves[f"V({name})"][-1]) for name in circ.node_names}
     res.currents = {pid: float(waves[f"I({pid})"][-1]) for pid in circ.parts}
     _violations(circ, res, x, led)

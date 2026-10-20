@@ -1,7 +1,7 @@
 {
   "id": "exp08",
-  "title": "Oscillatore a rele'",
-  "notes": "Il contatto NC alimenta la bobina; appena la bobina si eccita il contatto apre, il condensatore tiene eccitata la bobina e il ciclo riparte. Il LED sul contatto NO resta acceso mentre la bobina si scarica e si spegne brevemente a ogni rilascio.",
+  "title": "Oscillatore a relè con due LED",
+  "notes": "Il contatto NC alimenta la bobina e il LED sinistro; il contatto NO accende il LED destro. Il condensatore da 1000 µF in parallelo alla bobina la tiene eccitata mentre si scarica. Il ritardo meccanico td=0.2 s rende visibile la fase in cui il LED sinistro è acceso.",
   "analysis": "transient",
   "tstop": 4,
   "dt": 0.005,
@@ -17,17 +17,21 @@
       "type": "relay_dpdt",
       "rcoil": 400,
       "vpull": 6,
-      "vdrop": 3
+      "vdrop": 3,
+      "td": 0.2
     },
     "C1": {
       "type": "capacitor",
       "c": "1000u"
     },
-    "R2": {
+    "R1": {
       "type": "resistor",
       "r": "680"
     },
     "D1": {
+      "type": "led_red"
+    },
+    "D2": {
       "type": "led_red"
     }
   },
@@ -43,31 +47,39 @@
     "nc": [
       "RY1.NC",
       "RY1.COIL+",
-      "C1.+"
+      "C1.+",
+      "D1.A"
+    ],
+    "c": [
+      "D1.K",
+      "D2.K",
+      "R1.1"
     ],
     "no": [
       "RY1.NO",
-      "R2.1"
-    ],
-    "m": [
-      "R2.2",
-      "D1.A"
+      "D2.A"
     ],
     "gnd": [
       "V1.-",
       "RY1.COIL-",
       "C1.-",
-      "D1.K"
+      "R1.2"
     ]
   },
   "expect": {
     "I(D1)": {
+      "at": 0.5,
+      "approx": 0.0104,
+      "tol": 0.15,
       "min": 0.0,
       "max": 0.012
     },
-    "V(nc)": {
-      "min": 2.0,
-      "max": 9.2
+    "I(D2)": {
+      "at": 0.1,
+      "approx": 0.0104,
+      "tol": 0.15,
+      "min": 0.0,
+      "max": 0.012
     }
   }
 }
