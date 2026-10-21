@@ -1,0 +1,46 @@
+{
+  "id": "exp11d",
+  "title": "PUT step 4: uscita pulsata (sirena)",
+  "notes": "L'oscillatore lento (Q1, a sinistra) pilota il gate dell'oscillatore audio (Q2) tramite R11=10 kΩ; C3=2,2 µF leviga i salti. La soglia di Q2 cambia a ogni impulso lento, quindi il tono acuto viene modulato e si sente un 'whoop' da sirena: due oscillatori + amplificatore a 2N2222. Per vedere piu' cicli in una simulazione breve C1 e' 0,47 µF (nel circuito del libro e' 2,2 µF: il whoop reale e' piu' lento).",
+  "analysis": "transient",
+  "tstop": 1.5,
+  "dt": 0.00002,
+  "parts": {
+    "V1": {"type": "supply_6v"},
+    "R1": {"type": "resistor", "r": "470k"},
+    "R2": {"type": "resistor", "r": "15k"},
+    "R3": {"type": "resistor", "r": "27k"},
+    "C1": {"type": "capacitor", "c": "0.47u"},
+    "Q1": {"type": "put"},
+    "R5": {"type": "resistor", "r": "470k"},
+    "R6": {"type": "resistor", "r": "33k"},
+    "R7": {"type": "resistor", "r": "27k"},
+    "C2": {"type": "capacitor", "c": "4.7n"},
+    "Q2": {"type": "put"},
+    "R9": {"type": "resistor", "r": "1k"},
+    "Q3": {"type": "transistor_npn"},
+    "R10": {"type": "resistor", "r": "10k"},
+    "R8": {"type": "resistor", "r": "100"},
+    "LS1": {"type": "speaker", "r": 8},
+    "R11": {"type": "resistor", "r": "10k"},
+    "C3": {"type": "capacitor", "c": "2.2u"}
+  },
+  "nets": {
+    "p": ["V1.+", "R1.1", "R2.1", "R5.1", "R6.1", "R8.1"],
+    "a1": ["R1.2", "Q1.A", "C1.+"],
+    "g1": ["R2.2", "R3.1", "Q1.G"],
+    "k1": ["Q1.K", "R11.1"],
+    "g2": ["R6.2", "R7.1", "Q2.G", "R11.2", "C3.+"],
+    "a2": ["R5.2", "Q2.A", "C2.+"],
+    "k2": ["Q2.K", "R9.1"],
+    "b": ["R9.2", "Q3.B", "R10.1"],
+    "s": ["R8.2", "LS1.+"],
+    "c": ["LS1.-", "Q3.C"],
+    "gnd": ["V1.-", "R3.2", "C1.-", "R7.2", "C2.-", "C3.-", "Q3.E", "R10.2"]
+  },
+  "expect": {
+    "V(a1)": {"min": 0, "max": 4.6},
+    "V(g2)": {"min": 0, "max": 4},
+    "I(LS1)": {"min": 0, "max": 0.08}
+  }
+}
