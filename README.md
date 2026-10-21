@@ -18,6 +18,8 @@ database sono generici e non legati a un corso specifico.
 - GUI con schema animato: corrente che scorre, LED che si accendono, guasti
 - Breadboard 2D generata automaticamente e **editabile**: trascina, ruota, elimina,
   undo, validazione elettrica e layout salvato per progetto
+- assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
+  distanza, con pulsante **Ottimizza disposizione**
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`

@@ -66,6 +66,7 @@ Da fare:
 - [ ] "Fissa i valori attuali come attesi" per generare `expect`
 - [x] Generatore breadboard 2D per tutti i circuiti
 - [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
+- [x] Disposizione spaziosa (massima distanza) e pulsante di ottimizzazione
 - [ ] Jumper manuali e breadboard-first: derivazione reti e sync schema
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.

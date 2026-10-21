@@ -149,6 +149,9 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
   reti aperte e corti
 - il test `tests/test_breadboard.py` genera e valida tutti gli esercizi, prova
   il determinismo, la rimozione di un pin e un corto artificiale
+- **Ottimizza disposizione** rigenera il layout distribuendo i componenti alla
+  massima distanza (greedy farthest-point su righe/colonne, usa anche i rail
+  inferiori); riduce le sovrapposizioni di etichette e moduli
 - **editing**: trascina un componente da un foro all'altro (snap al foro), `R`
   per ruotare, `Canc` per eliminare; i jumper vengono ri-rotati, il layout e'
   validato e salvato in `<progetto>.board.json`

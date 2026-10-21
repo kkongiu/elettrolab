@@ -69,7 +69,11 @@ class BreadboardTests(unittest.TestCase):
         doc = load_doc("exp03")
         layout = generate(doc)
         doc.board = layout
-        ok, msg = shift_part(doc, layout, "R1", 1, 0)
+        ok, msg = False, "nessuna direzione libera"
+        for dcol, drow in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1)):
+            ok, msg = shift_part(doc, layout, "R1", dcol, drow)
+            if ok:
+                break
         self.assertTrue(ok, msg)
         reroute(doc, layout)
         self.assertEqual(validate_layout(doc, layout), [])

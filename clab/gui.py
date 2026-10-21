@@ -245,6 +245,12 @@ class App:
         self.nb.add(bbf, text="Breadboard")
         self.nb.add(plotf, text="Grafico")
         self.nb.add(dataf, text="Dati")
+        bbar = ttk.Frame(bbf, style="Card.TFrame")
+        bbar.pack(fill="x")
+        ttk.Button(bbar, text="Ottimizza disposizione", command=self._optimize_board).pack(
+            side="left", pady=2)
+        ttk.Label(bbar, text="trascina · R ruota · Canc elimina",
+                  style="Muted.TLabel").pack(side="left", padx=8)
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
         self.bb_canvas.pack(fill="both", expand=True)
         self.bb_canvas.bind("<Button-1>", self._bb_on_press)
@@ -496,6 +502,22 @@ class App:
         self._update_props()
         self._fill()
         self._plot()
+
+    def _optimize_board(self):
+        if self.doc is None:
+            return
+        self._push_undo()
+        try:
+            board = generate(self.doc)
+        except LayoutError as e:
+            self.history.pop()
+            self._hint(str(e))
+            return
+        self.doc.board = board
+        self.selected = None
+        self.dirty = True
+        self._after_board_change()
+        self._hint("Disposizione ottimizzata: massima distanza tra i componenti")
 
     def _breadboard_active(self):
         return self.nb.select() == str(self.bb_frame)

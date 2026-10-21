@@ -1,3 +1,4 @@
+import math
 import re
 
 COLS = 30
@@ -158,7 +159,7 @@ def _is_rail_hole(name):
     return name.startswith(("T+", "T-", "B+", "B-"))
 
 
-def generate(doc):
+def generate(doc, spread=True):
     layout = {"parts": {}, "wires": []}
     gnd = doc.ground
     sources = sorted(pid for pid in doc.parts if doc.part(pid) is not None and doc.part(pid).kind == "V")
@@ -177,25 +178,8 @@ def generate(doc):
         rail_col[rail] = col + 1
         return f"{rail}{col}"
 
-    groups = (("A", "B", "C", "D", "E"), ("F", "G", "H", "I", "J"))
-    state = {"group": 0, "col": 1}
-
-    def allocate(span):
-        while True:
-            if span > COLS:
-                raise LayoutError(f"componente troppo largo: {span} colonne")
-            if state["col"] + span - 1 <= COLS:
-                col0 = state["col"]
-                state["col"] += span + 1
-                rows = groups[state["group"]]
-                row = rows[min(2, (col0 - 1) // 10)]
-                return row, col0
-            state["group"] += 1
-            state["col"] = 1
-            if state["group"] >= len(groups):
-                raise LayoutError("breadboard piena: troppi pin")
-
     vpos = 0
+    pending = []
     for pid in sorted(doc.parts):
         p = doc.part(pid)
         if p is None:
@@ -205,24 +189,51 @@ def generate(doc):
             layout["parts"][pid] = {"pins": {pin: rail_hole(gnd)}}
             continue
         if p.kind == "V" and pid == primary and primary_rails:
-            pins = {}
-            for pin in p.spec.pins:
-                net = doc.net_of(pid, pin)
-                pins[pin] = rail_hole(net)
+            pins = {pin: rail_hole(doc.net_of(pid, pin)) for pin in p.spec.pins}
             layout["parts"][pid] = {"pins": pins, "pos": (4, 130 + 80 * vpos)}
             vpos += 1
             continue
+        pending.append(pid)
+
+    used = {0: set(), 1: set()}
+    centers = []
+
+    def place(p):
         offs = _offsets(len(p.spec.pins))
         span = max(offs) + 1
-        row, col0 = allocate(span)
-        pins = {}
-        for i, pin in enumerate(p.spec.pins):
-            pins[pin] = f"{row}{col0 + offs[i]}"
+        best = None
+        for row in ROWS:
+            group = 0 if row in "ABCDE" else 1
+            for c0 in range(1, COLS - span + 2):
+                cols = [c0 + offs[i] for i in range(len(p.spec.pins))]
+                if any(col in used[group] for col in cols):
+                    continue
+                xs = [COL_X[c] for c in cols]
+                cx, cy = sum(xs) / len(xs), ROW_Y[row]
+                score = (min(math.hypot(cx - x, cy - y) for x, y in centers)
+                         if centers else 0.0)
+                key = (score, -ROWS.index(row), -c0)
+                if best is None or key > best[0]:
+                    best = (key, row, c0, cols, cx, cy)
+        return best, offs
+
+    pending.sort(key=lambda pid: (-(max(_offsets(len(doc.part(pid).spec.pins))) + 1), pid))
+    for pid in pending:
+        p = doc.part(pid)
+        best, offs = place(p)
+        if best is None:
+            raise LayoutError(f"breadboard piena: {pid}")
+        _, row, c0, cols, cx, cy = best
+        pins = {pin: f"{row}{c0 + offs[i]}" for i, pin in enumerate(p.spec.pins)}
         entry = {"pins": pins}
         if p.kind == "V":
             entry["pos"] = (4, 130 + 80 * vpos)
             vpos += 1
         layout["parts"][pid] = entry
+        group = 0 if row in "ABCDE" else 1
+        for col in cols:
+            used[group].add(col)
+        centers.append((cx, cy))
 
     route_wires(doc, layout, pos_net=pos_net, gnd=gnd)
     return layout
@@ -240,6 +251,7 @@ def route_wires(doc, layout, pos_net=None, gnd=None):
     gnd = gnd if gnd is not None else doc.ground
     pos_net = pos_net if pos_net is not None else _positive_net(doc)
     layout["wires"] = []
+    bottom_used = {gnd: False, pos_net: False}
 
     def hole_col(hole):
         return int(HOLE_RE.fullmatch(hole).group(2))
@@ -252,16 +264,27 @@ def route_wires(doc, layout, pos_net=None, gnd=None):
             if hole:
                 holes.append(hole)
         if net == gnd or net == pos_net:
-            rail = "T-" if net == gnd else "T+"
+            top = "T-" if net == gnd else "T+"
+            bottom = "B-" if net == gnd else "B+"
             for hole in holes:
                 if _is_rail_hole(hole):
                     continue
+                kind, col = parse_hole(hole)
+                if kind in "FGHIJ":
+                    rail = bottom
+                    bottom_used[net] = True
+                else:
+                    rail = top
                 layout["wires"].append({"net": net,
-                                        "points": [hole, f"{rail}{hole_col(hole)}"]})
+                                        "points": [hole, f"{rail}{col}"]})
         elif len(holes) >= 2:
             hub = holes[0]
             for hole in holes[1:]:
                 layout["wires"].append({"net": net, "points": [hub, hole]})
+    if bottom_used.get(gnd):
+        layout["wires"].append({"net": gnd, "points": ["T-1", "B-1"]})
+    if pos_net is not None and bottom_used.get(pos_net):
+        layout["wires"].append({"net": pos_net, "points": ["T+1", "B+1"]})
     return layout
 
 
