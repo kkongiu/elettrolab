@@ -58,9 +58,11 @@ voluta, aggiornare sia il circuito sia la documentazione.
 
 - Il layout e' generato da `clab/breadboards.py`; non va scritto a mano.
 - L'editor aggiorna `Document.board`; il salvataggio crea `<progetto>.board.json`.
-- Ogni modifica passa da `reroute` + `validate_layout`.
-- I test in `tests/test_breadboard.py` coprono generator, determinismo, corti,
-  fori mancanti, shift/rotate e round-trip del sidecar.
+- In breadboard-first ogni modifica passa da `derive_nets`; in modalita'
+  circuito-canonico da `reroute`. Sempre con `validate_layout`.
+- I test in `tests/test_breadboard.py` coprono generatore, determinismo,
+  corti, fori mancanti, shift/rotate con fili, jumper manuali, aggiunta di
+  componenti e round-trip del sidecar.
 
 ## Modificare un modello fisico
 

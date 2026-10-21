@@ -27,8 +27,8 @@ database sono generici e non legati a un corso specifico.
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
-- 10 esercizi verificati automaticamente, 7 test del motore, 11 test fisici
-- 3 confronti con ngspice (LED, RC, NPN)
+- 10 esercizi verificati automaticamente
+- 34 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
 ## Avvio rapido
@@ -240,7 +240,8 @@ la bruciatura in transitorio, il merge delle reti, il layout, la breadboard,
 il confronto con ngspice e il server MCP (tool, risorse, trasporto stdio,
 scrittura protetta).
 I test SPICE vengono saltati se `ngspice` non e' installato; i test MCP se
-`mcp` non e' nel Python usato.
+`mcp` non e' nel Python usato. Totale: 43 test, 2 di trasporto MCP saltati nel
+Python di sistema.
 
 ## Documentazione
 

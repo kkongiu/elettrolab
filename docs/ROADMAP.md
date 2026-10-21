@@ -11,10 +11,10 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 10 esercizi, 7 test del motore, 11 test fisici e 3 confronti ngspice
+- [x] 10 esercizi; 34 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice) e 9 test MCP
 - [x] Documentazione di progetto e licenza MIT
 
-## Fase 1 - Server MCP (prossima)
+## Fase 1 - Server MCP (fatta)
 
 Obiettivo: un LLM progetta, valida, simula e corregge un circuito senza aprire
 il codice.
@@ -56,19 +56,21 @@ Fatto:
 - [x] Simbolo di massa e rele' a due poli con pin opzionali
 - [x] NPN a tre stati e PUT a due stati (comportamentali)
 - [x] Validazione fisica: residuo MNA, RC/RLC, NPN, PUT, ngspice
-
-Da fare:
-
-- [ ] Slider collegati ai parametri (tensione, potenziometro) senza Applica
-- [ ] Trascinamento dei punti di piega dei fili
-- [ ] Rinomina delle reti dall'interfaccia
-- [ ] Creazione di un nuovo tipo di componente dall'editor
-- [ ] "Fissa i valori attuali come attesi" per generare `expect`
+- [x] Slider live per tensione, potenziometro, R, C, L
 - [x] Generatore breadboard 2D per tutti i circuiti
 - [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
+- [x] I jumper seguono i componenti quando vengono spostati o ruotati
 - [x] Disposizione spaziosa (massima distanza) e pulsante di ottimizzazione
 - [x] Jumper manuali, gomma, breadboard-first e derivazione reti/sync schema
 - [x] Aggiunta di componenti direttamente dalla breadboard
+
+Da fare:
+
+- [ ] Trascinamento dei punti di piega dei fili
+- [ ] Rinomina delle reti dall'interfaccia
+- [ ] Zoom/pan della breadboard
+- [ ] Creazione di un nuovo tipo di componente dall'editor
+- [ ] "Fissa i valori attuali come attesi" per generare `expect`
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.
