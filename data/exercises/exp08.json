@@ -1,7 +1,7 @@
 {
   "id": "exp08",
   "title": "Oscillatore a relè con due LED",
-  "notes": "Il contatto NC alimenta la bobina e il LED sinistro; il contatto NO accende il LED destro. Il condensatore da 1000 µF in parallelo alla bobina la tiene eccitata mentre si scarica. Il ritardo meccanico td=0.2 s rende visibile la fase in cui il LED sinistro è acceso.",
+  "notes": "Il contatto NC alimenta la bobina e il LED sinistro; il contatto NO accende il LED destro. Il condensatore da 1000 µF in parallelo alla bobina la tiene eccitata mentre si scarica. td=0.02 s e' il ritardo meccanico del rele'; nella GUI l'alone del LED sinistro resta visibile per qualche decimo di secondo.",
   "analysis": "transient",
   "tstop": 4,
   "dt": 0.005,
@@ -18,7 +18,7 @@
       "rcoil": 400,
       "vpull": 6,
       "vdrop": 3,
-      "td": 0.2
+      "td": 0.02
     },
     "C1": {
       "type": "capacitor",
@@ -68,18 +68,14 @@
   },
   "expect": {
     "I(D1)": {
-      "at": 0.5,
-      "approx": 0.0104,
-      "tol": 0.15,
-      "min": 0.0,
-      "max": 0.012
+      "min": 0,
+      "max": 0.012,
+      "peak_min": 0.009
     },
     "I(D2)": {
-      "at": 0.1,
-      "approx": 0.0104,
-      "tol": 0.15,
-      "min": 0.0,
-      "max": 0.012
+      "min": 0,
+      "max": 0.012,
+      "peak_min": 0.009
     }
   }
 }

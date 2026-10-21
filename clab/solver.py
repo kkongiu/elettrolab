@@ -30,6 +30,7 @@ class Result:
         self.ok = True
         self.notes = []
         self.relay_states = {}
+        self.residual = 0.0
 
     def value(self, sig):
         if self.waves and sig in self.waves:
@@ -482,6 +483,7 @@ def _dc(circ):
         led, relay, q = nl, nr, nq
     _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q)
     res.relay_states = dict(relay)
+    res.residual = float(np.max(np.abs(A @ x - b)))
     return res
 
 
@@ -541,6 +543,7 @@ def _tran(circ):
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     time = np.zeros(nsteps)
     relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
+    viol_acc = {}
 
     waves = {f"V({name})": np.zeros(nsteps) for name in circ.node_names}
     for pid in circ.parts:
@@ -561,7 +564,14 @@ def _tran(circ):
             led, q = nl, nq
             A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q)
             x = _solve(A, b)
+        res.residual = max(res.residual, float(np.max(np.abs(A @ x - b))))
         v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, t)
+        for viol in res.violations:
+            key = (viol["part"], viol["code"])
+            item = dict(viol)
+            item["time"] = t
+            if key not in viol_acc or abs(item["value"]) > abs(viol_acc[key]["value"]):
+                viol_acc[key] = item
         time[step] = t
         for i, name in enumerate(circ.node_names):
             waves[f"V({name})"][step] = v[i]
@@ -588,6 +598,7 @@ def _tran(circ):
     res.nodes = {name: float(waves[f"V({name})"][-1]) for name in circ.node_names}
     res.currents = {pid: float(waves[f"I({pid})"][-1]) for pid in circ.parts}
     _violations(circ, res, x, led)
+    res.violations = sorted(viol_acc.values(), key=lambda v: (v["part"], v["code"]))
     return res
 
 
@@ -639,6 +650,12 @@ def check(circ, res):
             good = vmax <= float(hi)
             ok = ok and good
             details.append(f"max {vmax:.4g} <= {float(hi):.4g}")
+        pk = cond.get("peak_min")
+        if pk is not None:
+            vmax = float(np.max(vals))
+            good = vmax >= float(pk)
+            ok = ok and good
+            details.append(f"picco {vmax:.4g} >= {float(pk):.4g}")
         out.append({"signal": sig, "ok": ok, "detail": "; ".join(details)})
     res.checks = out
     res.ok = all(c["ok"] for c in out)

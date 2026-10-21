@@ -97,6 +97,7 @@ completo senza geometria. Specifica in `docs/GUI.md`.
 | `at` | istante in secondi in cui valutare `approx` (solo transitorio) |
 | `min` | minimo ammesso della forma d'onda |
 | `max` | massimo ammesso della forma d'onda |
+| `peak_min` | il massimo della forma d'onda deve superare questa soglia |
 | `violations` | componenti che devono risultare guasti |
 
 Le unita' nei valori sono sempre SI: 15 mA si scrive `0.015`.

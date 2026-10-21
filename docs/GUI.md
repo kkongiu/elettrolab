@@ -115,6 +115,8 @@ secondi. Ogni componente ha una corrente interpolata all'istante corrente:
   convenzionale esce dal positivo;
 - i LED usano una scala logaritmica fra 1 uA e `imax`, così anche correnti
   piccole restano visibili; un LED bruciato mostra una X;
+- l'alone dei LED ha una persistenza di circa 250 ms reali: un impulso da
+  20 ms, come quello del relè in exp08, resta visibile per alcuni frame;
 - il cursore sul grafico segue l'animazione; `Pausa` ferma tutto.
 
 ## Convenzioni di disegno
@@ -181,10 +183,12 @@ destro.
 - La tela non ha zoom né pan.
 - Il disegno viene ricreato a ogni frame: adatto a circuiti didattici.
 - I fili sono instradati automaticamente; non si trascinano i punti di piega.
-- Il braccio del relè segue la tensione di bobina con isteresi; non c'è rimbalzo
-  meccanico.
+- Il braccio del relè segue lo stato simulato; `td` è un ritardo meccanico
+  lumped, non un modello dell'armatura.
 - Le sorgenti sono ideali: nell'oscillatore la ricarica del condensatore produce
   picchi di corrente molto brevi.
+- I modelli di NPN e PUT sono comportamentali, non SPICE completi: vedere
+  `docs/MODELS.md`.
 - Il pannello Codice applica il JSON in un colpo solo; non c'è merging con le
   modifiche fatte nel frattempo sulla tela.
 

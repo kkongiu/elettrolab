@@ -61,6 +61,8 @@ class Schematic:
         self.junctions = []
         self.cross = {}
         self.gaps = []
+        self.led_glow = {}
+        self.dreal = 0.0
         self.phase = {}
         if self.layout and self.layout.get("parts"):
             self._build_routes()
@@ -348,6 +350,7 @@ class Schematic:
 
     def draw(self, t=None, dreal=0.0, playing=True):
         c = self.c
+        self.dreal = dreal
         c.delete("all")
         if not self.layout or not self.layout.get("parts"):
             self.text(450, 200, "Nessun componente: aggiungine uno dalla palette", size=11)
@@ -608,9 +611,18 @@ class Schematic:
         if burned:
             return
         if i < 1e-6:
+            raw = 0.0
+        else:
+            raw = math.log10(max(i / 1e-6, 1.0)) / math.log10(max(imax / 1e-6, 10.0))
+            raw = min(1.0, max(0.0, raw))
+        prev = self.led_glow.get(pid, 0.0)
+        if raw > 0.02:
+            ratio = max(raw, prev)
+        else:
+            ratio = max(0.0, prev - self.dreal / 0.25)
+        self.led_glow[pid] = ratio
+        if ratio <= 0.01:
             return
-        ratio = math.log10(max(i / 1e-6, 1.0)) / math.log10(max(imax / 1e-6, 10.0))
-        ratio = min(1.0, max(0.0, ratio))
         for rad, f in ((32, 0.30), (23, 0.45), (15, 0.65)):
             X, Y = self.T(x, y)
             r = rad * self.s

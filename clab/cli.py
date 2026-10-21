@@ -308,16 +308,19 @@ def _test_put():
                "R3": {"type": "resistor", "r": "27k"},
                "C1": {"type": "capacitor", "c": "2.2u"},
                "Q1": {"type": "put"},
+               "R4": {"type": "resistor", "r": "100"},
                "D1": {"type": "led_red"}},
               {"p": ["V1.+", "R1.1", "R2.1"],
                "a": ["R1.2", "Q1.A", "C1.+"],
                "g": ["R2.2", "R3.1", "Q1.G"],
-               "k": ["Q1.K", "D1.A"],
+               "k": ["Q1.K", "R4.1"],
+               "lk": ["R4.2", "D1.A"],
                "gnd": ["V1.-", "R3.2", "C1.-", "D1.K"]},
-              analysis="transient", tstop=6, dt=0.001)
+              analysis="transient", tstop=4, dt=0.00005)
     res = simulate(circ)
     peak = float(res.waves["I(D1)"].max())
-    return peak > 0.001, f"I(D1) picco = {fmt(peak, 'A')} (il LED lampeggia)"
+    return 0.012 < peak < 0.018 and not res.violations, \
+        f"I(D1) picco = {fmt(peak, 'A')} (con R4, nessuna violazione)"
 
 
 def main(argv=None):

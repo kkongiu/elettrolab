@@ -49,6 +49,8 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `POT` | potenziometri | `1`, `2`, `W` | `rtotal`, `pos`, `mode` | - |
 | `RELAY` | rele' a un polo | `COIL+`, `COIL-`, `COM`, `NC`, `NO` | `rcoil`, `vpull`, `vdrop`, `ron`, `roff`, `td` | - |
 | `RELAY2` | rele' a due poli | `COIL+`, `COIL-`, `COM1`, `NC1`, `NO1`, `COM2`, `NC2`, `NO2` | come `RELAY` | - |
+| `NPN` | transistore NPN | `C`, `B`, `E` | `vbe`, `beta`, `vcesat`, `ron`, `rb`, `imax` | `imax` |
+| `PUT` | PUT | `A`, `G`, `K` | `vf`, `ron`, `ihold`, `imax` | `imax` |
 | `GND` | simbolo di massa | `1` | - | - |
 
 Un `kind` non presente in questa tabella produce l'errore `unsupported`. I
@@ -116,6 +118,27 @@ Due deviatori indipendenti mossi dalla stessa bobina. I contatti sono
 `COM1/NC1/NO1` e `COM2/NC2/NO2`; i contatti `NO1` e `NO2` sono dichiarati
 opzionali nel catalogo, quindi un polo puo' restare inutilizzato. Il parametro
 `td` permette di rendere visibile la fase a riposo nei dimostratori didattici.
+
+### NPN
+
+Modello a tre stati (off, attivo, saturazione), non Ebers-Moll:
+
+- off: giunzioni ad alta resistenza;
+- attivo: `Vbe = vbe + rb·Ib`, `Ic = beta·Ib`;
+- saturazione: `Vce = vcesat + ron·Ic`.
+
+Parametri tipici: `vbe=0.7 V`, `beta=240`, `vcesat=0.2 V`, `ron=0.05 Ω`,
+`rb=10 Ω`. `rb` e' un parametro di modello, non una resistenza di base da
+datasheet. Non ci sono capacita' di giunzione, effetto Early, breakdown o
+temperatura. Adatto allo switching, non agli amplificatori lineari.
+
+### PUT
+
+Modello a due stati: spento (alta resistenza) e acceso (`ron` tra A e K).
+Scatta quando `Va > Vg + vf`; si spegne quando la corrente scende sotto
+`ihold`. Il gate e' ad alta impedenza e non ha corrente nel modello. E' un
+modello comportamentale: non riproduce il rapporto intrinseco o le curve del
+2N6027.
 
 ### GND
 

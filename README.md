@@ -19,7 +19,8 @@ database sono generici e non legati a un corso specifico.
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
-- 8 esercizi verificati automaticamente, 5 test del motore, 7 test unitari
+- 10 esercizi verificati automaticamente, 7 test del motore, 11 test fisici
+- 3 confronti con ngspice (LED, RC, NPN)
 - Server MCP: pianificato (vedi `docs/MCP-SERVER.md` e `docs/ROADMAP.md`)
 
 ## Avvio rapido
@@ -34,7 +35,7 @@ cd /home/kongiu/elettrolab
 ./lab sweep exp04 --sweep POT1.pos=0,0.25,0.5,0.75,1
 ./lab check                # esegue e verifica tutti gli esercizi
 ./lab selftest             # verifica il motore di simulazione
-./lab test                 # test unitari di documento, reti, layout
+./lab test                 # test unitari e fisici (+ ngspice)
 ./lab db                   # catalogo componenti
 ```
 
@@ -46,7 +47,8 @@ python3 -m clab run exp03
 ```
 
 Dipendenze: Python 3.10+ e NumPy per il motore. La GUI richiede anche Tkinter
-(incluso in Python su Linux) e Matplotlib; il resto funziona senza.
+(incluso in Python su Linux) e Matplotlib. `ngspice` e' opzionale e serve solo
+per i test di confronto SPICE.
 
 ## Comandi
 
@@ -177,6 +179,8 @@ Aggiungere un componente = aggiungere un file. Dettagli e tipi supportati in
 | `exp08` | Oscillatore a rele' con due LED | Transitorio | contatti NC/NO, 10.4 mA per LED |
 | `exp08b` | Variante a due poli | Transitorio | LED alternati su due contatti indipendenti |
 | `exp09` | Tempo e condensatori | Transitorio | tau = R*C, 63% dopo una costante |
+| `exp10` | Il transistor come interruttore | DC | NPN in cutoff, attivo e saturazione |
+| `exp11` | Oscillatore a rilascio con PUT | Transitorio | PUT, carica RC, LED impulsivo |
 | `exp13` | Friggere un LED | DC | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | risonanza e ringing, dal circuito CircuitJS dell'autore |
 
@@ -195,13 +199,14 @@ Il progetto del server, i tool, le risorse e il formato degli errori sono in
 ## Test
 
 ```bash
-./lab test                 # 7 test unitari (documento, reti, layout)
-./lab selftest             # 5 test numerici del solver
-./lab check                # 8 esercizi contro le attese
+./lab test                 # 7 documento + 11 fisica + 3 ngspice
+./lab selftest             # 7 test numerici del solver
+./lab check                # 10 esercizi contro le attese
 ```
 
-I test coprono partitore, LED, RC, RLC, la bruciatura del LED, il rele' a due
-poli con LED alternati, il merge delle reti e il salvataggio con layout.
+I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,
+la bruciatura in transitorio, il merge delle reti, il layout e il confronto con
+ngspice. I test SPICE vengono saltati se `ngspice` non e' installato.
 
 ## Documentazione
 
@@ -210,6 +215,8 @@ poli con LED alternati, il merge delle reti e il salvataggio con layout.
 - `docs/CIRCUIT-FORMAT.md` - schema JSON dei circuiti e delle attese
 - `docs/COMPONENTS.md` - catalogo, tipi, come estendere il database
 - `docs/EXERCISES.md` - esercizi, valori attesi, cosa e' simulabile
+- `docs/MODELS.md` - equazioni, parametri, validita' e limiti dei modelli
+- `docs/VALIDATION.md` - test, tolleranze e confronto ngspice
 - `docs/MCP-SERVER.md` - specifica del server MCP per gli LLM
 - `docs/ROADMAP.md` - fasi e prossimi passi
 - `CONTRIBUTING.md` - convenzioni e flusso di lavoro

@@ -1,7 +1,7 @@
 {
   "id": "exp08b",
   "title": "Relè con due LED alternati",
-  "notes": "Variante a due poli del relè: un polo fa oscillare la bobina con il condensatore, l'altro accende alternativamente i due LED. Il ritardo meccanico td=0.2 s rende visibile la fase del LED su NC.",
+  "notes": "Variante a due poli del rele': un polo fa oscillare la bobina con il condensatore, l'altro accende alternativamente i due LED. td=0.02 s e' il ritardo meccanico; la GUI mostra una scia luminosa per rendere visibile il lampo breve.",
   "analysis": "transient",
   "tstop": 3,
   "dt": 0.005,
@@ -18,7 +18,7 @@
       "rcoil": 400,
       "vpull": 6,
       "vdrop": 3,
-      "td": 0.2
+      "td": 0.02
     },
     "C1": {
       "type": "capacitor",
@@ -80,18 +80,14 @@
   },
   "expect": {
     "I(D1)": {
-      "at": 0.5,
-      "approx": 0.01043,
-      "tol": 0.12,
-      "min": 0.0,
-      "max": 0.012
+      "min": 0,
+      "max": 0.012,
+      "peak_min": 0.009
     },
     "I(D2)": {
-      "at": 0.1,
-      "approx": 0.01,
-      "tol": 0.12,
-      "min": 0.0,
-      "max": 0.012
+      "min": 0,
+      "max": 0.012,
+      "peak_min": 0.009
     }
   }
 }

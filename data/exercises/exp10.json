@@ -1,7 +1,7 @@
 {
   "id": "exp10",
   "title": "Il transistor come interruttore",
-  "notes": "Un transistor NPN e' un interruttore a stato solido: senza corrente di base resta aperto e il LED e' spento. Premendo il pulsante, una piccola corrente entra nella base (attraverso R2 da 10 kohm) e il transistor lascia passare una corrente molto piu' grande dal collettore all'emettitore, accendendo il LED. R1 protegge il collettore e R3 l'emettitore. Prova --set SW1.closed=false per simulare il pulsante rilasciato.",
+  "notes": "Un transistor NPN e' un interruttore a stato solido: senza corrente di base resta aperto e il LED e' spento. Premendo il pulsante, una piccola corrente entra nella base (R2 da 10 kohm) e il transistor lascia passare una corrente molto piu' grande dal collettore all'emettitore. R1 protegge il collettore, R3 l'emettitore e R4 tiene la base a massa quando il pulsante e' aperto. Prova --set SW1.closed=false per simulare il pulsante rilasciato.",
   "analysis": "dc",
   "parts": {
     "V1": {
@@ -28,6 +28,10 @@
     },
     "D1": {
       "type": "led_red"
+    },
+    "R4": {
+      "type": "resistor",
+      "r": "100k"
     }
   },
   "nets": {
@@ -46,7 +50,8 @@
     ],
     "b": [
       "SW1.2",
-      "Q1.B"
+      "Q1.B",
+      "R4.1"
     ],
     "e": [
       "Q1.E",
@@ -58,7 +63,8 @@
     ],
     "gnd": [
       "V1.-",
-      "D1.K"
+      "D1.K",
+      "R4.2"
     ]
   },
   "expect": {

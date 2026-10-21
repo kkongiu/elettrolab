@@ -10,9 +10,11 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp03` | Il primo circuito | DC | `I(D1) = 15 mA`, `V(m) = 1.95 V` | la resistenza limita la corrente |
 | `exp04` | Variare la tensione | DC | `I(D1) = 0.906 mA` a `pos = 0.5` | partitore resistivo, dimming |
 | `exp06` | Accendere e spegnere | DC | `I(D1) = 15 mA` chiuso, `0` aperto | interruttore in serie |
-| `exp08` | Oscillatore a rele' con due LED | Transitorio | 10.43 mA per LED, D1 0.2 s e D2 0.44 s | contatti NC/NO, condensatore, isteresi |
-| `exp08b` | Variante a due poli | Transitorio | 10.4 mA sul rosso, 10.0 mA sul verde | LED alternati su due contatti indipendenti |
+| `exp08` | Oscillatore a rele' con due LED | Transitorio | 10.43 mA per LED, periodo ~0.46 s | contatti NC/NO, condensatore, isteresi |
+| `exp08b` | Variante a due poli | Transitorio | 10.4/10.0 mA, periodo ~0.46 s | LED alternati su due contatti indipendenti |
 | `exp09` | Tempo e condensatori | Transitorio | `V(m) = 5.68 V` a 10 s | costante di tempo `tau = R*C` |
+| `exp10` | Il transistor come interruttore | DC | `Ic = 11.45 mA`, `Vce = 0.20 V` | NPN in cutoff, attivo e saturazione |
+| `exp11` | Oscillatore a rilascio con PUT | Transitorio | picco 14.5 mA, periodo 1.04 s | PUT, carica RC, LED impulsivo |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 
@@ -71,11 +73,12 @@ catodi si uniscono e passano per la resistenza da 680 ohm verso massa.
 - Eccitato: NC apre, NO chiude; D2 si accende, D1 resta acceso finche' il
   condensatore non scende sotto la tensione del nodo comune, poi si spegne.
 - Il condensatore tiene eccitata la bobina per circa 0.44 s; sotto 3 V il rele'
-  rilascia. Con `td = 0.2 s` la fase a riposo dura 0.2 s.
+  rilascia. Con `td = 0.02 s` la fase a riposo dura 20 ms.
 
 Misure: `I(D1) = I(D2) = 10.43 mA` quando il rispettivo contatto e' chiuso;
-`V(nc)` scende da 9 V a 3 V durante la scarica. La sorgente e' ideale, quindi la
-ricarica e' istantanea e la fase a riposo e' determinata da `td`.
+periodo ~0.464 s. `V(nc)` scende da 9 V a 3 V durante la scarica. La sorgente
+e' ideale, quindi la ricarica e' istantanea. Il lampo di D1 dura 20 ms: nella
+GUI l'alone ha una persistenza di 250 ms per renderlo visibile.
 
 ```bash
 ./lab run exp08 --plot "I(D1)"
@@ -89,7 +92,8 @@ Variante a due poli: il polo 1 fa oscillare la bobina con il condensatore, il
 polo 2 accende alternativamente i due LED. `NC2` alimenta il LED rosso tramite
 680 ohm, `NO1` alimenta il verde tramite altri 680 ohm.
 
-Con `td = 0.2 s` la fase a riposo dura 0.2 s, quella eccitata circa 0.44 s:
+Con `td = 0.02 s` la fase a riposo dura 20 ms, quella eccitata circa 0.44 s
+(periodo ~0.464 s):
 
 - `I(D1)` (rosso) e' circa 10.43 mA quando `NC2` e' chiuso;
 - `I(D2)` (verde) e' circa 10.0 mA quando `NO1` e' chiuso;
@@ -114,6 +118,39 @@ condensatore e' al 63% di 9 V, cioe' 5.69 V; dopo tre costanti e' al 95%.
 ```
 
 Con 5 kohm la costante dimezza: il grafico si stringe.
+
+### exp10 - Il transistor come interruttore
+
+NPN con carico sul collettore (`R1 = 180 Ω`), LED e `R3 = 680 Ω` sull'emettitore,
+base pilotata da `R2 = 10 kΩ` tramite il pulsante, `R4 = 100 kΩ` di pull-down.
+
+- Pulsante chiuso: `Vbe ≈ 0.70 V`, `Vce ≈ 0.20 V`, `Ic ≈ 11.45 mA`; il
+  transistor e' in saturazione e il LED e' acceso.
+- Pulsante aperto: `R4` tiene la base a massa, `Vbe ≈ 0`, `Ic ≈ 0`; LED spento.
+
+```bash
+./lab run exp10
+./lab run exp10 --set SW1.closed=false
+```
+
+Il modello e' un interruttore a tre stati, non Ebers-Moll; vedere
+`docs/MODELS.md`.
+
+### exp11 - Oscillatore a rilascio con PUT
+
+`R1 = 470 kΩ` carica `C1 = 2.2 µF`; il partitore `R2/R3 = 15k/27k` fissa il gate
+a `Vg = 3.857 V`; il PUT scatta a `Va = Vg + 0.6 = 4.457 V`, scarica il
+condensatore attraverso `R4 = 100 Ω` e il LED, poi si spegne sotto `ihold`.
+
+- `dt = 50 µs`, `tstop = 4 s`: la scarica e' risolta.
+- Periodo ~1.036 s; picco LED ~14.5 mA (15.5 mA a 25 µs, entro il 10%).
+- Senza `R4` il picco supera 30 mA e il LED si brucia: il test in
+  `tests/test_physics.py` lo verifica.
+
+```bash
+./lab run exp11 --plot "I(D1)"
+./lab gui exp11
+```
 
 ### exp13 - Friggere un LED
 

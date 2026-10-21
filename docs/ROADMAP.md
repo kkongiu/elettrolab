@@ -11,7 +11,7 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 8 esercizi, 5 test del motore e 7 test unitari
+- [x] 10 esercizi, 7 test del motore, 11 test fisici e 3 confronti ngspice
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (prossima)
@@ -53,6 +53,8 @@ Fatto:
 - [x] Pannello Codice con vista circuito/layout, modifica e applicazione
 - [x] Progetti in `data/projects/` con file di layout affiancato
 - [x] Simbolo di massa e rele' a due poli con pin opzionali
+- [x] NPN a tre stati e PUT a due stati (comportamentali)
+- [x] Validazione fisica: residuo MNA, RC/RLC, NPN, PUT, ngspice
 
 Da fare:
 
@@ -68,11 +70,17 @@ Un frontend web resta possibile; il motore e il formato non cambiano.
 
 ## Fase 3 - Modelli avanzati
 
-- [ ] Transistore bipolare (Ebers-Moll semplificato)
+- [x] Transistore bipolare a tre stati (comportamentale)
+- [x] PUT comportamentale
+- [ ] Ebers-Moll completo per l'NPN
+- [ ] PUT tarato su datasheet (η, I_H, V_ON)
+- [ ] Resistenza interna di batterie e alimentatori
+- [ ] Passo adattivo per i transitori rapidi
 - [ ] MOSFET come interruttore
 - [ ] Timer 555 comportamentale
 - [ ] Porte logiche 74xx
 - [ ] Analisi AC e diagrammi di Bode
+- [x] Confronto con ngspice per circuiti lineari e NPN
 - [ ] Fallback a ngspice via subprocess per subcircuiti e modelli non primitivi
 - [ ] Import/export del formato CircuitJS
 
@@ -112,6 +120,7 @@ stabile e i test di regressione. La fase 4 puo' procedere in ogni momento.
 ## Metriche
 
 - `./lab check` sempre verde.
-- Nessuna regressione numerica oltre il 2% sui test del motore.
+- Residuo MNA < 1e-8.
+- Lineari entro il 2% dai riferimenti analitici/ngspice.
 - Tempo di risposta MCP sotto 100 ms per i circuiti didattici.
 - Ogni nuovo componente o esercizio arriva con un test.

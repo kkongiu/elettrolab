@@ -28,6 +28,9 @@ Il launcher usa `python3 -m clab` dalla radice del progetto.
 ./lab check
 ```
 
+`./lab test` include i test fisici e, se `ngspice` e' installato, i confronti
+SPICE. Per installarlo: `sudo apt-get install -y ngspice`.
+
 Tutti gli esercizi devono restare verdi. Se un controllo cambia per una scelta
 voluta, aggiornare sia il circuito sia la documentazione.
 
@@ -40,6 +43,13 @@ voluta, aggiornare sia il circuito sia la documentazione.
 - Gli errori espongono `code`, `message` e il contesto (`part`, `pin`).
 - I valori numerici passano sempre da `clab/units.py`.
 - Il formato del circuito non deve contenere coordinate o dettagli grafici.
+
+## Modificare un modello fisico
+
+- Aggiornare `clab/solver.py` e, se serve, il catalogo.
+- Aggiungere un test in `tests/test_physics.py`.
+- Se possibile, confrontare con `ngspice` in `tests/test_ngspice.py`.
+- Aggiornare `docs/MODELS.md` e `docs/VALIDATION.md`.
 
 ## Aggiungere un componente
 

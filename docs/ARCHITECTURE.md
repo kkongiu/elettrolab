@@ -26,6 +26,7 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 | `clab/document.py` | documento modificabile, reti, layout, undo, serializzazione |
 | `clab/circuit.py` | indicizzazione dei nodi, validazione, mappa pin -> nodo |
 | `clab/solver.py` | matrici MNA, DC e transitorio, stati, violazioni, controlli |
+| `clab/spice.py` | export in netlist SPICE per la validazione |
 | `clab/report.py` | tabelle testuali, grafico ASCII, CSV |
 | `clab/cli.py` | comandi, overrides, sweep, selftest |
 | `clab/gui.py` | finestra Tk, elenco esercizi, controlli, animazione |
@@ -192,6 +193,13 @@ Per i casi in cui il routing automatico non basta, il layout puo' fornire un
 percorso esplicito. Il canvas viene ridisegnato a circa 30 fps; i circuiti
 didattici hanno poche decine di elementi, quindi non serve una scena
 incrementale.
+
+## Validazione
+
+`clab/spice.py` esporta i circuiti lineari e a NPN in netlist ngspice.
+`tests/test_ngspice.py` confronta i punti di lavoro e il transitorio RC; i test
+vengono saltati se ngspice non e' installato. I modelli NPN e PUT restano
+comportamentali: vedere `docs/MODELS.md`.
 
 ## Limiti attuali
 
