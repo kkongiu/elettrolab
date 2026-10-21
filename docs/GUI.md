@@ -152,7 +152,8 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
 - **Ottimizza disposizione** rigenera il layout distribuendo i componenti alla
   massima distanza (greedy farthest-point su righe/colonne, usa anche i rail
   inferiori); riduce le sovrapposizioni di etichette e moduli
-- **editing**: trascina un componente da un foro all'altro (snap al foro), `R`
+- **editing**: trascina un componente da un foro all'altro (snap al foro); i
+  jumper collegati ai suoi pin lo seguono, quindi le connessioni restano giunte; `R`
   per ruotare, `Canc` per eliminare; i jumper vengono ri-rotati, il layout e'
   validato e salvato in `<progetto>.board.json`
 - **Breadboard-first** (attivo per default): le connessioni fisiche sono la

@@ -227,7 +227,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 32 test core (documento, fisica, ngspice, breadboard)
+./lab test                 # 33 test core (documento, fisica, ngspice, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 10 esercizi contro le attese

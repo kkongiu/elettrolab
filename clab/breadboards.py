@@ -434,7 +434,12 @@ def shift_part(doc, layout, pid, dcol, drow):
         if target in used or target in new.values():
             return False, "foro occupato"
         new[pin] = target
+    old = dict(pins)
     layout["parts"][pid]["pins"] = new
+    moves = {old[pin]: new[pin] for pin in old if old[pin] != new[pin]}
+    if moves:
+        for wire in layout.get("wires", []):
+            wire["points"] = [moves.get(point, point) for point in wire.get("points", [])]
     return True, ""
 
 
@@ -445,8 +450,13 @@ def rotate_part(doc, layout, pid):
     pins = entry.get("pins", {})
     if len(pins) < 2:
         return False, "componente non ruotabile"
-    values = list(pins.values())
-    keys = list(pins.keys())
+    old = dict(pins)
+    values = list(old.values())
+    keys = list(old.keys())
     for key, hole in zip(keys, reversed(values)):
         pins[key] = hole
+    moves = {old[key]: pins[key] for key in keys if old[key] != pins[key]}
+    if moves:
+        for wire in layout.get("wires", []):
+            wire["points"] = [moves.get(point, point) for point in wire.get("points", [])]
     return True, ""

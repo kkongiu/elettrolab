@@ -66,6 +66,30 @@ class BreadboardTests(unittest.TestCase):
         self.assertNotIn("m", derived)
         self.assertIsNotNone(wire_at(layout, *hole_xy(h1)))
 
+    def test_move_carries_wires(self):
+        circ = load("exp03")
+        layout = generate(circ)
+        original = {frozenset(v) for v in derive_nets(circ, layout).values()}
+        old_pin = layout["parts"]["D1"]["pins"]["A"]
+        attached = [i for i, wire in enumerate(layout["wires"])
+                    if old_pin in wire["points"]]
+        self.assertTrue(attached)
+        ok, msg = False, "nessuna direzione libera"
+        for dcol, drow in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            candidate = copy.deepcopy(layout)
+            ok, msg = shift_part(circ, candidate, "D1", dcol, drow)
+            if ok:
+                break
+        self.assertTrue(ok, msg)
+        new_pin = candidate["parts"]["D1"]["pins"]["A"]
+        self.assertNotEqual(old_pin, new_pin)
+        for i in attached:
+            self.assertIn(new_pin, candidate["wires"][i]["points"])
+            self.assertNotIn(old_pin, candidate["wires"][i]["points"])
+        self.assertEqual({frozenset(v) for v in derive_nets(circ, candidate).values()},
+                         original)
+        self.assertEqual(validate_layout(circ, candidate), [])
+
     def test_manual_jumper_is_reversible(self):
         circ = load("exp03")
         layout = generate(circ)
