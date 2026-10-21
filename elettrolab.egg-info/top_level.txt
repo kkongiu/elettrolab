@@ -1,2 +1,0 @@
-clab
-clab_mcp
