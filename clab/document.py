@@ -13,7 +13,7 @@ PREFIX = {"R": "R", "V": "V", "LED": "D", "SW": "SW", "C": "C", "L": "L",
 
 
 class Document:
-    def __init__(self, data, db, layout=None, source=None, builtin=False):
+    def __init__(self, data, db, layout=None, source=None, builtin=False, board=None):
         self.db = db
         self.source = source
         self.builtin = builtin
@@ -22,6 +22,7 @@ class Document:
         self.parts = {pid: dict(pdata) for pid, pdata in data.get("parts", {}).items()}
         self.nets = {name: list(refs) for name, refs in data.get("nets", {}).items()}
         self.layout = self._normalize_layout(layout or data.get("layout"))
+        self.board = copy.deepcopy(board) if board else None
         self._cache = {}
         self.selected = None
         self.ensure_layout()
@@ -40,16 +41,19 @@ class Document:
         return out
 
     @classmethod
-    def from_dict(cls, data, db, layout=None, source=None, builtin=False):
-        return cls(data, db, layout=layout, source=source, builtin=builtin)
+    def from_dict(cls, data, db, layout=None, source=None, builtin=False, board=None):
+        return cls(data, db, layout=layout, source=source, builtin=builtin, board=board)
 
     @classmethod
-    def from_file(cls, circuit_path, layout_path, db, builtin=False):
+    def from_file(cls, circuit_path, layout_path, db, builtin=False, board_path=None):
         data = json.loads(Path(circuit_path).read_text(encoding="utf-8"))
         layout = None
         if layout_path is not None and layout_path.exists():
             layout = json.loads(layout_path.read_text(encoding="utf-8"))
-        return cls(data, db, layout=layout, source=circuit_path, builtin=builtin)
+        board = None
+        if board_path is not None and board_path.exists():
+            board = json.loads(board_path.read_text(encoding="utf-8"))
+        return cls(data, db, layout=layout, source=circuit_path, builtin=builtin, board=board)
 
     def to_dict(self):
         data = {}
@@ -70,6 +74,9 @@ class Document:
                              for k, v in self.layout["routes"].items()}
         return out
 
+    def to_board_dict(self):
+        return copy.deepcopy(self.board) if self.board else None
+
     def to_json(self, layout=False):
         obj = self.to_layout_dict() if layout else self.to_dict()
         return json.dumps(obj, indent=2, ensure_ascii=False)
@@ -79,14 +86,16 @@ class Document:
 
     def clone(self):
         return Document(copy.deepcopy(self.to_dict()), self.db,
-                        layout=copy.deepcopy(self.to_layout_dict()))
+                        layout=copy.deepcopy(self.to_layout_dict()),
+                        board=copy.deepcopy(self.board))
 
     def snapshot(self):
         return (copy.deepcopy(self.parts), copy.deepcopy(self.nets),
-                copy.deepcopy(self.layout), copy.deepcopy(self.meta))
+                copy.deepcopy(self.layout), copy.deepcopy(self.meta),
+                copy.deepcopy(self.board))
 
     def restore(self, snap):
-        self.parts, self.nets, self.layout, self.meta = copy.deepcopy(snap)
+        self.parts, self.nets, self.layout, self.meta, self.board = copy.deepcopy(snap)
         self._cache = {}
         self.ensure_layout()
 
@@ -214,6 +223,8 @@ class Document:
                 del self.nets[name]
         del self.parts[pid]
         self.layout["parts"].pop(pid, None)
+        if self.board:
+            self.board.get("parts", {}).pop(pid, None)
         if self.selected == pid:
             self.selected = None
         self.invalidate()
@@ -336,11 +347,14 @@ class Document:
     def can_simulate(self):
         return not self.errors()
 
-    def save(self, circuit_path, layout_path=None):
+    def save(self, circuit_path, layout_path=None, board_path=None):
         circuit_path.parent.mkdir(parents=True, exist_ok=True)
         circuit_path.write_text(self.to_json(False) + "\n", encoding="utf-8")
         if layout_path is not None:
             layout_path.write_text(self.to_json(True) + "\n", encoding="utf-8")
+        if board_path is not None and self.board is not None:
+            board_path.write_text(json.dumps(self.board, indent=2, ensure_ascii=False) + "\n",
+                                  encoding="utf-8")
         self.source = circuit_path
         self.builtin = False
 

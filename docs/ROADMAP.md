@@ -65,8 +65,8 @@ Da fare:
 - [ ] Creazione di un nuovo tipo di componente dall'editor
 - [ ] "Fissa i valori attuali come attesi" per generare `expect`
 - [x] Generatore breadboard 2D per tutti i circuiti
-- [ ] Editing breadboard: drag/rotate/delete/jumper
-- [ ] Breadboard-first: derivazione reti e sincronizzazione schema
+- [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
+- [ ] Jumper manuali e breadboard-first: derivazione reti e sync schema
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.

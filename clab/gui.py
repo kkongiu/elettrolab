@@ -1,3 +1,4 @@
+import copy
 import json
 import math
 import re
@@ -12,7 +13,8 @@ from matplotlib.figure import Figure
 
 from . import report
 from .breadboard import Breadboard
-from .breadboards import LayoutError, generate
+from .breadboards import (LayoutError, RAIL_Y, ROWS, generate, hole_xy, parse_hole,
+                          reroute, rotate_part, shift_part, validate_layout)
 from .circuit import CircuitError
 from .db import DB
 from .document import Document, slugify
@@ -82,6 +84,7 @@ class App:
         self._loading = False
         self.sim_cache = {}
         self._slide_after = None
+        self._bb_drag = None
         self.bb = None
         self.vline = None
         self.t_anim = 0.0
@@ -244,11 +247,14 @@ class App:
         self.nb.add(dataf, text="Dati")
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
         self.bb_canvas.pack(fill="both", expand=True)
+        self.bb_canvas.bind("<Button-1>", self._bb_on_press)
+        self.bb_canvas.bind("<B1-Motion>", self._bb_on_motion)
+        self.bb_canvas.bind("<ButtonRelease-1>", self._bb_on_release)
 
         cbar = ttk.Frame(codef, style="Card.TFrame")
         cbar.pack(fill="x")
-        self.code_view = ttk.Combobox(cbar, state="readonly", width=10,
-                                      values=["Circuito", "Layout"])
+        self.code_view = ttk.Combobox(cbar, state="readonly", width=11,
+                                      values=["Circuito", "Layout", "Breadboard"])
         self.code_view.set("Circuito")
         self.code_view.pack(side="left", pady=2)
         self.code_view.bind("<<ComboboxSelected>>", lambda e: self._update_code())
@@ -449,12 +455,19 @@ class App:
         else:
             self.problems_list = self.doc.problems()
         self.schem = Schematic(self.scv, self.doc, self.res)
-        try:
-            board_layout = generate(self.doc)
-        except LayoutError as e:
-            board_layout = None
-            self._hint(str(e))
-        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, board_layout)
+        if self.doc.board is None or set(self.doc.board.get("parts", {})) != set(self.doc.parts):
+            try:
+                self.doc.board = generate(self.doc)
+            except LayoutError as e:
+                self.doc.board = None
+                self._hint(str(e))
+        else:
+            reroute(self.doc, self.doc.board)
+        if self.doc.board is not None:
+            for err in validate_layout(self.doc, self.doc.board):
+                self.problems_list.append({**err, "severity": "error"})
+        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
+        self.bb.selected = self.selected
         if self.selected not in self.doc.parts:
             self.selected = None
         if reset_anim:
@@ -466,6 +479,91 @@ class App:
             self._update_props()
         self._fill()
         self._plot()
+
+    def _after_board_change(self):
+        if self.doc is None or self.doc.board is None:
+            return
+        reroute(self.doc, self.doc.board)
+        self.problems_list = self.doc.problems()
+        for err in validate_layout(self.doc, self.doc.board):
+            self.problems_list.append({**err, "severity": "error"})
+        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
+        self.bb.selected = self.selected
+        self.dirty = True
+        self._update_header()
+        self._update_problems()
+        self._update_code()
+        self._update_props()
+        self._fill()
+        self._plot()
+
+    def _breadboard_active(self):
+        return self.nb.select() == str(self.bb_frame)
+
+    def _bb_on_press(self, event):
+        if self.doc is None or self.bb is None or self.doc.board is None:
+            return
+        vx, vy = self.bb.virtual(event.x, event.y)
+        pid = self.bb.part_at(vx, vy)
+        self.selected = pid
+        self.bb.selected = pid
+        self._update_props()
+        self._bb_drag = None
+        self.bb_canvas.focus_set()
+        if pid is None:
+            return
+        p = self.doc.part(pid)
+        if p is None or p.kind in ("V", "GND"):
+            return
+        pins = self.doc.board.get("parts", {}).get(pid, {}).get("pins", {})
+        if not pins:
+            return
+        anchor = min(pins, key=lambda pin: (hole_xy(pins[pin])[0] - vx) ** 2 +
+                                           (hole_xy(pins[pin])[1] - vy) ** 2)
+        self._push_undo()
+        self._bb_drag = {"pid": pid, "board": copy.deepcopy(self.doc.board),
+                         "anchor": pins[anchor]}
+
+    def _bb_on_motion(self, event):
+        if not self._bb_drag or self.doc is None or self.doc.board is None:
+            return
+        vx, vy = self.bb.virtual(event.x, event.y)
+        target = self.bb.hole_at(vx, vy)
+        if target is None:
+            return
+        try:
+            t_row, t_col = parse_hole(target)
+        except ValueError:
+            return
+        if t_row in RAIL_Y:
+            return
+        a_row, a_col = parse_hole(self._bb_drag["anchor"])
+        if a_row in RAIL_Y:
+            return
+        dcol = t_col - a_col
+        drow = ROWS.index(t_row) - ROWS.index(a_row)
+        if dcol == 0 and drow == 0:
+            return
+        candidate = copy.deepcopy(self._bb_drag["board"])
+        ok, msg = shift_part(self.doc, candidate, self._bb_drag["pid"], dcol, drow)
+        if not ok:
+            self._hint(msg)
+            return
+        reroute(self.doc, candidate)
+        errors = validate_layout(self.doc, candidate)
+        if errors:
+            self._hint(errors[0]["message"])
+            return
+        self.doc.board = candidate
+        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, candidate)
+        self.bb.selected = self._bb_drag["pid"]
+        self._hint(f"{self._bb_drag['pid']} spostato")
+
+    def _bb_on_release(self, event):
+        if not self._bb_drag:
+            return
+        self._bb_drag = None
+        self._after_board_change()
 
     def _simulate(self):
         self.problems_list = self.doc.problems()
@@ -523,7 +621,10 @@ class App:
         if self.doc is None or self.code_editing:
             return
         view = self.code_view.get()
-        text = self.doc.to_json(layout=(view == "Layout"))
+        if view == "Breadboard":
+            text = json.dumps(self.doc.board or {}, indent=2, ensure_ascii=False)
+        else:
+            text = self.doc.to_json(layout=(view == "Layout"))
         widget = self.code_text
         widget.configure(state="normal")
         widget.delete("1.0", "end")
@@ -562,6 +663,20 @@ class App:
             return
         self._push_undo()
         view = self.code_view.get()
+        if view == "Breadboard":
+            errors = validate_layout(self.doc, data)
+            if errors:
+                self.history.pop()
+                self._hint(errors[0]["message"])
+                return
+            self.doc.board = data
+            self.code_editing = False
+            self.code_btn.configure(text="Modifica")
+            self.code_view.configure(state="readonly")
+            self.dirty = True
+            self.selected = None
+            self._after_board_change()
+            return
         if view == "Layout":
             self.doc.layout = self.doc._normalize_layout(data)
             self.doc.ensure_layout()
@@ -818,11 +933,37 @@ class App:
         self._after_change(reset_anim=True)
 
     def _rotate_selected(self):
+        if self.selected in self.doc.parts and self._breadboard_active():
+            self._rotate_board_selected()
+            return
         if self.selected in self.doc.parts:
             self._push_undo()
             self.doc.rotate(self.selected)
             self.dirty = True
             self._after_change()
+
+    def _rotate_board_selected(self):
+        if self.doc is None or self.doc.board is None:
+            return
+        p = self.doc.part(self.selected)
+        if p is None or p.kind in ("V", "GND"):
+            self._hint("componente non ruotabile sulla breadboard")
+            return
+        self._push_undo()
+        candidate = copy.deepcopy(self.doc.board)
+        ok, msg = rotate_part(self.doc, candidate, self.selected)
+        if not ok:
+            self.history.pop()
+            self._hint(msg)
+            return
+        reroute(self.doc, candidate)
+        errors = validate_layout(self.doc, candidate)
+        if errors:
+            self.history.pop()
+            self._hint(errors[0]["message"])
+            return
+        self.doc.board = candidate
+        self._after_board_change()
 
     def _delete_selected(self):
         if self.selected in self.doc.parts:
@@ -847,7 +988,8 @@ class App:
         if self.doc is None:
             return
         if self.doc.source and not self.doc.builtin:
-            self.doc.save(self.doc.source, self.doc.source.with_suffix(".layout.json"))
+            self.doc.save(self.doc.source, self.doc.source.with_suffix(".layout.json"),
+                          self.doc.source.with_suffix(".board.json"))
             self.dirty = False
             self._update_header()
             self._refresh_projects()
@@ -865,12 +1007,13 @@ class App:
         slug = slugify(name)
         path = PROJECTS / f"{slug}.json"
         layout = PROJECTS / f"{slug}.layout.json"
+        board = PROJECTS / f"{slug}.board.json"
         if path.exists() and not messagebox.askyesno(
                 "Esiste già", f"{slug}.json esiste. Sovrascrivere?", parent=self.root):
             return
         self.doc.meta["id"] = slug
         self.doc.meta["title"] = name
-        self.doc.save(path, layout)
+        self.doc.save(path, layout, board)
         self.dirty = False
         self._refresh_projects(select=slug)
         self._update_header()
@@ -879,7 +1022,7 @@ class App:
     def _refresh_projects(self, select=None):
         self.proj_list.delete(0, "end")
         names = sorted(p.stem for p in PROJECTS.glob("*.json")
-                       if not p.name.endswith(".layout.json"))
+                       if not p.name.endswith((".layout.json", ".board.json")))
         for name in names:
             self.proj_list.insert("end", name)
         if select in names:
@@ -897,8 +1040,9 @@ class App:
         name = self.proj_list.get(sel[0])
         path = PROJECTS / f"{name}.json"
         layout = PROJECTS / f"{name}.layout.json"
+        board = PROJECTS / f"{name}.board.json"
         try:
-            doc = Document.from_file(path, layout, self.db)
+            doc = Document.from_file(path, layout, self.db, board_path=board)
         except Exception as e:
             self._hint(f"Errore apertura: {e}")
             return

@@ -16,7 +16,8 @@ database sono generici e non legati a un corso specifico.
   in sovratensione, cortocircuito della sorgente
 - CLI con menu, grafico ASCII, CSV, sweep di parametri
 - GUI con schema animato: corrente che scorre, LED che si accendono, guasti
-- Breadboard 2D generata automaticamente per tutti i circuiti, con validazione elettrica
+- Breadboard 2D generata automaticamente e **editabile**: trascina, ruota, elimina,
+  undo, validazione elettrica e layout salvato per progetto
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
@@ -222,7 +223,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 27 test core (documento, fisica, ngspice, breadboard)
+./lab test                 # 29 test core (documento, fisica, ngspice, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 10 esercizi contro le attese

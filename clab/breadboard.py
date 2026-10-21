@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from .breadboards import BOARD, COL_X, COLS, H, RAIL_COLORS, RAIL_Y, ROWS, ROW_Y, W, hole_xy
+from .breadboards import BOARD, COL_X, COLS, H, RAIL_COLORS, RAIL_Y, ROWS, ROW_Y, W, all_holes, hole_xy
 from .units import fmt
 
 BG = "#f7f2e6"
@@ -31,6 +31,37 @@ class Breadboard:
         self.s = 1.0
         self.ox = 0.0
         self.oy = 0.0
+        self.selected = None
+
+    def virtual(self, x, y):
+        if self.s <= 0:
+            return (x, y)
+        return ((x - self.ox) / self.s, (y - self.oy) / self.s)
+
+    def hole_at(self, vx, vy, radius=13):
+        best, best_d = None, radius
+        for name in all_holes():
+            x, y = hole_xy(name)
+            d = math.hypot(x - vx, y - vy)
+            if d < best_d:
+                best, best_d = name, d
+        return best
+
+    def part_bbox(self, pid):
+        entry = self.layout.get("parts", {}).get(pid, {})
+        pts = [hole_xy(h) for h in entry.get("pins", {}).values()]
+        if not pts:
+            return None
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        return (min(xs) - 18, min(ys) - 18, max(xs) + 18, max(ys) + 18)
+
+    def part_at(self, vx, vy):
+        for pid in reversed(list(self.layout.get("parts", {}))):
+            box = self.part_bbox(pid)
+            if box and box[0] <= vx <= box[2] and box[1] <= vy <= box[3]:
+                return pid
+        return None
 
     def T(self, x, y):
         return (self.ox + x * self.s, self.oy + y * self.s)
@@ -106,6 +137,12 @@ class Breadboard:
         for pid in self.layout.get("parts", {}):
             if pid in self.doc.parts:
                 self._part(pid, t)
+        if self.selected in self.layout.get("parts", {}):
+            box = self.part_bbox(self.selected)
+            if box:
+                self.c.create_rectangle(*self.T(box[0], box[1]), *self.T(box[2], box[3]),
+                                        outline="#0a5bd3", dash=(4, 3),
+                                        width=max(1.0, 1.2 * self.s))
         self.text(52, 412, "breadboard virtuale: colore del filo = rete", anchor="w",
                   color=TEXT, size=7)
 

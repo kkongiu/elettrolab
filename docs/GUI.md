@@ -149,8 +149,14 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
   reti aperte e corti
 - il test `tests/test_breadboard.py` genera e valida tutti gli esercizi, prova
   il determinismo, la rimozione di un pin e un corto artificiale
-- l'editing (trascinare componenti, jumper manuali, derivazione delle reti) e'
-  il passo successivo: ora la vista e' generata e sincronizzata col circuito
+- **editing**: trascina un componente da un foro all'altro (snap al foro), `R`
+  per ruotare, `Canc` per eliminare; i jumper vengono ri-rotati, il layout e'
+  validato e salvato in `<progetto>.board.json`
+- undo/redo includono il layout della breadboard; la scheda `Codice` ha la
+  vista `Breadboard` per vedere/modificare il JSON fisico
+- aggiungere un componente dallo schema rigenera la breadboard (le posizioni
+  manuali vengono perse); i jumper manuali e la derivazione delle reti sono il
+  passo successivo (breadboard-first)
 
 ![Breadboard RC](breadboard-rc.png)
 

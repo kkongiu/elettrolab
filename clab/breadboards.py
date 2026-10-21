@@ -224,6 +224,23 @@ def generate(doc):
             vpos += 1
         layout["parts"][pid] = entry
 
+    route_wires(doc, layout, pos_net=pos_net, gnd=gnd)
+    return layout
+
+
+def _positive_net(doc):
+    sources = sorted(pid for pid in doc.parts
+                     if doc.part(pid) is not None and doc.part(pid).kind == "V")
+    if not sources:
+        return None
+    return doc.net_of(sources[0], "+")
+
+
+def route_wires(doc, layout, pos_net=None, gnd=None):
+    gnd = gnd if gnd is not None else doc.ground
+    pos_net = pos_net if pos_net is not None else _positive_net(doc)
+    layout["wires"] = []
+
     def hole_col(hole):
         return int(HOLE_RE.fullmatch(hole).group(2))
 
@@ -231,7 +248,7 @@ def generate(doc):
         holes = []
         for ref in refs:
             pid, pin = ref.rsplit(".", 1)
-            hole = layout["parts"].get(pid, {}).get("pins", {}).get(pin)
+            hole = layout.get("parts", {}).get(pid, {}).get("pins", {}).get(pin)
             if hole:
                 holes.append(hole)
         if net == gnd or net == pos_net:
@@ -246,3 +263,46 @@ def generate(doc):
             for hole in holes[1:]:
                 layout["wires"].append({"net": net, "points": [hub, hole]})
     return layout
+
+
+def reroute(doc, layout):
+    return route_wires(doc, layout)
+
+
+def shift_part(doc, layout, pid, dcol, drow):
+    if pid not in layout.get("parts", {}):
+        return False, "componente assente"
+    pins = layout["parts"][pid].get("pins", {})
+    used = set()
+    for other, entry in layout.get("parts", {}).items():
+        if other != pid:
+            used.update(entry.get("pins", {}).values())
+    new = {}
+    for pin, hole in pins.items():
+        kind, col = parse_hole(hole)
+        if kind in RAIL_Y:
+            return False, "i pin sul rail non si spostano"
+        row = ROWS.index(kind)
+        nr, nc = row + drow, col + dcol
+        if nr < 0 or nr >= len(ROWS) or nc < 1 or nc > COLS:
+            return False, "fuori dalla breadboard"
+        target = f"{ROWS[nr]}{nc}"
+        if target in used or target in new.values():
+            return False, "foro occupato"
+        new[pin] = target
+    layout["parts"][pid]["pins"] = new
+    return True, ""
+
+
+def rotate_part(doc, layout, pid):
+    if pid not in layout.get("parts", {}):
+        return False, "componente assente"
+    entry = layout["parts"][pid]
+    pins = entry.get("pins", {})
+    if len(pins) < 2:
+        return False, "componente non ruotabile"
+    values = list(pins.values())
+    keys = list(pins.keys())
+    for key, hole in zip(keys, reversed(values)):
+        pins[key] = hole
+    return True, ""

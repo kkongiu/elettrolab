@@ -3,7 +3,8 @@ import json
 import unittest
 from pathlib import Path
 
-from clab.breadboards import LayoutError, generate, hole_xy, validate_layout
+from clab.breadboards import (LayoutError, generate, hole_xy, reroute,
+                             rotate_part, shift_part, validate_layout)
 from clab.circuit import from_dict
 from clab.db import DB
 from clab.document import Document
@@ -63,6 +64,33 @@ class BreadboardTests(unittest.TestCase):
         })
         errors = validate_layout(circ, layout)
         self.assertTrue(any(e["code"] == "short" for e in errors))
+
+    def test_shift_rotate_and_reroute(self):
+        doc = load_doc("exp03")
+        layout = generate(doc)
+        doc.board = layout
+        ok, msg = shift_part(doc, layout, "R1", 1, 0)
+        self.assertTrue(ok, msg)
+        reroute(doc, layout)
+        self.assertEqual(validate_layout(doc, layout), [])
+        ok, msg = rotate_part(doc, layout, "R1")
+        self.assertTrue(ok, msg)
+        reroute(doc, layout)
+        self.assertEqual(validate_layout(doc, layout), [])
+
+    def test_board_sidecar_roundtrip(self):
+        import tempfile
+        doc = load_doc("exp03")
+        doc.board = generate(doc)
+        with tempfile.TemporaryDirectory() as tmp:
+            cpath = Path(tmp) / "p.json"
+            lpath = Path(tmp) / "p.layout.json"
+            bpath = Path(tmp) / "p.board.json"
+            doc.save(cpath, lpath, bpath)
+            self.assertTrue(bpath.exists())
+            loaded = Document.from_file(cpath, lpath, DB_, board_path=bpath)
+            self.assertEqual(json.loads(json.dumps(loaded.board)),
+                             json.loads(json.dumps(doc.board)))
 
     def test_add_and_delete_parts_regenerate(self):
         doc = load_doc("exp03")

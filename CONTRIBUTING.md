@@ -54,6 +54,14 @@ voluta, aggiornare sia il circuito sia la documentazione.
 - Ogni tool nuovo arriva con un test in `tests/test_mcp.py` e un aggiornamento
   di `docs/MCP-SERVER.md`.
 
+## Breadboard
+
+- Il layout e' generato da `clab/breadboards.py`; non va scritto a mano.
+- L'editor aggiorna `Document.board`; il salvataggio crea `<progetto>.board.json`.
+- Ogni modifica passa da `reroute` + `validate_layout`.
+- I test in `tests/test_breadboard.py` coprono generator, determinismo, corti,
+  fori mancanti, shift/rotate e round-trip del sidecar.
+
 ## Modificare un modello fisico
 
 - Aggiornare `clab/solver.py` e, se serve, il catalogo.
