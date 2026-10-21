@@ -23,7 +23,8 @@ database sono generici e non legati a un corso specifico.
 - aggiunta di componenti direttamente dalla breadboard: seleziona dalla palette
   e clicca un foro; poi collega con Filo
 - suono: l'esercizio exp11b (step 2 del PUT) ha un altoparlante; `--play` o il
-  pulsante Ascolta riproducono il tono alla frequenza simulata
+  pulsante Ascolta riproducono il segnale reale dell'altoparlante, con la
+  fondamentale e le armoniche
 - assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
   distanza, con pulsante **Ottimizza disposizione**
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin

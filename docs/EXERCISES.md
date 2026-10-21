@@ -15,7 +15,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp09` | Tempo e condensatori | Transitorio | `V(m) = 5.68 V` a 10 s | costante di tempo `tau = R*C` |
 | `exp10` | Il transistor come interruttore | DC | `Ic = 11.45 mA`, `Vce = 0.20 V` | NPN in cutoff, attivo e saturazione |
 | `exp11` | Oscillatore a rilascio con PUT | Transitorio | picco 14.5 mA, periodo 1.04 s | PUT, carica RC, LED impulsivo |
-| `exp11b` | PUT step 2: il suono | Transitorio | ~562 Hz, 1.45 mA di picco | secondo oscillatore in banda audio, altoparlante |
+| `exp11b` | PUT step 2: il suono | Transitorio | ~567 Hz, 5.7 mA di picco | secondo oscillatore in banda audio, altoparlante |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 
@@ -163,7 +163,7 @@ Versione isolata dello step 2: lo stesso oscillatore PUT di `exp11`, ma con
 - `R5 = 470 kΩ`, `R6 = 33 kΩ`, `R7 = 27 kΩ`: gate a 2.7 V, soglia 3.3 V
 - `C2 = 4.7 nF` carica attraverso R5
 - il PUT scarica C2 attraverso `R8 = 100 Ω` e l'altoparlante da 8 Ω
-- frequenza simulata: circa **562 Hz**, corrente di picco sull'altoparlante 1.45 mA
+- frequenza simulata: circa **567 Hz**, corrente di picco sull'altoparlante 5.7 mA
 
 ```bash
 ./lab run exp11b --play          # genera e riproduce il tono
@@ -171,8 +171,9 @@ Versione isolata dello step 2: lo stesso oscillatore PUT di `exp11`, ma con
 ./lab gui exp11b                 # pulsante "Ascolta"
 ```
 
-Il suono è sintetizzato alla frequenza misurata (tono quadrato filtrato), non è
-un modello acustico dell'altoparlante. I player usati sono `paplay`, `pw-play`,
+Il suono è il segnale reale dell'altoparlante (corrente impulsiva) risamplato e
+compresso: contiene la fondamentale (~567 Hz) e le armoniche. Non è un modello
+acustico. I player usati sono `paplay`, `pw-play`,
 `aplay` o `ffplay`.
 
 ### exp13 - Friggere un LED

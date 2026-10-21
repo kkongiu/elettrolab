@@ -93,9 +93,9 @@ tarati su datasheet.
 ## Altoparlante e suono
 
 L'altoparlante (`SPK`) e' un carico resistivo da 8 Ω. Il suono non e' simulato
-acusticamente: si misura la frequenza dell'oscillazione elettrica (attraversamenti
-di soglia della corrente) e si genera un tono alla stessa frequenza, con inviluppo
-e filtro passa-basso. Il file WAV e' riprodotto con `paplay`, `pw-play`, `aplay`
+acusticamente: si riproduce il segnale reale della corrente dell'altoparlante,
+risamplato, filtrato e compresso; contiene la fondamentale e le armoniche. Il file
+WAV e' riprodotto con `paplay`, `pw-play`, `aplay` o `ffplay`. Il file WAV e' riprodotto con `paplay`, `pw-play`, `aplay`
 o `ffplay`. Il timbro reale dipende dall'altoparlante e dalla cassa; il tono del
 simulatore serve a sentire la frequenza del circuito.
 

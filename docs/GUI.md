@@ -178,10 +178,10 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
 
 ![Pulsante Ascolta](gui-sound.png)
 
-Nei circuiti con altoparlante o buzzer compare **Ascolta**: il simulatore misura
-la frequenza dell'oscillazione e riproduce un tono con il player di sistema
-(`paplay`, `pw-play`, `aplay`, `ffplay`). È disponibile anche da CLI con
-`./lab run exp11b --play` o `--wav file.wav`. Il timbro è sintetico, non acustico.
+Nei circuiti con altoparlante o buzzer compare **Ascolta**: il simulatore riproduce il
+segnale reale dell'altoparlante (corrente impulsiva, con le sue armoniche) con il
+player di sistema (`paplay`, `pw-play`, `aplay`, `ffplay`). È disponibile anche da CLI con
+`./lab run exp11b --play` o `--wav file.wav`. Il timbro è quello del segnale simulato; manca solo l'acustica.
 
 ## Simboli
 

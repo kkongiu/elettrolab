@@ -78,7 +78,7 @@ def cmd_run(args):
             print(f"Audio: {e}")
         else:
             print()
-            print(f"Audio: {info['frequency']:.0f} Hz, {info['path']}")
+            print(f"Audio: {info['frequency']:.0f} Hz, segnale dell'altoparlante, {info['path']}")
             if info["player"]:
                 print(f"  riprodotto con {info['player']}")
     if args.strict and not res.ok:

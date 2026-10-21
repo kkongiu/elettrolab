@@ -200,6 +200,7 @@ class App:
         ttk.Button(bar, text="Undo", width=6, command=self._undo).pack(side="left")
         ttk.Button(bar, text="Redo", width=6, command=self._redo).pack(side="left", padx=(3, 8))
         ttk.Button(bar, text="Simula", width=7, command=self._after_change).pack(side="left")
+        self.sound_btn = ttk.Button(bar, text="Ascolta", command=self._play_sound)
         self.status = ttk.Label(bar, text="", style="Status.TLabel")
         self.status.pack(side="left", padx=(14, 0))
         self.viol = ttk.Label(bar, text="", style="Card.TLabel", foreground=FAIL)
@@ -261,7 +262,6 @@ class App:
                    command=lambda: self._set_bb_tool("erase")).pack(side="left", padx=1)
         ttk.Button(bbar, text="Ottimizza", command=self._optimize_board).pack(
             side="left", padx=(8, 0))
-        self.sound_btn = ttk.Button(bbar, text="Ascolta", command=self._play_sound)
         ttk.Label(bbar, text="trascina · R ruota · Canc elimina",
                   style="Muted.TLabel").pack(side="left", padx=8)
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
@@ -551,7 +551,7 @@ class App:
             for pid in self.doc.parts))
         if has:
             if not self.sound_btn.winfo_manager():
-                self.sound_btn.pack(side="left", padx=(8, 0))
+                self.sound_btn.pack(side="left", padx=(8, 0), before=self.status)
         else:
             self.sound_btn.pack_forget()
 
@@ -566,7 +566,7 @@ class App:
             self._hint(f"Audio: {e}")
             return
         player = info.get("player") or f"WAV: {info['path']}"
-        self._hint(f"Audio {info['frequency']:.0f} Hz ({player})")
+        self._hint(f"Ascolta {info['frequency']:.0f} Hz, segnale dell'altoparlante ({player})")
 
     def _optimize_board(self):
         if self.doc is None:

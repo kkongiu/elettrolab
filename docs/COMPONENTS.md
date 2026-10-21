@@ -144,8 +144,8 @@ modello comportamentale: non riproduce il rapporto intrinseco o le curve del
 ### SPK
 
 Altoparlante da 8 Ω modellato come carico resistivo. Il motore non simula
-l'acustica: il suono viene sintetizzato alla frequenza di oscillazione misurata
-sul segnale elettrico. `pmax` e' la potenza massima.
+l'acustica: riproduce il segnale reale della corrente dell'altoparlante, con la
+fondamentale e le armoniche. `pmax` e' la potenza massima.
 
 ### GND
 

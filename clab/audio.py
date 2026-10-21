@@ -84,7 +84,7 @@ def play(path):
     return None
 
 
-def render(circ, res, path=None, seconds=0.6, rate=44100, play_audio=False):
+def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False):
     pid, part, f, signal = measure(circ, res)
     if not 20.0 <= f <= 20000.0:
         raise AudioError(f"frequenza {f:.0f} Hz fuori dall'udibile")
@@ -92,19 +92,39 @@ def render(circ, res, path=None, seconds=0.6, rate=44100, play_audio=False):
         handle = tempfile.NamedTemporaryFile(prefix="elettrolab-", suffix=".wav", delete=False)
         path = handle.name
         handle.close()
-    n = max(1, int(seconds * rate))
-    t = np.arange(n, dtype=float) / rate
-    tone = np.sign(np.sin(2.0 * math.pi * f * t))
+
+    t = np.asarray(res.time, dtype=float)
+    y = np.asarray(signal, dtype=float)
+    lo, hi = float(np.min(y)), float(np.max(y))
+    threshold = lo + (hi - lo) * 0.5
+    edges = np.where((y[:-1] <= threshold) & (y[1:] > threshold))[0]
+    if len(edges) >= 2:
+        i0, i1 = int(edges[0]), int(edges[-1]) + 1
+        tseg, seg = t[i0:i1], y[i0:i1]
+    else:
+        tseg, seg = t, y
+    seg = seg - float(np.mean(seg))
+    n = max(32, int(round((tseg[-1] - tseg[0]) * rate)))
+    seg = np.interp(np.linspace(tseg[0], tseg[-1], n), tseg, seg)
     k = max(1, int(rate / 12000))
-    tone = np.convolve(tone, np.ones(k) / k, mode="same")
-    fade = min(n // 4, int(0.01 * rate))
+    seg = np.convolve(seg, np.ones(k) / k, mode="same")
+
+    n_out = max(1, int(seconds * rate))
+    reps = int(math.ceil(n_out / len(seg)))
+    out = np.tile(seg, reps)[:n_out]
+    peak = float(np.max(np.abs(out)))
+    if peak < 1e-12:
+        raise AudioError("segnale dell'altoparlante nullo")
+    out = np.tanh((out / peak) * 8.0)
+    out -= float(np.mean(out))
+    peak = float(np.max(np.abs(out)))
+    out *= 0.85 / peak
+    fade = min(n_out // 4, int(0.01 * rate))
     if fade > 0:
-        env = np.ones(n)
-        env[:fade] = np.linspace(0.0, 1.0, fade)
-        env[-fade:] = np.linspace(1.0, 0.0, fade)
-        tone *= env
-    tone *= 0.35
-    _write_wav(path, tone, rate)
+        out[:fade] *= np.linspace(0.0, 1.0, fade)
+        out[-fade:] *= np.linspace(1.0, 0.0, fade)
+
+    _write_wav(path, out, rate)
     player = play(path) if play_audio else None
     return {
         "path": str(path),
@@ -113,4 +133,5 @@ def render(circ, res, path=None, seconds=0.6, rate=44100, play_audio=False):
         "rate": rate,
         "player": player,
         "transducer": pid,
+        "mode": "signal",
     }
