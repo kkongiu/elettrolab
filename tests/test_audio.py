@@ -53,6 +53,17 @@ class AudioTests(unittest.TestCase):
             self.assertGreater(fundamental, 0)
             self.assertGreater(harmonic, fundamental * 0.1)
 
+    def test_exp11c_amplified(self):
+        circ = load("exp11c")
+        res = simulate(circ)
+        check(circ, res)
+        self.assertTrue(res.ok)
+        pid, part, f, signal = measure(circ, res)
+        self.assertEqual(pid, "LS1")
+        self.assertGreater(f, 400)
+        self.assertLess(f, 900)
+        self.assertGreater(max(signal), 0.02)
+
     def test_no_transducer(self):
         circ = load("exp03")
         res = simulate(circ)

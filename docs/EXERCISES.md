@@ -16,6 +16,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp10` | Il transistor come interruttore | DC | `Ic = 11.45 mA`, `Vce = 0.20 V` | NPN in cutoff, attivo e saturazione |
 | `exp11` | Oscillatore a rilascio con PUT | Transitorio | picco 14.5 mA, periodo 1.04 s | PUT, carica RC, LED impulsivo |
 | `exp11b` | PUT step 2: il suono | Transitorio | ~567 Hz, 5.7 mA di picco | secondo oscillatore in banda audio, altoparlante |
+| `exp11c` | PUT step 3: amplificazione | Transitorio | ~627 Hz, 53.7 mA di picco | 2N2222 amplifica il PUT, altoparlante sul collettore |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 
@@ -175,6 +176,21 @@ Il suono è il segnale reale dell'altoparlante (corrente impulsiva) risamplato e
 compresso: contiene la fondamentale (~567 Hz) e le armoniche. Non è un modello
 acustico. I player usati sono `paplay`, `pw-play`,
 `aplay` o `ffplay`.
+
+### exp11c - PUT step 3: amplificazione
+
+Lo stesso oscillatore di `exp11b`, ma il segnale del PUT pilota la base di un
+2N2222 attraverso `R9 = 1 kΩ`. Il collettore alimenta l'altoparlante da 8 Ω in
+serie a `R8 = 100 Ω`; l'emettitore va a massa.
+
+- `R10 = 10 kΩ` dalla base a massa tiene spento il 2N2222 tra un impulso e l'altro
+- corrente di picco sull'altoparlante: **53.7 mA** (circa 10 volte lo step 2)
+- frequenza simulata: circa **627 Hz**
+- il suono è molto più forte; usa `./lab run exp11c --play` o il pulsante
+  **Ascolta** in GUI (loop, poi **Ferma**)
+
+La resistenza di pull-down R10 non è nella figura originale: serve a far
+funzionare l'amplificatore anche nel modello semplificato del PUT.
 
 ### exp13 - Friggere un LED
 

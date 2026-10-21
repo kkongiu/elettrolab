@@ -11,7 +11,7 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 11 esercizi; 37 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 3 audio) e 9 test MCP
+- [x] 12 esercizi; 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (fatta)
@@ -65,6 +65,7 @@ Fatto:
 - [x] Aggiunta di componenti direttamente dalla breadboard
 - [x] Step 2 dell'esercizio 11: oscillatore audio e altoparlante
 - [x] Riproduzione del suono (WAV, paplay/aplay) e pulsante Ascolta
+- [x] Step 3 dell'esercizio 11: amplificazione con 2N2222 e altoparlante sul collettore
 
 Da fare:
 

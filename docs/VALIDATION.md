@@ -25,7 +25,7 @@ I test ngspice vengono saltati automaticamente se `ngspice` non e' nel `PATH`.
 | `test_physics.py` | residuo MNA, RC/RLC, NPN, PUT, violazioni |
 | `test_ngspice.py` | confronto con SPICE su LED, RC, NPN |
 | `test_breadboard.py` | breadboard: generator, jumper, editing, corti, fili mancanti |
-| `test_audio.py` | frequenza dell'oscillatore audio e rendering WAV |
+| `test_audio.py` | frequenza dell'oscillatore audio, amplificazione e rendering WAV |
 | `test_mcp.py` | tool MCP, risorse, prompt, trasporto stdio, scrittura |
 
 Tolleranze usate:
@@ -38,7 +38,7 @@ Tolleranze usate:
 
 ## Risultati attuali
 
-Tutti i test passano: 37 test core e 9 MCP (2 di trasporto MCP vengono
+Tutti i test passano: 38 test core e 9 MCP (2 di trasporto MCP vengono
 saltati se si usa il Python di sistema senza SDK). I numeri principali sono in
 `docs/MODELS.md`.
 
