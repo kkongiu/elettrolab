@@ -51,6 +51,7 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `RELAY2` | rele' a due poli | `COIL+`, `COIL-`, `COM1`, `NC1`, `NO1`, `COM2`, `NC2`, `NO2` | come `RELAY` | - |
 | `NPN` | transistore NPN | `C`, `B`, `E` | `vbe`, `beta`, `vcesat`, `ron`, `rb`, `imax` | `imax` |
 | `PUT` | PUT | `A`, `G`, `K` | `vf`, `ron`, `ihold`, `imax` | `imax` |
+| `SPK` | altoparlante | `+`, `-` | `r` | `pmax` |
 | `GND` | simbolo di massa | `1` | - | - |
 
 Un `kind` non presente in questa tabella produce l'errore `unsupported`. I
@@ -139,6 +140,12 @@ Scatta quando `Va > Vg + vf`; si spegne quando la corrente scende sotto
 `ihold`. Il gate e' ad alta impedenza e non ha corrente nel modello. E' un
 modello comportamentale: non riproduce il rapporto intrinseco o le curve del
 2N6027.
+
+### SPK
+
+Altoparlante da 8 Ω modellato come carico resistivo. Il motore non simula
+l'acustica: il suono viene sintetizzato alla frequenza di oscillazione misurata
+sul segnale elettrico. `pmax` e' la potenza massima.
 
 ### GND
 

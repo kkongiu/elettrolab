@@ -403,6 +403,8 @@ class Schematic:
             return f"{pid}  {'chiuso' if p.get('closed', True) else 'aperto'}"
         if k == "C":
             c = p.num("c")
+            if c < 1e-6:
+                return f"{pid}  {c * 1e9:g} nF"
             if c <= 1e-3:
                 return f"{pid}  {c * 1e6:g} \u00b5F"
             if c < 1:
@@ -412,6 +414,8 @@ class Schematic:
             return f"{pid}  {fmt(p.num('l'), 'H')}"
         if k == "POT":
             return f"{pid}  {fmt(p.num('rtotal'), '\u03a9')}"
+        if k == "SPK":
+            return f"{pid}  {fmt(p.num('r'), '\u03a9')}"
         if k == "NPN":
             return f"{pid}  NPN"
         if k == "PUT":
@@ -455,6 +459,8 @@ class Schematic:
             self._npn(x, y, rot)
         elif kind == "PUT":
             self._put(x, y, rot)
+        elif kind == "SPK":
+            self._speaker(x, y, rot)
         elif kind == "GND":
             self._ground(x, y)
 
@@ -641,6 +647,17 @@ class Schematic:
                self._loc(x, y, rot, 0, -9)]
         self.c.create_polygon(*self.flat(tri), outline=INK, fill=INK)
 
+    def _speaker(self, x, y, rot):
+        self.line([self._loc(x, y, rot, -45, 0), self._loc(x, y, rot, -18, 0)])
+        self.line([self._loc(x, y, rot, 18, 0), self._loc(x, y, rot, 30, 0)])
+        body = [self._loc(x, y, rot, u, v)
+                for u, v in ((-18, -14), (18, -14), (18, 14), (-18, 14))]
+        self.c.create_polygon(*self.flat(body), outline=INK, fill="",
+                              width=max(1.1, 1.8 * self.s))
+        cone = [self._loc(x, y, rot, 18, -14), self._loc(x, y, rot, 18, 14),
+                self._loc(x, y, rot, 30, 20), self._loc(x, y, rot, 30, -20)]
+        self.c.create_polygon(*self.flat(cone), outline=INK, fill="",
+                              width=max(1.1, 1.8 * self.s))
     def _ground(self, x, y):
         self.line([(x, y - 24), (x, y)], width=2.0)
         for w, dy in ((18, 0), (12, 5), (6, 10)):

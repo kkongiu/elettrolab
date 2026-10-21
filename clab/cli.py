@@ -70,6 +70,17 @@ def cmd_run(args):
         return 2
     check(circ, res)
     report.print_result(circ, res, plot=args.plot, csv=args.csv)
+    if args.play or args.wav:
+        from .audio import AudioError, render
+        try:
+            info = render(circ, res, path=args.wav, play_audio=args.play)
+        except AudioError as e:
+            print(f"Audio: {e}")
+        else:
+            print()
+            print(f"Audio: {info['frequency']:.0f} Hz, {info['path']}")
+            if info["player"]:
+                print(f"  riprodotto con {info['player']}")
     if args.strict and not res.ok:
         return 1
     return 0
@@ -355,6 +366,8 @@ def main(argv=None):
                    help="modifica un parametro, es. --set R1.r=2k")
     s.add_argument("--plot", help="segnale da graficare, es. V(m); 'none' per nessuno")
     s.add_argument("--csv", help="esporta le forme d'onda in CSV")
+    s.add_argument("--wav", help="salva il suono dell'altoparlante in un WAV")
+    s.add_argument("--play", action="store_true", help="riproduce il suono dell'altoparlante")
     s.add_argument("--strict", action="store_true", help="esce con errore se i controlli falliscono")
     s.set_defaults(fn=cmd_run)
 

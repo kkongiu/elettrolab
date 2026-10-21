@@ -111,11 +111,15 @@ class Breadboard:
             return pid
         if k == "C":
             c = p.num("c")
+            if c < 1e-6:
+                return f"{pid} {c * 1e9:g} nF"
             return f"{pid} {c * 1e6:g} µF" if c <= 1e-3 else f"{pid} {c:g} F"
         if k == "SW":
             return pid
         if k == "L":
             return f"{pid} {fmt(p.num('l'), 'H')}"
+        if k == "SPK":
+            return f"{pid} {fmt(p.num('r'), 'Ω')}"
         return pid
 
     def draw(self, t=None, dreal=0.0, playing=True):
@@ -224,6 +228,8 @@ class Breadboard:
             self._inductor(pid, p, a, b)
         elif kind == "SW":
             self._switch(pid, p, a, b)
+        elif kind == "SPK":
+            self._speaker(pid, p, a, b, t)
         else:
             self._module(pid, p, points)
 
@@ -316,6 +322,22 @@ class Breadboard:
     @staticmethod
     def _rail_hole(name):
         return name.startswith(("T+", "T-", "B+", "B-"))
+
+    def _speaker(self, pid, p, a, b, t):
+        mx, my, L, ux, uy, nx, ny = self._geometry(a, b)
+        self.line([a, (mx - ux * L * 0.18, my - uy * L * 0.18)], color=INK, width=2)
+        self.line([(mx + ux * L * 0.18, my + uy * L * 0.18), b], color=INK, width=2)
+        body = [(-0.18, -10), (0.18, -10), (0.18, 10), (-0.18, 10)]
+        poly = [(mx + ux * L * u + nx * v, my + uy * L * u + ny * v) for u, v in body]
+        self.c.create_polygon(*[c for p in poly for c in self.T(*p)],
+                              outline=INK, fill="", width=max(1.0, 1.4 * self.s))
+        cone = [(0.18, -10), (0.32, -16), (0.32, 16), (0.18, 10)]
+        poly = [(mx + ux * L * u + nx * v, my + uy * L * u + ny * v) for u, v in cone]
+        self.c.create_polygon(*[c for p in poly for c in self.T(*p)],
+                              outline=INK, fill="", width=max(1.0, 1.4 * self.s))
+        self.text(mx - nx * 24, my - ny * 24, self._label(pid), size=8)
+        self.text(mx + nx * 22, my + ny * 22, f"I={fmt(self._cur(pid, t), 'A')}",
+                  size=7, color="#b45309")
 
     def _module(self, pid, p, points):
         hole_map = self.layout["parts"][pid].get("pins", {})

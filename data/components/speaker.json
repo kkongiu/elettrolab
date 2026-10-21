@@ -1,0 +1,9 @@
+{
+  "id": "speaker",
+  "kind": "SPK",
+  "name": "Altoparlante 8 Ω",
+  "pins": ["+", "-"],
+  "params": {"r": 8},
+  "limits": {"pmax": 0.5},
+  "learn": "Carico da 8 ohm. Il suono e' la corrente che lo attraversa: il tono dipende dalla frequenza dell'oscillatore."
+}

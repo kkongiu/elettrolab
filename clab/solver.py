@@ -108,8 +108,11 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
 
     for pid, p in circ.parts.items():
         kind = p.kind
-        if kind == "R":
-            a, c = circ.node(pid, "1"), circ.node(pid, "2")
+        if kind in ("R", "SPK"):
+            if kind == "SPK":
+                a, c = circ.node(pid, "+"), circ.node(pid, "-")
+            else:
+                a, c = circ.node(pid, "1"), circ.node(pid, "2")
             r = p.num("r")
             if r <= 0:
                 raise SolveError("bad_value", f"{pid}: resistenza non positiva", part=pid)
@@ -330,8 +333,11 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
         kind = p.kind
         i = 0.0
         pw = 0.0
-        if kind == "R":
-            a, c = circ.node(pid, "1"), circ.node(pid, "2")
+        if kind in ("R", "SPK"):
+            if kind == "SPK":
+                a, c = circ.node(pid, "+"), circ.node(pid, "-")
+            else:
+                a, c = circ.node(pid, "1"), circ.node(pid, "2")
             r = p.num("r")
             i = (_pin_v(x, a) - _pin_v(x, c)) / r
             pw = i * i * r
@@ -408,7 +414,7 @@ def _violations(circ, res, x, led_on):
                     "message": f"{pid}: {abs(i) * 1e3:.0f} mA superano il massimo di "
                                f"{to_float(imax) * 1e3:.0f} mA, il LED si brucia",
                     "value": abs(i), "limit": to_float(imax)})
-        elif kind == "R":
+        elif kind in ("R", "SPK"):
             pmax = p.get("pmax")
             if pmax is not None and res.power[pid] > to_float(pmax) * 1.02:
                 res.violations.append({
@@ -493,7 +499,7 @@ def _auto_timing(circ):
     inds = []
     for pid, p in circ.parts.items():
         k = p.kind
-        if k == "R":
+        if k in ("R", "SPK"):
             rsum += p.num("r")
         elif k == "POT":
             rsum += p.num("rtotal")

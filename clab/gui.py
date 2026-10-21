@@ -261,6 +261,7 @@ class App:
                    command=lambda: self._set_bb_tool("erase")).pack(side="left", padx=1)
         ttk.Button(bbar, text="Ottimizza", command=self._optimize_board).pack(
             side="left", padx=(8, 0))
+        self.sound_btn = ttk.Button(bbar, text="Ascolta", command=self._play_sound)
         ttk.Label(bbar, text="trascina · R ruota · Canc elimina",
                   style="Muted.TLabel").pack(side="left", padx=8)
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
@@ -489,6 +490,7 @@ class App:
                 self.problems_list.append({**err, "severity": "error"})
         self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
         self.bb.selected = self.selected
+        self._update_sound_button()
         if self.selected not in self.doc.parts:
             self.selected = None
         if reset_anim:
@@ -513,6 +515,7 @@ class App:
             self.problems_list.append({**err, "severity": "error"})
         self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
         self.bb.selected = self.selected
+        self._update_sound_button()
         self.dirty = True
         self._update_header()
         self._update_problems()
@@ -541,6 +544,29 @@ class App:
         else:
             reroute(self.doc, self.doc.board)
             self._after_board_change()
+
+    def _update_sound_button(self):
+        has = bool(self.doc and any(
+            self.doc.part(pid) is not None and self.doc.part(pid).kind in ("SPK", "BUZZ")
+            for pid in self.doc.parts))
+        if has:
+            if not self.sound_btn.winfo_manager():
+                self.sound_btn.pack(side="left", padx=(8, 0))
+        else:
+            self.sound_btn.pack_forget()
+
+    def _play_sound(self):
+        if self.doc is None or self.res is None:
+            self._hint("Nessuna simulazione valida da sonorizzare")
+            return
+        from .audio import AudioError, render
+        try:
+            info = render(self.doc.to_circuit(), self.res, play_audio=True)
+        except AudioError as e:
+            self._hint(f"Audio: {e}")
+            return
+        player = info.get("player") or f"WAV: {info['path']}"
+        self._hint(f"Audio {info['frequency']:.0f} Hz ({player})")
 
     def _optimize_board(self):
         if self.doc is None:

@@ -90,6 +90,15 @@ amplificatori lineari.
 corrente di gate o la curva di anodo di un 2N6027. I parametri non sono
 tarati su datasheet.
 
+## Altoparlante e suono
+
+L'altoparlante (`SPK`) e' un carico resistivo da 8 Ω. Il suono non e' simulato
+acusticamente: si misura la frequenza dell'oscillazione elettrica (attraversamenti
+di soglia della corrente) e si genera un tono alla stessa frequenza, con inviluppo
+e filtro passa-basso. Il file WAV e' riprodotto con `paplay`, `pw-play`, `aplay`
+o `ffplay`. Il timbro reale dipende dall'altoparlante e dalla cassa; il tono del
+simulatore serve a sentire la frequenza del circuito.
+
 ## Validazione
 
 `./lab test` esegue i test fisici; se `ngspice` è installato, esegue anche i

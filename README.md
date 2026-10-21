@@ -22,13 +22,15 @@ database sono generici e non legati a un corso specifico.
   schema e la simulazione
 - aggiunta di componenti direttamente dalla breadboard: seleziona dalla palette
   e clicca un foro; poi collega con Filo
+- suono: l'esercizio exp11b (step 2 del PUT) ha un altoparlante; `--play` o il
+  pulsante Ascolta riproducono il tono alla frequenza simulata
 - assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
   distanza, con pulsante **Ottimizza disposizione**
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
-- 10 esercizi verificati automaticamente
-- 34 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice) e 9 test MCP
+- 11 esercizi verificati automaticamente
+- 37 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 3 audio) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
 ## Avvio rapido
@@ -190,6 +192,7 @@ Aggiungere un componente = aggiungere un file. Dettagli e tipi supportati in
 | `exp09` | Tempo e condensatori | Transitorio | tau = R*C, 63% dopo una costante |
 | `exp10` | Il transistor come interruttore | DC | NPN in cutoff, attivo e saturazione |
 | `exp11` | Oscillatore a rilascio con PUT | Transitorio | PUT, carica RC, LED impulsivo |
+| `exp11b` | PUT step 2: il suono | Transitorio | secondo oscillatore audio e altoparlante |
 | `exp13` | Friggere un LED | DC | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | risonanza e ringing, dal circuito CircuitJS dell'autore |
 
@@ -229,10 +232,10 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 34 test core (documento, fisica, ngspice, breadboard)
+./lab test                 # 37 test core (documento, fisica, audio, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
-./lab check                # 10 esercizi contro le attese
+./lab check                # 11 esercizi contro le attese
 ```
 
 I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,
@@ -240,7 +243,7 @@ la bruciatura in transitorio, il merge delle reti, il layout, la breadboard,
 il confronto con ngspice e il server MCP (tool, risorse, trasporto stdio,
 scrittura protetta).
 I test SPICE vengono saltati se `ngspice` non e' installato; i test MCP se
-`mcp` non e' nel Python usato. Totale: 43 test, 2 di trasporto MCP saltati nel
+`mcp` non e' nel Python usato. Totale: 46 test, 2 di trasporto MCP saltati nel
 Python di sistema.
 
 ## Documentazione
