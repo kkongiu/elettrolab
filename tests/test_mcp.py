@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import shutil
@@ -113,6 +114,60 @@ class MCPServiceTests(unittest.TestCase):
                     os.environ.pop("CLAB_MCP_ALLOW_WRITE", None)
                 else:
                     os.environ["CLAB_MCP_ALLOW_WRITE"] = old_write
+
+    def test_end_to_end_loop(self):
+        try:
+            import anyio
+            from mcp.client.stdio import StdioServerParameters, stdio_client
+            from mcp import ClientSession
+        except ImportError:
+            self.skipTest("SDK MCP non installato")
+
+        async def call(session, name, args):
+            res = await session.call_tool(name, args)
+            return json.loads(res.content[0].text)
+
+        async def run():
+            params = StdioServerParameters(
+                command=sys.executable, args=["-m", "clab_mcp"], cwd=str(ROOT),
+                env={**os.environ, "CLAB_MCP_ALLOW_WRITE": "0"})
+            async with stdio_client(params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    got = await call(session, "get_circuit", {"id": "exp03"})
+                    self.assertTrue(got["ok"])
+                    circuit = got["circuit"]
+
+                    broken = copy.deepcopy(circuit)
+                    del broken["nets"]["gnd"]
+                    invalid = await call(session, "validate_circuit", {"circuit": broken})
+                    self.assertFalse(invalid["ok"])
+                    self.assertIn("no_ground", {e["code"] for e in invalid["errors"]})
+
+                    valid = await call(session, "validate_circuit", {"circuit": circuit})
+                    self.assertTrue(valid["ok"])
+
+                    sim = await call(session, "simulate_circuit", {"circuit": circuit})
+                    self.assertTrue(sim["ok"])
+                    self.assertAlmostEqual(sim["currents"]["D1"], 0.015, places=4)
+
+                    chk = await call(session, "check_circuit", {"circuit": circuit})
+                    self.assertTrue(chk["ok"])
+
+                    wr = await call(session, "add_component", {
+                        "definition": {"id": "x", "kind": "R", "name": "x",
+                                       "pins": ["1", "2"]}})
+                    self.assertFalse(wr["ok"])
+                    self.assertEqual(wr["errors"][0]["code"], "write_disabled")
+
+                    resource = await session.read_resource("clab://exercise/exp03")
+                    self.assertIn("exp03", resource.contents[0].text)
+
+                    prompt = await session.get_prompt(
+                        "progetta_circuito", {"obiettivo": "accendere un LED"})
+                    self.assertIn("LED", prompt.messages[0].content.text)
+
+        anyio.run(run)
 
     def test_stdio_transport(self):
         try:

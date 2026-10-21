@@ -274,7 +274,7 @@ Configurazione tipica di un client MCP:
 
 ## Stato
 
-Implementato e verificato: 8 test MCP (catalogo, validazione, simulazione,
+Implementato e verificato: 9 test MCP (catalogo, validazione, simulazione,
 check, sweep, scrittura disabilitata/abilitata, trasporto `stdio`).
 Le forme d'onda sono campionate a `max_points` (default 200, massimo 2000).
 `render_schematic` resta da fare. Vedi `docs/ROADMAP.md`.
