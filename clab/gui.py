@@ -58,6 +58,8 @@ KIND_LABELS = {
     "RELAY2": "Relè",
     "GND": "Massa",
     "NPN": "Transistor",
+    "PUT": "Transistor",
+    "SPK": "Altoparlanti",
 }
 
 
@@ -79,6 +81,7 @@ class App:
         self.drag = None
         self.drag_snap = None
         self.dragging = False
+        self.pan_last = None
         self.history = []
         self.future = []
         self.dirty = False
@@ -125,14 +128,25 @@ class App:
         style.configure("Card.TLabel", background=CARD, foreground=TEXT)
         style.configure("Muted.TLabel", background=CARD, foreground=MUTED)
         style.configure("Title.TLabel", background=CARD, foreground=TEXT,
-                        font=("DejaVu Sans", 14, "bold"))
+                        font=("DejaVu Sans", 16, "bold"))
         style.configure("Status.TLabel", background=CARD, foreground=MUTED,
                         font=("DejaVu Sans", 10, "bold"))
-        style.configure("Treeview", background=CARD, fieldbackground=CARD, rowheight=22,
-                        foreground=TEXT)
+        style.configure("Section.TLabel", background=BG, foreground=MUTED,
+                        font=("DejaVu Sans", 9, "bold"))
+        style.configure("Treeview", background=CARD, fieldbackground=CARD, rowheight=24,
+                        foreground=TEXT, borderwidth=0)
         style.configure("Treeview.Heading", font=("DejaVu Sans", 9, "bold"))
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", padding=(10, 4))
+        style.configure("TNotebook.Tab", padding=(14, 6), font=("DejaVu Sans", 10))
+        style.map("TNotebook.Tab",
+                  background=[("selected", CARD)],
+                  foreground=[("selected", ACCENT)])
+        style.configure("TButton", padding=(8, 4))
+        style.configure("Accent.TButton", padding=(10, 5),
+                        font=("DejaVu Sans", 9, "bold"))
+        style.map("Accent.TButton",
+                  background=[("!disabled", ACCENT), ("active", "#0847a6")],
+                  foreground=[("!disabled", "#ffffff")])
 
         outer = ttk.Frame(self.root, padding=10)
         outer.pack(fill="both", expand=True)
@@ -201,7 +215,8 @@ class App:
         self.wire_btn.pack(side="left", padx=(3, 8))
         ttk.Button(bar, text="Undo", width=6, command=self._undo).pack(side="left")
         ttk.Button(bar, text="Redo", width=6, command=self._redo).pack(side="left", padx=(3, 8))
-        ttk.Button(bar, text="Simula", width=7, command=self._after_change).pack(side="left")
+        ttk.Button(bar, text="Simula", width=7, style="Accent.TButton",
+                   command=self._after_change).pack(side="left")
         self.sound_btn = ttk.Button(bar, text="Ascolta", command=self._play_sound)
         self.status = ttk.Label(bar, text="", style="Status.TLabel")
         self.status.pack(side="left", padx=(14, 0))
@@ -238,7 +253,14 @@ class App:
         self.scv.bind("<B1-Motion>", self._on_motion)
         self.scv.bind("<ButtonRelease-1>", self._on_release)
         self.scv.bind("<Motion>", self._on_hover)
-        ttk.Label(main, text="\u25cf = connessione      linea interrotta = incrocio senza collegamento",
+        self.scv.bind("<Button-3>", self._on_pan_press)
+        self.scv.bind("<B3-Motion>", self._on_pan_motion)
+        self.scv.bind("<ButtonRelease-3>", self._on_pan_release)
+        self.scv.bind("<MouseWheel>", self._on_wheel)
+        self.scv.bind("<Button-4>", lambda e: self._on_wheel_step(1.1))
+        self.scv.bind("<Button-5>", lambda e: self._on_wheel_step(1 / 1.1))
+        ttk.Label(main, text="\u25cf = connessione      linea interrotta = incrocio senza collegamento      "
+                              "scroll = zoom \u00b7 tasto destro = sposta \u00b7 Ctrl+0 = ripristina",
                   style="Muted.TLabel").pack(anchor="e")
 
         self.nb = ttk.Notebook(main)
@@ -312,6 +334,84 @@ class App:
         self.root.bind_all("<Delete>", lambda e: self._key_guard() or self._delete_selected())
         self.root.bind_all("<r>", lambda e: self._key_guard() or self._rotate_selected())
         self.root.bind_all("<Escape>", lambda e: self._escape())
+        self.root.bind_all("<Control-0>", lambda e: self._key_guard() or self._reset_view())
+        self.root.bind_all("<Control-plus>", lambda e: self._key_guard() or self._zoom(1.2))
+        self.root.bind_all("<Control-equal>", lambda e: self._key_guard() or self._zoom(1.2))
+        self.root.bind_all("<Control-minus>", lambda e: self._key_guard() or self._zoom(1 / 1.2))
+        self._build_menu()
+
+    def _build_menu(self):
+        menubar = tk.Menu(self.root)
+
+        m = tk.Menu(menubar, tearoff=0)
+        m.add_command(label="Nuovo circuito", accelerator="Ctrl+N", command=self._new)
+        m.add_command(label="Salva", accelerator="Ctrl+S", command=self._save)
+        m.add_command(label="Salva copia\u2026", command=self._save_as)
+        m.add_separator()
+        m.add_command(label="Esci", command=self._on_close)
+        menubar.add_cascade(label="File", menu=m)
+
+        m = tk.Menu(menubar, tearoff=0)
+        m.add_command(label="Annulla", accelerator="Ctrl+Z", command=self._undo)
+        m.add_command(label="Ripeti", accelerator="Ctrl+Y", command=self._redo)
+        m.add_separator()
+        m.add_command(label="Ruota componente", accelerator="R",
+                      command=self._rotate_selected)
+        m.add_command(label="Elimina", accelerator="Canc",
+                      command=self._delete_selected)
+        menubar.add_cascade(label="Modifica", menu=m)
+
+        m = tk.Menu(menubar, tearoff=0)
+        m.add_command(label="Zoom avanti", accelerator="Ctrl++",
+                      command=lambda: self._zoom(1.2))
+        m.add_command(label="Zoom indietro", accelerator="Ctrl\u2212",
+                      command=lambda: self._zoom(1 / 1.2))
+        m.add_command(label="Ripristina vista", accelerator="Ctrl+0",
+                      command=self._reset_view)
+        m.add_separator()
+        m.add_command(label="Codice", command=lambda: self.nb.select(0))
+        m.add_command(label="Breadboard", command=lambda: self.nb.select(1))
+        m.add_command(label="Grafico", command=lambda: self.nb.select(2))
+        m.add_command(label="Dati", command=lambda: self.nb.select(3))
+        menubar.add_cascade(label="Vista", menu=m)
+
+        m = tk.Menu(menubar, tearoff=0)
+        m.add_command(label="Simula", command=self._after_change)
+        m.add_command(label="Pausa / Riprendi", command=self._toggle)
+        m.add_command(label="Ascolta", command=self._play_sound)
+        menubar.add_cascade(label="Simulazione", menu=m)
+
+        m = tk.Menu(menubar, tearoff=0)
+        m.add_command(label="Comandi e scorciatoie", command=self._show_help)
+        m.add_command(label="Informazioni", command=self._show_about)
+        menubar.add_cascade(label="Aiuto", menu=m)
+
+        self.root.config(menu=menubar)
+
+    def _show_help(self):
+        messagebox.showinfo(
+            "Comandi e scorciatoie",
+            "Schema:\n"
+            "  scroll = zoom, trascina tasto destro = sposta, Ctrl+0 = ripristina vista\n"
+            "  clic = seleziona, trascina = sposta componente\n"
+            "  R = ruota, Canc = elimina\n"
+            "  modalit\u00e0 Filo: clicca due pin per collegarli\n\n"
+            "Breadboard:\n"
+            "  trascina componenti, R ruota, Canc elimina\n\n"
+            "Scorciatoie: Ctrl+N nuovo, Ctrl+S salva, Ctrl+Z/Ctrl+Y annulla/ripeti",
+            parent=self.root)
+
+    def _show_about(self):
+        try:
+            from . import __version__
+        except Exception:
+            __version__ = "?"
+        messagebox.showinfo(
+            "Informazioni",
+            f"elettrolab {__version__}\n"
+            "Laboratorio di elettronica didattico.\n"
+            "Circuiti come dati JSON, motore MNA, breadboard e suono.",
+            parent=self.root)
 
     def _key_guard(self):
         w = self.root.focus_get()
@@ -451,6 +551,7 @@ class App:
 
     def _load_doc(self, doc, res=None):
         self.doc = doc
+        self.schem = None
         self.selected = None
         self.wire_from = None
         self.bb_wire_from = None
@@ -468,6 +569,15 @@ class App:
         self.res = res
         self._after_change(simulate=res is None)
 
+    def _new_schem(self):
+        old = self.schem
+        s = Schematic(self.scv, self.doc, self.res)
+        if old is not None:
+            s.zoom = old.zoom
+            s.pan_x = old.pan_x
+            s.pan_y = old.pan_y
+        return s
+
     def _after_change(self, reset_anim=False, simulate=True, props=True):
         if self.doc is None:
             return
@@ -476,7 +586,7 @@ class App:
             self._simulate()
         else:
             self.problems_list = self.doc.problems()
-        self.schem = Schematic(self.scv, self.doc, self.res)
+        self.schem = self._new_schem()
         if self.doc.board is None or set(self.doc.board.get("parts", {})) != set(self.doc.parts):
             try:
                 self.doc.board = generate(self.doc)
@@ -1012,6 +1122,45 @@ class App:
         if self.mode in ("wire", "place"):
             self.cursor_v = self.schem.virtual(event.x, event.y) if self.schem else None
 
+    def _on_wheel(self, event):
+        if self.doc is None or self.schem is None:
+            return
+        factor = 1.1 if event.delta > 0 else 1 / 1.1
+        self.schem.zoom_at(event.x, event.y, factor)
+
+    def _on_wheel_step(self, factor):
+        if self.doc is None or self.schem is None:
+            return
+        self.schem.zoom_at(self.scv.winfo_width() / 2, self.scv.winfo_height() / 2,
+                           factor)
+
+    def _on_pan_press(self, event):
+        if self.doc is None or self.schem is None:
+            return
+        self.pan_last = (event.x, event.y)
+
+    def _on_pan_motion(self, event):
+        if self.doc is None or self.schem is None or self.pan_last is None:
+            return
+        dx = event.x - self.pan_last[0]
+        dy = event.y - self.pan_last[1]
+        self.pan_last = (event.x, event.y)
+        self.schem.pan_by(dx, dy)
+
+    def _on_pan_release(self, event):
+        self.pan_last = None
+
+    def _zoom(self, factor):
+        if self.schem is None:
+            return
+        self.schem.zoom_at(self.scv.winfo_width() / 2, self.scv.winfo_height() / 2,
+                           factor)
+
+    def _reset_view(self):
+        if self.schem is not None:
+            self.schem.reset_view()
+            self._hint("Vista ripristinata.")
+
     def _on_press(self, event):
         if self.doc is None:
             return
@@ -1091,7 +1240,7 @@ class App:
             return
         self.dragging = True
         self.doc.move(pid, nx, ny)
-        self.schem = Schematic(self.scv, self.doc, self.res)
+        self.schem = self._new_schem()
         self._update_code()
 
     def _on_release(self, event):

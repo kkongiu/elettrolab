@@ -63,6 +63,11 @@ class Schematic:
         self.gaps = []
         self.led_glow = {}
         self.dreal = 0.0
+        self.zoom = 1.0
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self.view_w = 860
+        self.view_h = 340
         self.phase = {}
         if self.layout and self.layout.get("parts"):
             self._build_routes()
@@ -72,6 +77,26 @@ class Schematic:
         if self.s <= 0:
             return (x, y)
         return ((x - self.ox) / self.s, (y - self.oy) / self.s)
+
+    def zoom_at(self, cx, cy, factor):
+        wx = (cx - self.ox) / self.s if self.s > 0 else 0.0
+        wy = (cy - self.oy) / self.s if self.s > 0 else 0.0
+        self.zoom = max(0.2, min(8.0, self.zoom * factor))
+        base = min(self.view_w / W, self.view_h / H)
+        s2 = base * self.zoom
+        ox2 = (self.view_w - W * s2) / 2
+        oy2 = (self.view_h - H * s2) / 2
+        self.pan_x = cx - ox2 - wx * s2
+        self.pan_y = cy - oy2 - wy * s2
+
+    def pan_by(self, dx, dy):
+        self.pan_x += dx
+        self.pan_y += dy
+
+    def reset_view(self):
+        self.zoom = 1.0
+        self.pan_x = 0.0
+        self.pan_y = 0.0
 
     def pin_position(self, pid, pin):
         return self._pin(pid, pin)
@@ -339,6 +364,26 @@ class Schematic:
         key = f"V({net})"
         return float(np.interp(t, self.res.time, self.res.waves[key]))
 
+    def _state(self, pid, t):
+        p = self.doc.part(pid)
+        if p is None or self.res is None:
+            return ""
+        i = self._cur(pid, t)
+        kind = p.kind
+        if kind == "LED":
+            burned = any(v.get("part") == pid and v["code"] == "burned"
+                         for v in self.res.violations)
+            if burned:
+                return "bruciato"
+            return "acceso" if i > 1e-6 else "spento"
+        if kind in ("NPN", "PUT"):
+            return "on" if i > 1e-6 else "off"
+        if kind in ("RELAY", "RELAY2"):
+            return "eccitato" if self._relay_on(pid, t) else "riposo"
+        if kind == "SPK":
+            return "suona" if abs(i) > 1e-6 else "silenzio"
+        return ""
+
     def _out(self, pid, pin, i):
         p = self.doc.part(pid)
         if p is None:
@@ -359,9 +404,11 @@ class Schematic:
         h = c.winfo_height()
         if w < 200 or h < 150:
             w, h = 860, 340
-        self.s = min(w / W, h / H)
-        self.ox = (w - W * self.s) / 2
-        self.oy = (h - H * self.s) / 2
+        self.view_w, self.view_h = w, h
+        base = min(w / W, h / H)
+        self.s = base * self.zoom
+        self.ox = (w - W * self.s) / 2 + self.pan_x
+        self.oy = (h - H * self.s) / 2 + self.pan_y
 
         if self.rail:
             x0, x1, y = self.rail
@@ -465,42 +512,44 @@ class Schematic:
             self._ground(x, y)
 
         i = self._cur(pid, t)
+        state = self._state(pid, t)
+        suffix = f"  \u00b7  {state}" if state else ""
         if kind == "GND":
             self.text(x + 16, y + 2, "GND", anchor="w", size=8, color=MUTED)
         elif kind == "NPN":
             self.text(x, y - 52, self._label(pid), anchor="s", size=9, color=INK)
-            self.text(x, y + 52, f"I = {fmt(i, 'A')}", anchor="n", size=8, color=DOT)
+            self.text(x, y + 52, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)
             self.text(*self._loc(x, y, rot, 10, -45), "C", anchor="w", size=7, color=MUTED)
             self.text(*self._loc(x, y, rot, -48, 3), "B", anchor="e", size=7, color=MUTED)
             self.text(*self._loc(x, y, rot, 34, 29), "E", anchor="w", size=7, color=MUTED)
         elif kind == "PUT":
             self.text(x, y - 52, self._label(pid), anchor="s", size=9, color=INK)
-            self.text(x, y + 52, f"I = {fmt(i, 'A')}", anchor="n", size=8, color=DOT)
+            self.text(x, y + 52, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)
             self.text(*self._loc(x, y, rot, 10, -45), "A", anchor="w", size=7, color=MUTED)
             self.text(*self._loc(x, y, rot, -48, 3), "G", anchor="e", size=7, color=MUTED)
             self.text(*self._loc(x, y, rot, 10, 45), "K", anchor="w", size=7, color=MUTED)
         elif kind == "RELAY2":
-            self.text(x, y + 100, f"{self._label(pid)}   I = {fmt(i, 'A')}",
+            self.text(x, y + 100, f"{self._label(pid)}   I = {fmt(i, 'A')}{suffix}",
                       size=9, color=INK)
         elif kind == "RELAY":
-            self.text(x, y + 64, f"{self._label(pid)}   I = {fmt(i, 'A')}",
+            self.text(x, y + 64, f"{self._label(pid)}   I = {fmt(i, 'A')}{suffix}",
                       size=9, color=INK)
         elif kind == "LED":
             if rot in (90, 270):
                 self.text(x + 40, y - 7, self._label(pid), anchor="w", size=9, color=INK)
-                self.text(x + 40, y + 8, f"I = {fmt(i, 'A')}", anchor="w", size=8, color=DOT)
+                self.text(x + 40, y + 8, f"I = {fmt(i, 'A')}{suffix}", anchor="w", size=8, color=DOT)
             else:
                 self.text(x, y - 40, self._label(pid), anchor="s", size=9, color=INK)
-                self.text(x, y + 40, f"I = {fmt(i, 'A')}", anchor="n", size=8, color=DOT)
+                self.text(x, y + 40, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)
         elif kind == "POT":
             self.text(x + 42, y - 14, self._label(pid), anchor="w", size=9, color=INK)
-            self.text(x + 42, y + 2, f"I = {fmt(i, 'A')}", anchor="w", size=8, color=DOT)
+            self.text(x + 42, y + 2, f"I = {fmt(i, 'A')}{suffix}", anchor="w", size=8, color=DOT)
         elif rot in (90, 270):
             self.text(x + 24, y - 7, self._label(pid), anchor="w", size=9, color=INK)
-            self.text(x + 24, y + 8, f"I = {fmt(i, 'A')}", anchor="w", size=8, color=DOT)
+            self.text(x + 24, y + 8, f"I = {fmt(i, 'A')}{suffix}", anchor="w", size=8, color=DOT)
         else:
             self.text(x, y - 26, self._label(pid), anchor="s", size=9, color=INK)
-            self.text(x, y + 26, f"I = {fmt(i, 'A')}", anchor="n", size=8, color=DOT)
+            self.text(x, y + 26, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)
 
     def _dots(self, path, t, dreal, playing):
         if path.total <= 0:
