@@ -20,6 +20,8 @@ database sono generici e non legati a un corso specifico.
   undo, validazione elettrica e layout salvato per progetto
 - modalita' **breadboard-first**: jumper manuali e gomma cambiano le reti, lo
   schema e la simulazione
+- aggiunta di componenti direttamente dalla breadboard: seleziona dalla palette
+  e clicca un foro; poi collega con Filo
 - assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
   distanza, con pulsante **Ottimizza disposizione**
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
@@ -227,7 +229,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 33 test core (documento, fisica, ngspice, breadboard)
+./lab test                 # 34 test core (documento, fisica, ngspice, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 10 esercizi contro le attese

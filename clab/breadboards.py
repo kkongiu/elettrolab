@@ -280,6 +280,54 @@ def wire_at(layout, vx, vy, radius=9):
     return best
 
 
+def place_part(doc, layout, pid, hole):
+    p = doc.part(pid)
+    if p is None:
+        return False, "componente sconosciuto"
+    try:
+        row, col = parse_hole(hole)
+    except ValueError as e:
+        return False, str(e)
+    used = set()
+    used_cols = {0: set(), 1: set()}
+    for other, entry in layout.get("parts", {}).items():
+        if other == pid:
+            continue
+        for h in entry.get("pins", {}).values():
+            used.add(h)
+            try:
+                kind, c = parse_hole(h)
+            except ValueError:
+                continue
+            if kind not in RAIL_Y:
+                used_cols[0 if kind in "ABCDE" else 1].add(c)
+    if p.kind == "GND":
+        for c in list(range(col, COLS + 1)) + list(range(1, col)):
+            target = f"T-{c}"
+            if target not in used:
+                layout["parts"][pid] = {"pins": {p.spec.pins[0]: target}}
+                return True, ""
+        return False, "rail di massa pieno"
+    if row in RAIL_Y:
+        return False, "clicca un foro di riga (A-J) per questo componente"
+    offs = _offsets(len(p.spec.pins))
+    span = max(offs) + 1
+    group = 0 if row in "ABCDE" else 1
+    starts = [col - i for i in range(span)]
+    starts = [c for c in starts if c >= 1 and c + span - 1 <= COLS]
+    for c0 in starts:
+        cols = [c0 + offs[i] for i in range(len(p.spec.pins))]
+        holes = [f"{row}{c}" for c in cols]
+        if any(h in used for h in holes) or any(c in used_cols[group] for c in cols):
+            continue
+        layout["parts"][pid] = {"pins": dict(zip(p.spec.pins, holes))}
+        if p.kind == "V":
+            n_v = sum(1 for entry in layout["parts"].values() if "pos" in entry)
+            layout["parts"][pid]["pos"] = (4, 130 + 80 * n_v)
+        return True, ""
+    return False, "spazio occupato: libera i fori o sposta il componente"
+
+
 def generate(doc, spread=True):
     layout = {"parts": {}, "wires": []}
     gnd = doc.ground

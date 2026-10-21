@@ -3,8 +3,8 @@ import json
 import unittest
 from pathlib import Path
 
-from clab.breadboards import (LayoutError, derive_nets, generate, hole_xy, reroute,
-                             rotate_part, shift_part, validate_layout, wire_at)
+from clab.breadboards import (LayoutError, derive_nets, generate, hole_xy, place_part,
+                             reroute, rotate_part, shift_part, validate_layout, wire_at)
 from clab.circuit import from_dict
 from clab.db import DB
 from clab.document import Document
@@ -89,6 +89,17 @@ class BreadboardTests(unittest.TestCase):
         self.assertEqual({frozenset(v) for v in derive_nets(circ, candidate).values()},
                          original)
         self.assertEqual(validate_layout(circ, candidate), [])
+
+    def test_place_new_part_keeps_existing_nets(self):
+        doc = load_doc("exp03")
+        layout = generate(doc)
+        before = {frozenset(v) for v in derive_nets(doc, layout).values()}
+        pid = doc.add_part("resistor")
+        self.assertTrue(place_part(doc, layout, pid, "C15")[0])
+        self.assertIn(pid, layout["parts"])
+        after = {frozenset(v) for v in derive_nets(doc, layout).values()}
+        self.assertTrue(before.issubset(after))
+        self.assertEqual(validate_layout(doc, layout), [])
 
     def test_manual_jumper_is_reversible(self):
         circ = load("exp03")

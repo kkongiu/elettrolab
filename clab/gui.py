@@ -14,8 +14,8 @@ from matplotlib.figure import Figure
 from . import report
 from .breadboard import Breadboard
 from .breadboards import (LayoutError, RAIL_Y, ROWS, derive_nets, generate, hole_xy,
-                          parse_hole, reroute, rotate_part, shift_part, validate_layout,
-                          wire_at)
+                          parse_hole, place_part, reroute, rotate_part, shift_part,
+                          validate_layout, wire_at)
 from .circuit import CircuitError
 from .db import DB
 from .document import Document, slugify
@@ -343,7 +343,7 @@ class App:
         self.armed = typ
         self.mode = "place"
         self.wire_from = None
-        self._hint(f"Clicca sulla tela per aggiungere {spec.name}")
+        self._hint(f"Clicca sullo schema o sulla breadboard per aggiungere {spec.name}")
 
     def _hint(self, text):
         self.hint.configure(text=text)
@@ -566,7 +566,25 @@ class App:
             return
         vx, vy = self.bb.virtual(event.x, event.y)
         if self.armed:
-            self._hint("Aggiungi il componente dallo schema; la breadboard si rigenera")
+            hole = self.bb.hole_at(vx, vy)
+            if hole is None:
+                self._hint("Clicca un foro della breadboard")
+                return
+            typ = self.armed
+            self._push_undo()
+            pid = self.doc.add_part(typ)
+            ok, msg = place_part(self.doc, self.doc.board, pid, hole)
+            if not ok:
+                self.doc.delete_part(pid)
+                self.history.pop()
+                self._hint(msg)
+                return
+            self.selected = pid
+            self.armed = None
+            self.dirty = True
+            self._set_bb_tool("select")
+            self._after_change()
+            self._hint(f"{pid} aggiunto: collega i pin con Filo")
             return
         if self.bb_tool == "wire":
             if not self.bb_first.get():

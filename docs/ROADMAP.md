@@ -68,8 +68,7 @@ Da fare:
 - [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
 - [x] Disposizione spaziosa (massima distanza) e pulsante di ottimizzazione
 - [x] Jumper manuali, gomma, breadboard-first e derivazione reti/sync schema
-- [ ] Aggiunta di componenti direttamente dalla breadboard
-- [ ] Modelli e contenuti (vedi fasi 3-4)
+- [x] Aggiunta di componenti direttamente dalla breadboard
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.

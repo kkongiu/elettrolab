@@ -164,8 +164,11 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
   jumper per rimuoverlo; entrambi agiscono sulla board e ricalcolano le reti
 - disattivando Breadboard-first si torna alla modalita' circuito-canonico: i
   jumper vengono ri-instradati automaticamente per realizzare le reti correnti
-- aggiungere un componente dallo schema rigenera la breadboard (posizioni
-  manuali perse); l'aggiunta direttamente dalla board e' ancora da fare
+- **aggiunta dalla board**: seleziona un componente dalla palette e clicca un
+  foro; il componente nasce scollegato (pin flottanti evidenziati), poi usi
+  **Filo** per collegarlo. Il simbolo GND va sul rail di massa
+- aggiungere un componente dallo **schema** rigenera la breadboard (posizioni
+  manuali perse); per mantenere il layout usa l'aggiunta dalla board
 - undo/redo includono il layout della breadboard; la scheda `Codice` ha la
   vista `Breadboard` per vedere/modificare il JSON fisico
 
