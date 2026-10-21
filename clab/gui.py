@@ -28,6 +28,7 @@ OK = "#137a3f"
 FAIL = "#b42318"
 WARN = "#b45309"
 ACCENT = "#0a5bd3"
+SLOW_EXERCISES = {"exp11"}
 AMBER = "#f59e0b"
 
 KIND_LABELS = {
@@ -66,6 +67,7 @@ class App:
         self.history = []
         self.future = []
         self.dirty = False
+        self._loading = False
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
@@ -320,11 +322,30 @@ class App:
         if iid in self.db.types:
             self._arm(iid)
 
+    def _update_summary(self):
+        done = [v for v in self.results.values() if v is not None]
+        passed = sum(1 for v in done if v)
+        total = len(self.ids)
+        if len(done) < total:
+            self.summary.configure(text=f"{passed}/{total} test superati ({total - len(done)} da eseguire)")
+        else:
+            self.summary.configure(text=f"{passed}/{total} test superati")
+
     def _check_all(self):
+        previous = dict(self.results)
         self.results = {}
-        passed = 0
         self.ex_list.delete(0, "end")
         for eid in self.ids:
+            if eid in SLOW_EXERCISES:
+                ok = previous.get(eid)
+                self.results[eid] = ok
+                if ok is None:
+                    self.ex_list.insert("end", f"   —     {eid}")
+                    self.ex_list.itemconfig("end", foreground=MUTED)
+                else:
+                    self.ex_list.insert("end", f"  {'PASS' if ok else 'FAIL'}   {eid}")
+                    self.ex_list.itemconfig("end", foreground=OK if ok else FAIL)
+                continue
             try:
                 raw = json.loads((DATA / "exercises" / f"{eid}.json").read_text(encoding="utf-8"))
                 circ = Document(raw, self.db, layout=LAYOUTS.get(eid)).to_circuit()
@@ -334,10 +355,9 @@ class App:
             except Exception:
                 ok = False
             self.results[eid] = ok
-            passed += ok
             self.ex_list.insert("end", f"  {'PASS' if ok else 'FAIL'}   {eid}")
             self.ex_list.itemconfig("end", foreground=OK if ok else FAIL)
-        self.summary.configure(text=f"{passed}/{len(self.ids)} test superati")
+        self._update_summary()
 
     def _confirm_discard(self):
         if not self.dirty:
@@ -347,6 +367,8 @@ class App:
                                    parent=self.root)
 
     def _select_exercise(self):
+        if getattr(self, "_loading", False):
+            return
         sel = self.ex_list.curselection()
         if not sel:
             return
@@ -362,7 +384,19 @@ class App:
         raw = json.loads((DATA / "exercises" / f"{eid}.json").read_text(encoding="utf-8"))
         doc = Document(raw, self.db, layout=LAYOUTS.get(eid), builtin=True)
         self.proj_list.selection_clear(0, "end")
+        self.status.configure(text="SIMULAZIONE...", foreground=MUTED)
+        self.root.update_idletasks()
         self._load_doc(doc)
+        if self.res is not None:
+            self.results[eid] = self.res.ok
+            i = self.ids.index(eid)
+            self._loading = True
+            self.ex_list.delete(i)
+            self.ex_list.insert(i, f"  {'PASS' if self.res.ok else 'FAIL'}   {eid}")
+            self.ex_list.itemconfig(i, foreground=OK if self.res.ok else FAIL)
+            self.ex_list.selection_set(i)
+            self._loading = False
+        self._update_summary()
         self._hint(f"Esercizio {eid} caricato. Salva una copia per modificarlo.")
 
     def _load_doc(self, doc):
