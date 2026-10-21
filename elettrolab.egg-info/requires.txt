@@ -1,0 +1,11 @@
+numpy>=1.24
+
+[dev]
+mcp<3,>=2
+matplotlib>=3.7
+
+[gui]
+matplotlib>=3.7
+
+[mcp]
+mcp<3,>=2

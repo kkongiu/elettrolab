@@ -18,8 +18,8 @@ introduce logica elettrica propria.
 
 - Trasporto principale: `stdio`, avviato dall'host MCP.
 - Trasporto opzionale: HTTP locale, solo in una fase successiva.
-- Comando previsto: `python3 -m clab_mcp` dalla radice del progetto.
-- Dipendenza: SDK Python ufficiale `mcp`.
+- Comando: `python3 -m clab_mcp` dalla radice, oppure `./lab mcp` (usa `.venv`).
+- Dipendenza: SDK Python ufficiale `mcp` 2.x.
 - Il server non esegue codice fornito dal client: accetta solo JSON di
   circuito e nomi di componenti.
 
@@ -29,11 +29,9 @@ introduce logica elettrica propria.
 clab_mcp/
   __main__.py       # avvio stdio
   server.py         # registrazione tool, risorse, prompt
-  tools.py          # adapter verso clab
-  schemas.py        # modelli di input/output
-  safety.py         # limiti, modalita' sola lettura, sandbox
+  service.py        # adapter verso clab, validazione, limiti, scrittura
 tests/
-  test_mcp.py       # client in memoria, transcript dorati
+  test_mcp.py       # service + trasporto stdio + scrittura protetta
 ```
 
 ## Tool
@@ -48,7 +46,7 @@ tests/
 | `simulate_circuit` | no | simulazione DC o transitorio |
 | `check_circuit` | no | confronto con le attese |
 | `sweep_parameter` | no | ripete la simulazione su piu' valori |
-| `render_schematic` | no | SVG dello schema (fase 2) |
+| `render_schematic` | no | SVG dello schema (non ancora implementato) |
 | `add_component` | si | crea un file nel catalogo |
 | `add_exercise` | si | crea un esercizio verificato |
 
@@ -252,4 +250,31 @@ Il server usa gli stessi codici del motore (`no_ground`, `floating_pin`,
 4. Ottiene una simulazione coerente e `check` superato.
 5. Crea un nuovo componente e lo usa in un circuito.
 
-Stato: **da implementare**. Vedi `docs/ROADMAP.md`.
+## Installazione
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[mcp]"
+./lab mcp
+```
+
+Configurazione tipica di un client MCP:
+
+```json
+{
+  "mcpServers": {
+    "elettrolab": {
+      "command": "/home/kongiu/elettrolab/.venv/bin/python",
+      "args": ["-m", "clab_mcp"],
+      "cwd": "/home/kongiu/elettrolab"
+    }
+  }
+}
+```
+
+## Stato
+
+Implementato e verificato: 8 test MCP (catalogo, validazione, simulazione,
+check, sweep, scrittura disabilitata/abilitata, trasporto `stdio`).
+Le forme d'onda sono campionate a `max_points` (default 200, massimo 2000).
+`render_schematic` resta da fare. Vedi `docs/ROADMAP.md`.

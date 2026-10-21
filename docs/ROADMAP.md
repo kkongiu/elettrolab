@@ -19,18 +19,19 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 Obiettivo: un LLM progetta, valida, simula e corregge un circuito senza aprire
 il codice.
 
-- [ ] Pacchetto `clab_mcp` con trasporto `stdio`
-- [ ] Tool di lettura: catalogo, esercizi, schema
-- [ ] `validate_circuit` con errori strutturati
-- [ ] `simulate_circuit` con output limitato e riassunto delle forme d'onda
-- [ ] `check_circuit` e `sweep_parameter`
-- [ ] Risorse MCP per catalogo, esercizi e documentazione
-- [ ] Prompt `progetta_circuito` e `debug_circuito`
-- [ ] Tool di scrittura dietro `CLAB_MCP_ALLOW_WRITE=1`
-- [ ] Test con client in memoria e transcript dorati
+- [x] Pacchetto `clab_mcp` con trasporto `stdio`
+- [x] Tool di lettura: catalogo, esercizi, schema
+- [x] `validate_circuit` con errori strutturati
+- [x] `simulate_circuit` con output limitato e riassunto delle forme d'onda
+- [x] `check_circuit` e `sweep_parameter`
+- [x] Risorse MCP per catalogo, esercizi e documentazione
+- [x] Prompt `progetta_circuito` e `debug_circuito`
+- [x] Tool di scrittura dietro `CLAB_MCP_ALLOW_WRITE=1`
+- [x] Test con client in memoria e transcript dorati
 
 Criterio di accettazione: un LLM riceve un obiettivo, genera un circuito,
-sbaglia, legge l'errore, corregge e ottiene `check` superato.
+sbaglia, legge l'errore, corregge e ottiene `check` superato. Implementato e
+verificato con test sul trasporto `stdio`. Manca solo `render_schematic`.
 
 Specifica: `docs/MCP-SERVER.md`.
 

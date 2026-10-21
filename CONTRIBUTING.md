@@ -24,12 +24,14 @@ Il launcher usa `python3 -m clab` dalla radice del progetto.
 
 ```bash
 ./lab test
+.venv/bin/python -m unittest discover -s tests -v
 ./lab selftest
 ./lab check
 ```
 
-`./lab test` include i test fisici e, se `ngspice` e' installato, i confronti
-SPICE. Per installarlo: `sudo apt-get install -y ngspice`.
+`./lab test` usa il Python di sistema: include i test fisici e, se `ngspice`
+e' installato, i confronti SPICE. I test MCP richiedono `mcp` e si eseguono nel
+venv (`python3 -m venv .venv && .venv/bin/pip install -e ".[mcp]"`).
 
 Tutti gli esercizi devono restare verdi. Se un controllo cambia per una scelta
 voluta, aggiornare sia il circuito sia la documentazione.
@@ -43,6 +45,14 @@ voluta, aggiornare sia il circuito sia la documentazione.
 - Gli errori espongono `code`, `message` e il contesto (`part`, `pin`).
 - I valori numerici passano sempre da `clab/units.py`.
 - Il formato del circuito non deve contenere coordinate o dettagli grafici.
+
+## Server MCP
+
+- Il server e' in `clab_mcp/server.py`; la logica in `clab_mcp/service.py`.
+- I tool devono restare adapter sottili di `clab`: niente fisica duplicata.
+- Le scritture restano dietro `CLAB_MCP_ALLOW_WRITE=1`.
+- Ogni tool nuovo arriva con un test in `tests/test_mcp.py` e un aggiornamento
+  di `docs/MCP-SERVER.md`.
 
 ## Modificare un modello fisico
 

@@ -21,7 +21,7 @@ database sono generici e non legati a un corso specifico.
 - Progetti utente salvati in `data/projects/`
 - 10 esercizi verificati automaticamente, 7 test del motore, 11 test fisici
 - 3 confronti con ngspice (LED, RC, NPN)
-- Server MCP: pianificato (vedi `docs/MCP-SERVER.md` e `docs/ROADMAP.md`)
+- Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
 ## Avvio rapido
 
@@ -188,25 +188,49 @@ Mappa completa, valori attesi e criteri di scelta in `docs/EXERCISES.md`.
 
 ## LLM e server MCP
 
-Requisito di progetto: esporre il laboratorio come **server MCP** (Model
-Context Protocol) con trasporto `stdio`, cosi' che un LLM possa elencare i
-componenti, validare un circuito, simularlo, correggere gli errori strutturati
-e creare nuovi esercizi in un ciclo chiuso.
+Il laboratorio e' esposto come **server MCP** (Model Context Protocol) con
+trasporto `stdio`, implementato in `clab_mcp` con l'SDK MCP 2.x.
 
-Il progetto del server, i tool, le risorse e il formato degli errori sono in
-`docs/MCP-SERVER.md`. Non e' ancora implementato.
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[mcp]"
+./lab mcp
+```
+
+Tool disponibili: `list_components`, `get_component`, `list_exercises`,
+`get_circuit`, `validate_circuit`, `simulate_circuit`, `check_circuit`,
+`sweep_parameter`, `add_component`, `add_exercise`.
+
+```json
+{
+  "mcpServers": {
+    "elettrolab": {
+      "command": "/home/kongiu/elettrolab/.venv/bin/python",
+      "args": ["-m", "clab_mcp"],
+      "cwd": "/home/kongiu/elettrolab"
+    }
+  }
+}
+```
+
+Le scritture (`add_component`, `add_exercise`) sono disabilitate salvo
+`CLAB_MCP_ALLOW_WRITE=1`; i nuovi esercizi finiscono in `data/projects/`.
+Specifica e stato in `docs/MCP-SERVER.md`.
 
 ## Test
 
 ```bash
-./lab test                 # 7 documento + 11 fisica + 3 ngspice
+./lab test                 # 21 test core (documento, fisica, ngspice)
+.venv/bin/python -m unittest discover -s tests -v   # + 8 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 10 esercizi contro le attese
 ```
 
 I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,
-la bruciatura in transitorio, il merge delle reti, il layout e il confronto con
-ngspice. I test SPICE vengono saltati se `ngspice` non e' installato.
+la bruciatura in transitorio, il merge delle reti, il layout, il confronto con
+ngspice e il server MCP (tool, risorse, trasporto stdio, scrittura protetta).
+I test SPICE vengono saltati se `ngspice` non e' installato; i test MCP se
+`mcp` non e' nel Python usato.
 
 ## Documentazione
 

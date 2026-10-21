@@ -27,6 +27,8 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 | `clab/circuit.py` | indicizzazione dei nodi, validazione, mappa pin -> nodo |
 | `clab/solver.py` | matrici MNA, DC e transitorio, stati, violazioni, controlli |
 | `clab/spice.py` | export in netlist SPICE per la validazione |
+| `clab_mcp/service.py` | adapter MCP: catalogo, validazione, simulazione, scrittura |
+| `clab_mcp/server.py` | registrazione tool, risorse e prompt MCP |
 | `clab/report.py` | tabelle testuali, grafico ASCII, CSV |
 | `clab/cli.py` | comandi, overrides, sweep, selftest |
 | `clab/gui.py` | finestra Tk, elenco esercizi, controlli, animazione |
@@ -193,6 +195,15 @@ Per i casi in cui il routing automatico non basta, il layout puo' fornire un
 percorso esplicito. Il canvas viene ridisegnato a circa 30 fps; i circuiti
 didattici hanno poche decine di elementi, quindi non serve una scena
 incrementale.
+
+## Server MCP
+
+`clab_mcp` espone `clab` via Model Context Protocol su `stdio`, usando l'SDK
+ufficiale `mcp` 2.x. `service.py` contiene la logica (nessuna fisica
+duplicata); `server.py` registra tool, risorse e prompt. Le scritture sono
+disabilitate salvo `CLAB_MCP_ALLOW_WRITE=1`; i circuiti nuovi vanno in
+`data/projects/`. I tool restituiscono errori strutturati e forme d'onda
+campionate.
 
 ## Validazione
 

@@ -1,5 +1,7 @@
 import argparse
 import json
+import os
+import sys
 from pathlib import Path
 
 from . import report
@@ -199,6 +201,23 @@ def cmd_menu(args):
             return 0
 
 
+def cmd_mcp(args):
+    venv = ROOT / ".venv" / "bin" / "python"
+    if venv.exists():
+        exe = str(venv)
+    else:
+        try:
+            import mcp  # noqa: F401
+        except ImportError:
+            print("Server MCP non disponibile: crea .venv e installa 'mcp'.")
+            print("  python3 -m venv .venv")
+            print("  .venv/bin/pip install mcp")
+            return 2
+        exe = sys.executable
+    os.chdir(ROOT)
+    os.execv(exe, [exe, "-m", "clab_mcp"])
+
+
 def cmd_test(args):
     import unittest
     suite = unittest.TestLoader().discover(str(ROOT / "tests"))
@@ -368,6 +387,9 @@ def main(argv=None):
 
     s = sub.add_parser("test", help="esegue i test unitari del progetto")
     s.set_defaults(fn=cmd_test)
+
+    s = sub.add_parser("mcp", help="avvia il server MCP su stdio")
+    s.set_defaults(fn=cmd_mcp)
 
     args = p.parse_args(argv)
     return args.fn(args) or 0

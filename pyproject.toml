@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "elettrolab"
+version = "0.3.0"
+description = "Laboratorio di elettronica didattico: circuiti JSON, solver MNA, GUI, editor e server MCP"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Gianluca Congiu" }]
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+gui = ["matplotlib>=3.7"]
+mcp = ["mcp>=2,<3"]
+dev = ["mcp>=2,<3", "matplotlib>=3.7"]
+
+[project.scripts]
+clab = "clab.cli:main"
+
+[tool.setuptools]
+packages = ["clab", "clab_mcp"]
