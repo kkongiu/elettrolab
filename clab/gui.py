@@ -68,6 +68,7 @@ class App:
         self.future = []
         self.dirty = False
         self._loading = False
+        self.sim_cache = {}
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
@@ -386,7 +387,10 @@ class App:
         self.proj_list.selection_clear(0, "end")
         self.status.configure(text="SIMULAZIONE...", foreground=MUTED)
         self.root.update_idletasks()
-        self._load_doc(doc)
+        cached = self.sim_cache.get(eid)
+        self._load_doc(doc, res=cached)
+        if cached is None and self.res is not None:
+            self.sim_cache[eid] = self.res
         if self.res is not None:
             self.results[eid] = self.res.ok
             i = self.ids.index(eid)
@@ -399,7 +403,7 @@ class App:
         self._update_summary()
         self._hint(f"Esercizio {eid} caricato. Salva una copia per modificarlo.")
 
-    def _load_doc(self, doc):
+    def _load_doc(self, doc, res=None):
         self.doc = doc
         self.selected = None
         self.wire_from = None
@@ -414,13 +418,17 @@ class App:
         self.code_btn.configure(text="Modifica")
         self.code_text.configure(state="disabled")
         self.code_view.configure(state="readonly")
-        self._after_change()
+        self.res = res
+        self._after_change(simulate=res is None)
 
-    def _after_change(self, reset_anim=False):
+    def _after_change(self, reset_anim=False, simulate=True):
         if self.doc is None:
             return
         self.doc.ensure_layout()
-        self._simulate()
+        if simulate:
+            self._simulate()
+        else:
+            self.problems_list = self.doc.problems()
         self.schem = Schematic(self.scv, self.doc, self.res)
         if self.selected not in self.doc.parts:
             self.selected = None
