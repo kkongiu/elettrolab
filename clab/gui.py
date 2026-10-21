@@ -101,6 +101,9 @@ class App:
         self.last = time.perf_counter()
         self.prop_vars = {}
         self.code_editing = False
+        self.show_left = tk.BooleanVar(value=True)
+        self.show_right = tk.BooleanVar(value=True)
+        self.show_bottom = tk.BooleanVar(value=True)
         root.title("elettrolab - laboratorio di elettronica")
         root.geometry("1280x860")
         root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -148,13 +151,18 @@ class App:
                   background=[("!disabled", ACCENT), ("active", "#0847a6")],
                   foreground=[("!disabled", "#ffffff")])
 
-        outer = ttk.Frame(self.root, padding=10)
+        outer = ttk.Frame(self.root, padding=6)
         outer.pack(fill="both", expand=True)
-        left = ttk.Frame(outer, width=238)
-        left.pack(side="left", fill="y", padx=(0, 10))
+        self.hpaned = tk.PanedWindow(outer, orient="horizontal", sashwidth=7,
+                                     sashrelief="flat", bg="#d9dee8", bd=0,
+                                     showhandle=False, opaqueresize=True)
+        self.hpaned.pack(fill="both", expand=True)
+        left = ttk.Frame(self.hpaned, width=238)
         left.pack_propagate(False)
-        main = ttk.Frame(outer, style="Card.TFrame", padding=12)
-        main.pack(side="left", fill="both", expand=True)
+        main = ttk.Frame(self.hpaned, style="Card.TFrame", padding=12)
+        self.hpaned.add(left, minsize=150, width=238, stretch="never")
+        self.hpaned.add(main, minsize=420, stretch="always")
+        self.left = left
 
         ttk.Label(left, text="Esercizi", style="TLabel",
                   font=("DejaVu Sans", 11, "bold")).pack(anchor="w")
@@ -231,13 +239,27 @@ class App:
         self.signal.bind("<<ComboboxSelected>>", lambda e: self._plot())
         ttk.Label(bar, text="Segnale", style="Muted.TLabel").pack(side="right", padx=(0, 3))
 
-        body = ttk.Frame(main, style="Card.TFrame")
-        body.pack(fill="x", pady=(0, 4))
-        self.scv = tk.Canvas(body, bg=CARD, height=352, highlightthickness=0)
-        self.scv.pack(side="left", fill="both", expand=True)
-        side = ttk.Frame(body, style="Card.TFrame", width=238)
-        side.pack(side="right", fill="y", padx=(8, 0))
+        self.vpaned = tk.PanedWindow(main, orient="vertical", sashwidth=7,
+                                     sashrelief="flat", bg="#d9dee8", bd=0,
+                                     showhandle=False, opaqueresize=True)
+        self.vpaned.pack(fill="both", expand=True, pady=(0, 4))
+        upper = ttk.Frame(self.vpaned, style="Card.TFrame")
+        self.vpaned.add(upper, minsize=180, stretch="always")
+        self.upper = upper
+        legend = ttk.Label(upper, text="\u25cf = connessione      linea interrotta = incrocio senza collegamento      "
+                                       "scroll = zoom \u00b7 tasto destro = sposta \u00b7 Ctrl+0 = ripristina",
+                           style="Muted.TLabel")
+        legend.pack(side="bottom", anchor="e")
+        self.body = tk.PanedWindow(upper, orient="horizontal", sashwidth=7,
+                                   sashrelief="flat", bg="#d9dee8", bd=0,
+                                   showhandle=False, opaqueresize=True)
+        self.body.pack(fill="both", expand=True)
+        self.scv = tk.Canvas(self.body, bg=CARD, height=352, highlightthickness=0)
+        side = ttk.Frame(self.body, style="Card.TFrame", width=238)
         side.pack_propagate(False)
+        self.body.add(self.scv, minsize=260, stretch="always")
+        self.body.add(side, minsize=170, width=238, stretch="never")
+        self.side = side
         ttk.Label(side, text="Proprietà", style="Card.TLabel",
                   font=("DejaVu Sans", 10, "bold")).pack(anchor="w")
         self.prop_box = ttk.Frame(side, style="Card.TFrame")
@@ -259,12 +281,9 @@ class App:
         self.scv.bind("<MouseWheel>", self._on_wheel)
         self.scv.bind("<Button-4>", lambda e: self._on_wheel_step(1.1))
         self.scv.bind("<Button-5>", lambda e: self._on_wheel_step(1 / 1.1))
-        ttk.Label(main, text="\u25cf = connessione      linea interrotta = incrocio senza collegamento      "
-                              "scroll = zoom \u00b7 tasto destro = sposta \u00b7 Ctrl+0 = ripristina",
-                  style="Muted.TLabel").pack(anchor="e")
 
-        self.nb = ttk.Notebook(main)
-        self.nb.pack(fill="both", expand=True)
+        self.nb = ttk.Notebook(self.vpaned)
+        self.vpaned.add(self.nb, minsize=110, height=250, stretch="always")
         codef = ttk.Frame(self.nb, style="Card.TFrame")
         bbf = ttk.Frame(self.nb, style="Card.TFrame")
         plotf = ttk.Frame(self.nb, style="Card.TFrame")
@@ -362,6 +381,13 @@ class App:
         menubar.add_cascade(label="Modifica", menu=m)
 
         m = tk.Menu(menubar, tearoff=0)
+        m.add_checkbutton(label="Barra laterale sinistra", variable=self.show_left,
+                          command=self._apply_view)
+        m.add_checkbutton(label="Pannello propriet\u00e0", variable=self.show_right,
+                          command=self._apply_view)
+        m.add_checkbutton(label="Pannello inferiore", variable=self.show_bottom,
+                          command=self._apply_view)
+        m.add_separator()
         m.add_command(label="Zoom avanti", accelerator="Ctrl++",
                       command=lambda: self._zoom(1.2))
         m.add_command(label="Zoom indietro", accelerator="Ctrl\u2212",
@@ -373,7 +399,7 @@ class App:
         m.add_command(label="Breadboard", command=lambda: self.nb.select(1))
         m.add_command(label="Grafico", command=lambda: self.nb.select(2))
         m.add_command(label="Dati", command=lambda: self.nb.select(3))
-        menubar.add_cascade(label="Vista", menu=m)
+        menubar.add_cascade(label="Visualizza", menu=m)
 
         m = tk.Menu(menubar, tearoff=0)
         m.add_command(label="Simula", command=self._after_change)
@@ -388,6 +414,21 @@ class App:
 
         self.root.config(menu=menubar)
 
+    def _apply_view(self):
+        self._set_pane(self.hpaned, self.left, self.show_left.get(),
+                       dict(minsize=150, width=238, stretch="never"))
+        self._set_pane(self.body, self.side, self.show_right.get(),
+                       dict(minsize=170, width=238, stretch="never"))
+        self._set_pane(self.vpaned, self.nb, self.show_bottom.get(),
+                       dict(minsize=110, height=250, stretch="always"))
+
+    def _set_pane(self, paned, widget, visible, opts):
+        present = str(widget) in [str(p) for p in paned.panes()]
+        if visible and not present:
+            paned.add(widget, **opts)
+        elif not visible and present:
+            paned.forget(widget)
+
     def _show_help(self):
         messagebox.showinfo(
             "Comandi e scorciatoie",
@@ -398,6 +439,9 @@ class App:
             "  modalit\u00e0 Filo: clicca due pin per collegarli\n\n"
             "Breadboard:\n"
             "  trascina componenti, R ruota, Canc elimina\n\n"
+            "Finestra:\n"
+            "  trascina i divisori per ridimensionare sinistra / destra / basso\n"
+            "  menu Visualizza per mostrare o nascondere le sezioni\n\n"
             "Scorciatoie: Ctrl+N nuovo, Ctrl+S salva, Ctrl+Z/Ctrl+Y annulla/ripeti",
             parent=self.root)
 
