@@ -3,8 +3,8 @@ import json
 import unittest
 from pathlib import Path
 
-from clab.breadboards import (LayoutError, generate, hole_xy, reroute,
-                             rotate_part, shift_part, validate_layout)
+from clab.breadboards import (LayoutError, derive_nets, generate, hole_xy, reroute,
+                             rotate_part, shift_part, validate_layout, wire_at)
 from clab.circuit import from_dict
 from clab.db import DB
 from clab.document import Document
@@ -42,6 +42,43 @@ class BreadboardTests(unittest.TestCase):
                     self.assertIn(pid, layout["parts"])
                     for pin in part.spec.pins:
                         self.assertIn(pin, layout["parts"][pid]["pins"])
+
+    def test_derive_nets_matches_circuit(self):
+        for path in sorted((ROOT / "data" / "exercises").glob("*.json")):
+            eid = path.stem
+            with self.subTest(exercise=eid):
+                circ = load(eid)
+                layout = generate(circ)
+                derived = derive_nets(circ, layout)
+                self.assertEqual({frozenset(v) for v in derived.values()},
+                                 {frozenset(v) for v in circ.nets.values()})
+                self.assertIn("gnd", derived)
+
+    def test_manual_jumper_changes_nets(self):
+        circ = load("exp03")
+        layout = generate(circ)
+        h1 = layout["parts"]["D1"]["pins"]["A"]
+        h2 = layout["parts"]["V1"]["pins"]["-"]
+        layout["wires"].append({"net": "fisico", "points": [h1, h2]})
+        derived = derive_nets(circ, layout)
+        self.assertIn("D1.A", derived["gnd"])
+        self.assertIn("R1.2", derived["gnd"])
+        self.assertNotIn("m", derived)
+        self.assertIsNotNone(wire_at(layout, *hole_xy(h1)))
+
+    def test_manual_jumper_is_reversible(self):
+        circ = load("exp03")
+        layout = generate(circ)
+        h1 = layout["parts"]["D1"]["pins"]["A"]
+        h2 = layout["parts"]["V1"]["pins"]["-"]
+        layout["wires"].append({"net": "fisico", "points": [h1, h2]})
+        merged = derive_nets(circ, layout)
+        self.assertIn("D1.A", merged["gnd"])
+        self.assertNotIn("m", merged)
+        layout["wires"].pop()
+        restored = derive_nets(circ, layout)
+        self.assertIn("m", restored)
+        self.assertIn("D1.A", restored["m"])
 
     def test_generation_is_deterministic(self):
         circ = load("exp10")

@@ -13,8 +13,9 @@ from matplotlib.figure import Figure
 
 from . import report
 from .breadboard import Breadboard
-from .breadboards import (LayoutError, RAIL_Y, ROWS, generate, hole_xy, parse_hole,
-                          reroute, rotate_part, shift_part, validate_layout)
+from .breadboards import (LayoutError, RAIL_Y, ROWS, derive_nets, generate, hole_xy,
+                          parse_hole, reroute, rotate_part, shift_part, validate_layout,
+                          wire_at)
 from .circuit import CircuitError
 from .db import DB
 from .document import Document, slugify
@@ -86,6 +87,9 @@ class App:
         self._slide_after = None
         self._bb_drag = None
         self.bb = None
+        self.bb_first = tk.BooleanVar(value=True)
+        self.bb_tool = "select"
+        self.bb_wire_from = None
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
@@ -247,8 +251,16 @@ class App:
         self.nb.add(dataf, text="Dati")
         bbar = ttk.Frame(bbf, style="Card.TFrame")
         bbar.pack(fill="x")
-        ttk.Button(bbar, text="Ottimizza disposizione", command=self._optimize_board).pack(
-            side="left", pady=2)
+        ttk.Checkbutton(bbar, text="Breadboard-first", variable=self.bb_first,
+                        command=self._toggle_bb_first).pack(side="left", pady=2)
+        ttk.Button(bbar, text="Seleziona", width=9,
+                   command=lambda: self._set_bb_tool("select")).pack(side="left", padx=(8, 1))
+        ttk.Button(bbar, text="Filo", width=6,
+                   command=lambda: self._set_bb_tool("wire")).pack(side="left", padx=1)
+        ttk.Button(bbar, text="Gomma", width=7,
+                   command=lambda: self._set_bb_tool("erase")).pack(side="left", padx=1)
+        ttk.Button(bbar, text="Ottimizza", command=self._optimize_board).pack(
+            side="left", padx=(8, 0))
         ttk.Label(bbar, text="trascina · R ruota · Canc elimina",
                   style="Muted.TLabel").pack(side="left", padx=8)
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
@@ -438,6 +450,7 @@ class App:
         self.doc = doc
         self.selected = None
         self.wire_from = None
+        self.bb_wire_from = None
         self.armed = None
         self.drag = None
         self.mode = "select"
@@ -467,6 +480,8 @@ class App:
             except LayoutError as e:
                 self.doc.board = None
                 self._hint(str(e))
+        elif self.bb_first.get():
+            self.doc.nets = derive_nets(self.doc, self.doc.board)
         else:
             reroute(self.doc, self.doc.board)
         if self.doc.board is not None:
@@ -489,7 +504,10 @@ class App:
     def _after_board_change(self):
         if self.doc is None or self.doc.board is None:
             return
-        reroute(self.doc, self.doc.board)
+        if self.bb_first.get():
+            self.doc.nets = derive_nets(self.doc, self.doc.board)
+        else:
+            reroute(self.doc, self.doc.board)
         self.problems_list = self.doc.problems()
         for err in validate_layout(self.doc, self.doc.board):
             self.problems_list.append({**err, "severity": "error"})
@@ -502,6 +520,27 @@ class App:
         self._update_props()
         self._fill()
         self._plot()
+
+    def _set_bb_tool(self, tool):
+        self.bb_tool = tool
+        self.bb_wire_from = None
+        if tool == "wire":
+            self._hint("Filo: clicca il primo foro, poi il secondo")
+        elif tool == "erase":
+            self._hint("Gomma: clicca un jumper per rimuoverlo")
+        else:
+            self._hint("Seleziona: trascina i componenti; R ruota, Canc elimina")
+
+    def _toggle_bb_first(self):
+        if self.doc is None or self.doc.board is None:
+            return
+        self._push_undo()
+        if self.bb_first.get():
+            self.doc.nets = derive_nets(self.doc, self.doc.board)
+            self._after_change()
+        else:
+            reroute(self.doc, self.doc.board)
+            self._after_board_change()
 
     def _optimize_board(self):
         if self.doc is None:
@@ -526,6 +565,46 @@ class App:
         if self.doc is None or self.bb is None or self.doc.board is None:
             return
         vx, vy = self.bb.virtual(event.x, event.y)
+        if self.armed:
+            self._hint("Aggiungi il componente dallo schema; la breadboard si rigenera")
+            return
+        if self.bb_tool == "wire":
+            if not self.bb_first.get():
+                self._hint("Attiva Breadboard-first per usare i fili")
+                return
+            hole = self.bb.hole_at(vx, vy)
+            if hole is None:
+                return
+            if self.bb_wire_from is None:
+                self.bb_wire_from = hole
+                self._hint(f"Primo foro {hole}: clicca il secondo")
+                return
+            if hole == self.bb_wire_from:
+                self.bb_wire_from = None
+                self._hint("Filo annullato")
+                return
+            self._push_undo()
+            self.doc.board["wires"].append({"net": "fisico",
+                                             "points": [self.bb_wire_from, hole]})
+            self.bb_wire_from = None
+            self.dirty = True
+            self._after_change()
+            self._hint("Jumper aggiunto; reti ricalcolate")
+            return
+        if self.bb_tool == "erase":
+            if not self.bb_first.get():
+                self._hint("Attiva Breadboard-first per usare la gomma")
+                return
+            idx = wire_at(self.doc.board, vx, vy)
+            if idx is None:
+                self._hint("Nessun jumper vicino")
+                return
+            self._push_undo()
+            self.doc.board["wires"].pop(idx)
+            self.dirty = True
+            self._after_change()
+            self._hint("Jumper rimosso; reti ricalcolate")
+            return
         pid = self.bb.part_at(vx, vy)
         self.selected = pid
         self.bb.selected = pid
@@ -571,6 +650,12 @@ class App:
         if not ok:
             self._hint(msg)
             return
+        if self.bb_first.get():
+            self.doc.board = candidate
+            self.bb = Breadboard(self.bb_canvas, self.doc, self.res, candidate)
+            self.bb.selected = self._bb_drag["pid"]
+            self._hint(f"{self._bb_drag['pid']} spostato; reti ricalcolate al rilascio")
+            return
         reroute(self.doc, candidate)
         errors = validate_layout(self.doc, candidate)
         if errors:
@@ -585,7 +670,11 @@ class App:
         if not self._bb_drag:
             return
         self._bb_drag = None
-        self._after_board_change()
+        if self.bb_first.get():
+            self.doc.nets = derive_nets(self.doc, self.doc.board)
+            self._after_change()
+        else:
+            self._after_board_change()
 
     def _simulate(self):
         self.problems_list = self.doc.problems()
@@ -686,10 +775,9 @@ class App:
         self._push_undo()
         view = self.code_view.get()
         if view == "Breadboard":
-            errors = validate_layout(self.doc, data)
-            if errors:
+            if not isinstance(data, dict):
                 self.history.pop()
-                self._hint(errors[0]["message"])
+                self._hint("Il layout breadboard deve essere un oggetto JSON")
                 return
             self.doc.board = data
             self.code_editing = False
@@ -875,6 +963,21 @@ class App:
             if self.wire_from == pin:
                 self.wire_from = None
                 return
+            if self.bb_first.get() and self.doc.board:
+                h1 = self.doc.board.get("parts", {}).get(self.wire_from[0], {}).get("pins", {}).get(self.wire_from[1])
+                h2 = self.doc.board.get("parts", {}).get(pin[0], {}).get("pins", {}).get(pin[1])
+                if not h1 or not h2:
+                    self._hint("Pin non posizionati sulla breadboard")
+                    self.wire_from = None
+                    return
+                self._push_undo()
+                self.doc.board["wires"].append({"net": "fisico", "points": [h1, h2]})
+                self.doc.nets = derive_nets(self.doc, self.doc.board)
+                self.wire_from = None
+                self.dirty = True
+                self._after_change()
+                self._hint("Jumper aggiunto dallo schema; reti ricalcolate")
+                return
             self._push_undo()
             try:
                 net = self.doc.connect(*self.wire_from, *pin)
@@ -977,6 +1080,12 @@ class App:
         if not ok:
             self.history.pop()
             self._hint(msg)
+            return
+        if self.bb_first.get():
+            self.doc.board = candidate
+            self.doc.nets = derive_nets(self.doc, self.doc.board)
+            self.dirty = True
+            self._after_change()
             return
         reroute(self.doc, candidate)
         errors = validate_layout(self.doc, candidate)

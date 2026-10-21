@@ -155,11 +155,18 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
 - **editing**: trascina un componente da un foro all'altro (snap al foro), `R`
   per ruotare, `Canc` per eliminare; i jumper vengono ri-rotati, il layout e'
   validato e salvato in `<progetto>.board.json`
+- **Breadboard-first** (attivo per default): le connessioni fisiche sono la
+  verita'. Spostare un componente o aggiungere/rimuovere un jumper ricalcola le
+  reti con `derive_nets`, aggiorna lo schema e rilancia la simulazione. Gli
+  errori (pin scollegati, corti, massa mancante) compaiono nel pannello Problemi
+- **Filo**: clicca due fori per aggiungere un jumper; **Gomma**: clicca un
+  jumper per rimuoverlo; entrambi agiscono sulla board e ricalcolano le reti
+- disattivando Breadboard-first si torna alla modalita' circuito-canonico: i
+  jumper vengono ri-instradati automaticamente per realizzare le reti correnti
+- aggiungere un componente dallo schema rigenera la breadboard (posizioni
+  manuali perse); l'aggiunta direttamente dalla board e' ancora da fare
 - undo/redo includono il layout della breadboard; la scheda `Codice` ha la
   vista `Breadboard` per vedere/modificare il JSON fisico
-- aggiungere un componente dallo schema rigenera la breadboard (le posizioni
-  manuali vengono perse); i jumper manuali e la derivazione delle reti sono il
-  passo successivo (breadboard-first)
 
 ![Breadboard RC](breadboard-rc.png)
 

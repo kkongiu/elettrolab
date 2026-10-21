@@ -18,6 +18,8 @@ database sono generici e non legati a un corso specifico.
 - GUI con schema animato: corrente che scorre, LED che si accendono, guasti
 - Breadboard 2D generata automaticamente e **editabile**: trascina, ruota, elimina,
   undo, validazione elettrica e layout salvato per progetto
+- modalita' **breadboard-first**: jumper manuali e gomma cambiano le reti, lo
+  schema e la simulazione
 - assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
   distanza, con pulsante **Ottimizza disposizione**
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
@@ -225,7 +227,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 29 test core (documento, fisica, ngspice, breadboard)
+./lab test                 # 32 test core (documento, fisica, ngspice, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 10 esercizi contro le attese

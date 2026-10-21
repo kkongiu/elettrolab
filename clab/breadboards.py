@@ -159,6 +159,127 @@ def _is_rail_hole(name):
     return name.startswith(("T+", "T-", "B+", "B-"))
 
 
+def derive_nets(doc, layout):
+    holes = set(all_holes())
+    uf = UF(holes)
+    _board_connections(uf)
+    wire_labels = {}
+    for wire in layout.get("wires", []):
+        pts = wire.get("points", [])
+        for a, b in zip(pts, pts[1:]):
+            if a in holes and b in holes:
+                uf.union(a, b)
+        if pts and pts[0] in holes:
+            label = wire.get("net")
+            if label and label != "fisico":
+                wire_labels.setdefault(uf.find(pts[0]), set()).add(label)
+    pin_holes = {}
+    for pid in doc.parts:
+        p = doc.part(pid)
+        entry = layout.get("parts", {}).get(pid)
+        if p is None or not entry:
+            continue
+        for pin in p.spec.pins:
+            hole = entry.get("pins", {}).get(pin)
+            if hole in holes:
+                pin_holes[(pid, pin)] = hole
+    groups = {}
+    for (pid, pin), hole in pin_holes.items():
+        groups.setdefault(uf.find(hole), []).append(f"{pid}.{pin}")
+
+    gnd_root = None
+    sources = sorted(pid for pid in doc.parts
+                     if doc.part(pid) is not None and doc.part(pid).kind == "V")
+    for pid in sources:
+        p = doc.part(pid)
+        for pin in p.spec.pins:
+            if pin == "-":
+                hole = pin_holes.get((pid, pin))
+                if hole:
+                    gnd_root = uf.find(hole)
+                    break
+        if gnd_root is not None:
+            break
+    if gnd_root is None:
+        for pid in doc.parts:
+            p = doc.part(pid)
+            if p is not None and p.kind == "GND":
+                for pin in p.spec.pins:
+                    hole = pin_holes.get((pid, pin))
+                    if hole:
+                        gnd_root = uf.find(hole)
+                        break
+            if gnd_root is not None:
+                break
+    if gnd_root is None:
+        gnd_root = uf.find("T-1")
+        if not groups.get(gnd_root) and groups:
+            gnd_root = max(groups, key=lambda r: len(groups[r]))
+
+    old = {name: set(refs) for name, refs in doc.nets.items()}
+    used = set()
+    nets = {}
+    if gnd_root is not None and groups.get(gnd_root):
+        nets["gnd"] = sorted(groups[gnd_root])
+        used.add("gnd")
+    n = 1
+    for root, refs in groups.items():
+        if root == gnd_root:
+            continue
+        if len(refs) < 2:
+            continue
+        refs = sorted(refs)
+        candidates = [c for c in sorted(wire_labels.get(root, ())) if c not in used]
+        name = None
+        for candidate in candidates:
+            if candidate in old:
+                name = candidate
+                break
+        if name is None and candidates:
+            name = candidates[0]
+        if name is None:
+            for old_name, old_refs in old.items():
+                if old_name not in used and set(refs) == old_refs:
+                    name = old_name
+                    break
+        if name is None:
+            while f"n{n}" in used:
+                n += 1
+            name = f"n{n}"
+            n += 1
+        nets[name] = refs
+        used.add(name)
+    return nets
+
+
+def wire_at(layout, vx, vy, radius=9):
+    best, best_d = None, radius
+
+    def dist_seg(px, py, a, b):
+        ax, ay = a
+        bx, by = b
+        dx, dy = bx - ax, by - ay
+        L = dx * dx + dy * dy
+        if L == 0:
+            return math.hypot(px - ax, py - ay)
+        t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L))
+        return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+    for i, wire in enumerate(layout.get("wires", [])):
+        pts = [hole_xy(p) for p in wire.get("points", [])]
+        if not pts:
+            continue
+        mx = sum(p[0] for p in pts) / len(pts)
+        my = sum(p[1] for p in pts) / len(pts)
+        for a, b in zip(pts, pts[1:]):
+            d = dist_seg(vx, vy, a, b)
+            if d <= radius:
+                score = d + 0.15 * math.hypot(vx - mx, vy - my)
+                if best is None or score < best_d:
+                    best, best_d = i, score
+    return best
+
+
 def generate(doc, spread=True):
     layout = {"parts": {}, "wires": []}
     gnd = doc.ground
