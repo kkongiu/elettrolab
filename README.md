@@ -24,7 +24,7 @@ database sono generici e non legati a un corso specifico.
   e clicca un foro; poi collega con Filo
 - suono: l'esercizio exp11b (step 2 del PUT) ha un altoparlante; `--play` o il
   pulsante Ascolta riproducono il segnale reale dell'altoparlante, con la
-  fondamentale e le armoniche
+  fondamentale e le armoniche; il pulsante lo ripete in loop fino a Ferma
 - assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
   distanza, con pulsante **Ottimizza disposizione**
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin

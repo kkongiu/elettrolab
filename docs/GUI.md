@@ -179,9 +179,10 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
 ![Pulsante Ascolta](gui-sound.png)
 
 Nei circuiti con altoparlante o buzzer compare **Ascolta**: il simulatore riproduce il
-segnale reale dell'altoparlante (corrente impulsiva, con le sue armoniche) con il
-player di sistema (`paplay`, `pw-play`, `aplay`, `ffplay`). È disponibile anche da CLI con
-`./lab run exp11b --play` o `--wav file.wav`. Il timbro è quello del segnale simulato; manca solo l'acustica.
+segnale reale dell'altoparlante (corrente impulsiva, con le sue armoniche) in loop
+con `ffplay`; il pulsante diventa **Ferma** per interrompere. È disponibile anche da
+CLI con `./lab run exp11b --play` (2 s) o `--wav file.wav`. Il timbro è quello del
+segnale simulato; manca solo l'acustica.
 
 ## Simboli
 

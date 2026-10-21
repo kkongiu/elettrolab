@@ -74,17 +74,20 @@ def _write_wav(path, samples, rate):
         w.writeframes(pcm.tobytes())
 
 
-def play(path):
-    for name, args in PLAYERS:
+def play(path, loop=False):
+    candidates = [item for item in PLAYERS if not loop or item[0] == "ffplay"]
+    for name, args in candidates:
         exe = shutil.which(name)
-        if exe:
-            subprocess.Popen([exe, *args, str(path)],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return name
-    return None
+        if not exe:
+            continue
+        extra = ["-loop", "0"] if loop else []
+        proc = subprocess.Popen([exe, *args, *extra, str(path)],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return name, proc
+    return None, None
 
 
-def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False):
+def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False, loop=False):
     pid, part, f, signal = measure(circ, res)
     if not 20.0 <= f <= 20000.0:
         raise AudioError(f"frequenza {f:.0f} Hz fuori dall'udibile")
@@ -99,7 +102,7 @@ def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False):
     threshold = lo + (hi - lo) * 0.5
     edges = np.where((y[:-1] <= threshold) & (y[1:] > threshold))[0]
     if len(edges) >= 2:
-        i0, i1 = int(edges[0]), int(edges[-1]) + 1
+        i0, i1 = int(edges[0]), int(edges[1])
         tseg, seg = t[i0:i1], y[i0:i1]
     else:
         tseg, seg = t, y
@@ -109,9 +112,10 @@ def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False):
     k = max(1, int(rate / 12000))
     seg = np.convolve(seg, np.ones(k) / k, mode="same")
 
-    n_out = max(1, int(seconds * rate))
-    reps = int(math.ceil(n_out / len(seg)))
-    out = np.tile(seg, reps)[:n_out]
+    wanted = max(n, int(seconds * rate))
+    cycles = max(1, int(round(wanted / n)))
+    n_out = cycles * n
+    out = np.tile(seg, cycles)
     peak = float(np.max(np.abs(out)))
     if peak < 1e-12:
         raise AudioError("segnale dell'altoparlante nullo")
@@ -119,19 +123,24 @@ def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False):
     out -= float(np.mean(out))
     peak = float(np.max(np.abs(out)))
     out *= 0.85 / peak
-    fade = min(n_out // 4, int(0.01 * rate))
-    if fade > 0:
-        out[:fade] *= np.linspace(0.0, 1.0, fade)
-        out[-fade:] *= np.linspace(1.0, 0.0, fade)
+    if not loop:
+        fade = min(n_out // 4, int(0.01 * rate))
+        if fade > 0:
+            out[:fade] *= np.linspace(0.0, 1.0, fade)
+            out[-fade:] *= np.linspace(1.0, 0.0, fade)
 
     _write_wav(path, out, rate)
-    player = play(path) if play_audio else None
+    player, proc = (None, None)
+    if play_audio:
+        player, proc = play(path, loop=loop)
     return {
         "path": str(path),
         "frequency": f,
-        "duration": seconds,
+        "duration": n_out / rate,
         "rate": rate,
         "player": player,
+        "proc": proc,
         "transducer": pid,
         "mode": "signal",
+        "loop": loop,
     }

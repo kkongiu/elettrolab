@@ -93,12 +93,14 @@ class App:
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
+        self.sound_proc = None
         self.frame = 0
         self.last = time.perf_counter()
         self.prop_vars = {}
         self.code_editing = False
         root.title("elettrolab - laboratorio di elettronica")
         root.geometry("1280x860")
+        root.protocol("WM_DELETE_WINDOW", self._on_close)
         root.configure(bg=BG)
         root.minsize(1020, 720)
         self._build()
@@ -546,6 +548,11 @@ class App:
             self._after_board_change()
 
     def _update_sound_button(self):
+        if self.sound_proc is not None:
+            if self.sound_proc.poll() is None:
+                self.sound_proc.terminate()
+            self.sound_proc = None
+            self.sound_btn.configure(text="Ascolta")
         has = bool(self.doc and any(
             self.doc.part(pid) is not None and self.doc.part(pid).kind in ("SPK", "BUZZ")
             for pid in self.doc.parts))
@@ -556,17 +563,41 @@ class App:
             self.sound_btn.pack_forget()
 
     def _play_sound(self):
+        if self.sound_proc is not None and self.sound_proc.poll() is None:
+            self.sound_proc.terminate()
+            self.sound_proc = None
+            self.sound_btn.configure(text="Ascolta")
+            self._hint("Suono fermato")
+            return
+        self.sound_proc = None
         if self.doc is None or self.res is None:
             self._hint("Nessuna simulazione valida da sonorizzare")
             return
         from .audio import AudioError, render
         try:
-            info = render(self.doc.to_circuit(), self.res, play_audio=True)
+            info = render(self.doc.to_circuit(), self.res, play_audio=True, loop=True)
         except AudioError as e:
             self._hint(f"Audio: {e}")
             return
-        player = info.get("player") or f"WAV: {info['path']}"
-        self._hint(f"Ascolta {info['frequency']:.0f} Hz, segnale dell'altoparlante ({player})")
+        if info.get("proc") is None:
+            self._hint(f"WAV pronto: {info['path']}")
+            return
+        self.sound_proc = info["proc"]
+        self.sound_btn.configure(text="Ferma")
+        player = info.get("player") or "player"
+        self._hint(f"Ascolta {info['frequency']:.0f} Hz in loop, "
+                   f"segnale dell'altoparlante ({player}) - premi Ferma")
+        self.root.after(700, self._poll_sound)
+
+    def _poll_sound(self):
+        if self.sound_proc is not None and self.sound_proc.poll() is not None:
+            self.sound_proc = None
+            self.sound_btn.configure(text="Ascolta")
+
+    def _on_close(self):
+        if self.sound_proc is not None and self.sound_proc.poll() is None:
+            self.sound_proc.terminate()
+        self.root.destroy()
 
     def _optimize_board(self):
         if self.doc is None:

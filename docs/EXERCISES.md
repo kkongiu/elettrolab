@@ -168,7 +168,7 @@ Versione isolata dello step 2: lo stesso oscillatore PUT di `exp11`, ma con
 ```bash
 ./lab run exp11b --play          # genera e riproduce il tono
 ./lab run exp11b --wav tone.wav  # salva il WAV
-./lab gui exp11b                 # pulsante "Ascolta"
+./lab gui exp11b                 # Ascolta in loop, poi Ferma
 ```
 
 Il suono è il segnale reale dell'altoparlante (corrente impulsiva) risamplato e
