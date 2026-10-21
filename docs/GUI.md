@@ -139,15 +139,18 @@ La stessa legenda compare sotto lo schema.
 La scheda **Breadboard** mostra il circuito su una breadboard virtuale:
 fori, rail di alimentazione, componenti e jumper colorati per rete.
 
-- copertura attuale: `exp03`, `exp06`, `exp09`, `exp13`
-- per gli altri esercizi compare "Breadboard non disponibile"
-- il layout e' in `clab/breadboards.py`: ogni pin e' mappato a un foro
-  (`A5`, `T+5`, ...) e ogni jumper e' una polilinea di fori
-- `validate_layout()` ricostruisce la connettivita' della breadboard (colonne
-  A-E e F-J, rail, jumper) e verifica che ogni rete del circuito sia connessa
-  e che non ci siano corti tra reti diverse
-- il test `tests/test_breadboard.py` valida tutti i layout e controlla che un
-  filo mancante o un corto vengano rilevati
+- il layout e' **generato automaticamente** dal circuito per ogni esercizio e
+  progetto: niente layout scritti a mano
+- il placer assegna righe e colonne, usa i rail per massa e alimentazione,
+  gestisce moduli multi-pin (potenziometro, NPN, PUT, relè) e tiene le
+  alimentazioni fuori board
+- i jumper di segnale collegano i pin della stessa rete; `validate_layout()`
+  ricostruisce la connettivita' (colonne A-E/F-J, rail, jumper) e verifica
+  reti aperte e corti
+- il test `tests/test_breadboard.py` genera e valida tutti gli esercizi, prova
+  il determinismo, la rimozione di un pin e un corto artificiale
+- l'editing (trascinare componenti, jumper manuali, derivazione delle reti) e'
+  il passo successivo: ora la vista e' generata e sincronizzata col circuito
 
 ![Breadboard RC](breadboard-rc.png)
 

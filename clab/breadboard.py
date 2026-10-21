@@ -165,10 +165,17 @@ class Breadboard:
         if p.kind == "V":
             self._battery(pid, p)
             return
-        if len(p.spec.pins) < 2:
+        points = [(pin, hole_xy(pins[pin])) for pin in p.spec.pins if pin in pins]
+        if p.kind == "GND":
+            if points:
+                self._ground(points[0][1])
             return
-        a = self._pin_xy(pid, p.spec.pins[0])
-        b = self._pin_xy(pid, p.spec.pins[1])
+        if len(points) < 2:
+            return
+        if len(p.spec.pins) >= 3:
+            self._module(pid, p, points)
+            return
+        a, b = points[0][1], points[1][1]
         kind = p.kind
         if kind == "LED":
             self._led(pid, p, a, b, t)
@@ -181,7 +188,7 @@ class Breadboard:
         elif kind == "SW":
             self._switch(pid, p, a, b)
         else:
-            self._module(pid, p, a, b)
+            self._module(pid, p, points)
 
     def _geometry(self, a, b):
         mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
@@ -263,14 +270,38 @@ class Breadboard:
         self.line([a, end], color=INK, width=2)
         self.text(mx - nx * 22, my - ny * 22, self._label(pid), size=8)
 
-    def _module(self, pid, p, a, b):
-        mx, my, L, ux, uy, nx, ny = self._geometry(a, b)
-        self.line([a, b], color=INK, width=2)
-        pts = [(-0.2, -12), (0.2, -12), (0.2, 12), (-0.2, 12)]
-        poly = [(mx + ux * L * u + nx * v, my + uy * L * u + ny * v) for u, v in pts]
-        self.c.create_polygon(*[c for p in poly for c in self.T(*p)],
-                              outline=INK, fill="#e9ecef", width=max(1.0, 1.4 * self.s))
-        self.text(mx, my, pid, size=8)
+    def _ground(self, pt):
+        x, y = pt
+        self.line([(x, y), (x, y + 12)], color=INK, width=2)
+        for w, dy in ((11, 12), (7, 17), (3, 22)):
+            self.line([(x - w, y + dy), (x + w, y + dy)], color=INK, width=2)
+
+    @staticmethod
+    def _rail_hole(name):
+        return name.startswith(("T+", "T-", "B+", "B-"))
+
+    def _module(self, pid, p, points):
+        hole_map = self.layout["parts"][pid].get("pins", {})
+        body = [(pin, pt) for pin, pt in points if not self._rail_hole(hole_map.get(pin, ""))]
+        if len(body) < 2:
+            body = list(points)
+        xs = [pt[0] for _, pt in body]
+        ys = [pt[1] for _, pt in body]
+        pad = 16
+        x0, x1 = min(xs) - pad, max(xs) + pad
+        y0, y1 = min(ys) - pad, max(ys) + pad
+        self.c.create_rectangle(*self.T(x0, y0), *self.T(x1, y1),
+                                outline=INK, fill="#e9ecef",
+                                width=max(1.0, 1.4 * self.s))
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        for pin, pt in points:
+            if self._rail_hole(hole_map.get(pin, "")):
+                self.line([(cx, cy), pt], color=INK, width=1.5)
+            X, Y = self.T(*pt)
+            r = max(1.2, 1.8 * self.s)
+            self.c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
+            self.text(pt[0], pt[1] + 12, pin, size=6)
+        self.text(cx, y0 - 6, pid, size=8, color=INK)
 
     def _battery(self, pid, p):
         pos = self.layout["parts"][pid].get("pos", (60, 200))

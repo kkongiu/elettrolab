@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 
 from . import report
 from .breadboard import Breadboard
-from .breadboards import BREADBOARDS
+from .breadboards import LayoutError, generate
 from .circuit import CircuitError
 from .db import DB
 from .document import Document, slugify
@@ -449,9 +449,12 @@ class App:
         else:
             self.problems_list = self.doc.problems()
         self.schem = Schematic(self.scv, self.doc, self.res)
-        eid = self.doc.meta.get("id")
-        self.bb = Breadboard(self.bb_canvas, self.doc, self.res,
-                             BREADBOARDS.get(eid) if eid else None)
+        try:
+            board_layout = generate(self.doc)
+        except LayoutError as e:
+            board_layout = None
+            self._hint(str(e))
+        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, board_layout)
         if self.selected not in self.doc.parts:
             self.selected = None
         if reset_anim:

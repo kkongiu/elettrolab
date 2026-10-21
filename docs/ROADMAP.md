@@ -64,8 +64,9 @@ Da fare:
 - [ ] Rinomina delle reti dall'interfaccia
 - [ ] Creazione di un nuovo tipo di componente dall'editor
 - [ ] "Fissa i valori attuali come attesi" per generare `expect`
-- [x] Vista breadboard 2D con connettivita' e validazione (exp03/06/09/13)
-- [ ] Breadboard 2D per tutti gli esercizi
+- [x] Generatore breadboard 2D per tutti i circuiti
+- [ ] Editing breadboard: drag/rotate/delete/jumper
+- [ ] Breadboard-first: derivazione reti e sincronizzazione schema
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.

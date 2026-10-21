@@ -89,7 +89,10 @@ def validate_layout(doc, layout):
         return [{"code": "invalid", "message": str(e)}]
 
     pin_holes = {}
-    for pid, p in doc.parts.items():
+    for pid in doc.parts:
+        p = doc.part(pid)
+        if p is None:
+            continue
         lp = layout.get("parts", {}).get(pid)
         if not lp:
             errors.append({"code": "no_part", "part": pid,
@@ -135,55 +138,111 @@ def validate_layout(doc, layout):
     return errors
 
 
-BREADBOARDS = {
-    "exp03": {
-        "parts": {
-            "V1": {"pins": {"+": "T+1", "-": "T-1"}, "pos": (4, 200)},
-            "R1": {"pins": {"1": "A5", "2": "A10"}},
-            "D1": {"pins": {"A": "A14", "K": "A16"}},
-        },
-        "wires": [
-            {"net": "p", "points": ["T+5", "A5"]},
-            {"net": "m", "points": ["A10", "A14"]},
-            {"net": "gnd", "points": ["T-16", "A16"]},
-        ],
-    },
-    "exp06": {
-        "parts": {
-            "V1": {"pins": {"+": "T+1", "-": "T-1"}, "pos": (4, 200)},
-            "SW1": {"pins": {"1": "A4", "2": "A7"}},
-            "R1": {"pins": {"1": "A10", "2": "A14"}},
-            "D1": {"pins": {"A": "A17", "K": "A19"}},
-        },
-        "wires": [
-            {"net": "p", "points": ["T+4", "A4"]},
-            {"net": "s", "points": ["A7", "A10"]},
-            {"net": "m", "points": ["A14", "A17"]},
-            {"net": "gnd", "points": ["T-19", "A19"]},
-        ],
-    },
-    "exp09": {
-        "parts": {
-            "V1": {"pins": {"+": "T+1", "-": "T-1"}, "pos": (4, 200)},
-            "SW1": {"pins": {"1": "A4", "2": "A7"}},
-            "R1": {"pins": {"1": "A10", "2": "A16"}},
-            "C1": {"pins": {"+": "A19", "-": "A21"}},
-        },
-        "wires": [
-            {"net": "p", "points": ["T+4", "A4"]},
-            {"net": "a", "points": ["A7", "A10"]},
-            {"net": "m", "points": ["A16", "A19"]},
-            {"net": "gnd", "points": ["T-21", "A21"]},
-        ],
-    },
-    "exp13": {
-        "parts": {
-            "V1": {"pins": {"+": "T+1", "-": "T-1"}, "pos": (4, 200)},
-            "D1": {"pins": {"A": "A6", "K": "A8"}},
-        },
-        "wires": [
-            {"net": "p", "points": ["T+6", "A6"]},
-            {"net": "gnd", "points": ["T-8", "A8"]},
-        ],
-    },
-}
+class LayoutError(Exception):
+    pass
+
+
+def _offsets(n):
+    if n <= 1:
+        return [0]
+    if n == 2:
+        return [0, 2]
+    if n == 3:
+        return [0, 2, 4]
+    if n == 5:
+        return [0, 2, 4, 6, 8]
+    return list(range(n))
+
+
+def _is_rail_hole(name):
+    return name.startswith(("T+", "T-", "B+", "B-"))
+
+
+def generate(doc):
+    layout = {"parts": {}, "wires": []}
+    gnd = doc.ground
+    sources = sorted(pid for pid in doc.parts if doc.part(pid) is not None and doc.part(pid).kind == "V")
+    primary = sources[0] if sources else None
+    pos_net = doc.net_of(primary, "+") if primary else None
+    primary_rails = (primary is not None and doc.net_of(primary, "+") == pos_net
+                     and doc.net_of(primary, "-") == gnd)
+
+    rail_col = {"T+": 1, "T-": 1}
+
+    def rail_hole(net):
+        rail = "T-" if net == gnd else "T+"
+        col = rail_col[rail]
+        if col > COLS:
+            raise LayoutError(f"rail {rail} pieno")
+        rail_col[rail] = col + 1
+        return f"{rail}{col}"
+
+    groups = (("A", "B", "C", "D", "E"), ("F", "G", "H", "I", "J"))
+    state = {"group": 0, "col": 1}
+
+    def allocate(span):
+        while True:
+            if span > COLS:
+                raise LayoutError(f"componente troppo largo: {span} colonne")
+            if state["col"] + span - 1 <= COLS:
+                col0 = state["col"]
+                state["col"] += span + 1
+                rows = groups[state["group"]]
+                row = rows[min(2, (col0 - 1) // 10)]
+                return row, col0
+            state["group"] += 1
+            state["col"] = 1
+            if state["group"] >= len(groups):
+                raise LayoutError("breadboard piena: troppi pin")
+
+    vpos = 0
+    for pid in sorted(doc.parts):
+        p = doc.part(pid)
+        if p is None:
+            continue
+        if p.kind == "GND":
+            pin = p.spec.pins[0]
+            layout["parts"][pid] = {"pins": {pin: rail_hole(gnd)}}
+            continue
+        if p.kind == "V" and pid == primary and primary_rails:
+            pins = {}
+            for pin in p.spec.pins:
+                net = doc.net_of(pid, pin)
+                pins[pin] = rail_hole(net)
+            layout["parts"][pid] = {"pins": pins, "pos": (4, 130 + 80 * vpos)}
+            vpos += 1
+            continue
+        offs = _offsets(len(p.spec.pins))
+        span = max(offs) + 1
+        row, col0 = allocate(span)
+        pins = {}
+        for i, pin in enumerate(p.spec.pins):
+            pins[pin] = f"{row}{col0 + offs[i]}"
+        entry = {"pins": pins}
+        if p.kind == "V":
+            entry["pos"] = (4, 130 + 80 * vpos)
+            vpos += 1
+        layout["parts"][pid] = entry
+
+    def hole_col(hole):
+        return int(HOLE_RE.fullmatch(hole).group(2))
+
+    for net, refs in doc.nets.items():
+        holes = []
+        for ref in refs:
+            pid, pin = ref.rsplit(".", 1)
+            hole = layout["parts"].get(pid, {}).get("pins", {}).get(pin)
+            if hole:
+                holes.append(hole)
+        if net == gnd or net == pos_net:
+            rail = "T-" if net == gnd else "T+"
+            for hole in holes:
+                if _is_rail_hole(hole):
+                    continue
+                layout["wires"].append({"net": net,
+                                        "points": [hole, f"{rail}{hole_col(hole)}"]})
+        elif len(holes) >= 2:
+            hub = holes[0]
+            for hole in holes[1:]:
+                layout["wires"].append({"net": net, "points": [hub, hole]})
+    return layout
