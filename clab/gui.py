@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import time
 import tkinter as tk
@@ -29,6 +30,15 @@ FAIL = "#b42318"
 WARN = "#b45309"
 ACCENT = "#0a5bd3"
 SLOW_EXERCISES = {"exp11"}
+SLIDERS = {
+    "v": ("lin", 0.0, 24.0),
+    "pos": ("lin", 0.0, 1.0),
+    "r": ("log", 1.0, 1e6),
+    "rtotal": ("log", 10.0, 1e6),
+    "c": ("log", 1e-9, 1e-2),
+    "l": ("log", 1e-6, 10.0),
+}
+UNIT = {"v": "V", "r": "Ω", "rtotal": "Ω", "c": "F", "l": "H"}
 AMBER = "#f59e0b"
 
 KIND_LABELS = {
@@ -69,6 +79,7 @@ class App:
         self.dirty = False
         self._loading = False
         self.sim_cache = {}
+        self._slide_after = None
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
@@ -421,7 +432,7 @@ class App:
         self.res = res
         self._after_change(simulate=res is None)
 
-    def _after_change(self, reset_anim=False, simulate=True):
+    def _after_change(self, reset_anim=False, simulate=True, props=True):
         if self.doc is None:
             return
         self.doc.ensure_layout()
@@ -437,7 +448,8 @@ class App:
         self._update_header()
         self._update_problems()
         self._update_code()
-        self._update_props()
+        if props:
+            self._update_props()
         self._fill()
         self._plot()
 
@@ -597,6 +609,18 @@ class App:
                 var = tk.StringVar(value=str(val))
                 ttk.Entry(row, textvariable=var, width=11).pack(side="left")
             self.prop_vars[key] = var
+            if key in SLIDERS and not isinstance(val, bool):
+                try:
+                    current = to_float(val)
+                except Exception:
+                    current = SLIDERS[key][1]
+                scale = ttk.Scale(self.prop_box, from_=0.0, to=1.0, orient="horizontal",
+                                  value=self._value_to_slider(key, current),
+                                  command=lambda x, pid=pid, key=key, var=var:
+                                  self._on_slider(pid, key, var, x))
+                scale.pack(fill="x", padx=(30, 2), pady=(0, 2))
+                scale.bind("<ButtonPress-1>", lambda e: self._push_undo(), add="+")
+                scale.bind("<ButtonRelease-1>", lambda e: self._slider_finish(), add="+")
         btns = ttk.Frame(self.prop_box, style="Card.TFrame")
         btns.pack(fill="x", pady=(4, 2))
         ttk.Button(btns, text="Applica", width=8, command=self._apply_props).pack(side="left")
@@ -607,6 +631,44 @@ class App:
         nets = {pin: (self.doc.net_of(pid, pin) or "-") for pin in p.spec.pins}
         ttk.Label(self.prop_box, text="Pin: " + ", ".join(f"{k}={v}" for k, v in nets.items()),
                   style="Muted.TLabel", wraplength=210).pack(anchor="w", pady=(3, 0))
+
+    def _slider_actual(self, key, u):
+        mode, lo, hi = SLIDERS[key]
+        u = max(0.0, min(1.0, float(u)))
+        if mode == "log":
+            return 10 ** (math.log10(lo) + (math.log10(hi) - math.log10(lo)) * u)
+        return lo + (hi - lo) * u
+
+    def _value_to_slider(self, key, value):
+        mode, lo, hi = SLIDERS[key]
+        value = max(lo, min(hi, value))
+        if mode == "log":
+            return (math.log10(value) - math.log10(lo)) / (math.log10(hi) - math.log10(lo))
+        return (value - lo) / (hi - lo)
+
+    def _on_slider(self, pid, key, var, u):
+        if pid not in self.doc.parts:
+            return
+        value = self._slider_actual(key, u)
+        var.set(f"{value:.6g}")
+        self.doc.set_param(pid, key, value)
+        self.dirty = True
+        self._hint(f"{pid}.{key} = {fmt(value, UNIT.get(key, ''))}")
+        if self._slide_after is not None:
+            self.root.after_cancel(self._slide_after)
+        self._slide_after = self.root.after(160, self._slider_apply)
+
+    def _slider_apply(self):
+        self._slide_after = None
+        if self.doc is not None:
+            self._after_change(props=False)
+
+    def _slider_finish(self):
+        if self._slide_after is not None:
+            self.root.after_cancel(self._slide_after)
+            self._slide_after = None
+        if self.doc is not None:
+            self._after_change()
 
     def _apply_props(self):
         pid = self.selected

@@ -66,7 +66,10 @@ Selezionando un componente compaiono:
 - identificatore e tipo;
 - i parametri del catalogo, modificabili (valori con suffissi SI come `4.7k`);
 - `Applica`, `Ruota`, `Elimina`;
-- l'elenco dei pin con la rete a cui sono collegati.
+- l'elenco dei pin con la rete a cui sono collegati;
+- uno **slider live** per `v`, `pos`, `r`, `rtotal`, `c`, `l`: la simulazione
+  si aggiorna con un debounce di 160 ms, senza ricostruire il pannello durante
+  il trascinamento.
 
 I valori numerici vengono validati prima dell'applicazione. Dopo ogni modifica
 la simulazione viene ricalcolata e lo schema aggiornato.

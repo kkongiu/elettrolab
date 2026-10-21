@@ -90,7 +90,8 @@ grafico e dati sotto.
   per spostare, `R` per ruotare, `Canc` per eliminare, "Filo" per collegare due
   pin; `Ctrl+Z`/`Ctrl+Y` annullano
 - **proprietà**: seleziona un componente per modificarne i parametri, ruotarlo,
-  eliminarlo o vedere i pin e la rete
+  eliminarlo o vedere i pin e la rete; i parametri principali hanno uno slider
+  live (tensione, posizione del potenziometro, R, C, L)
 - **Codice**: la scheda mostra il JSON del circuito o del layout, con copia,
   modifica e "Applica"; è lo stesso linguaggio usato dagli LLM
 - nel disegno, un pallino scuro è una connessione; un filo interrotto è un
