@@ -63,6 +63,57 @@ KIND_LABELS = {
 }
 
 
+class Tooltip:
+    """Piccolo tooltip che appare al passaggio del mouse su un widget."""
+
+    def __init__(self, widget, text, delay=450):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self._after = None
+        self._tip = None
+        widget.bind("<Enter>", self._schedule, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+        widget.bind("<ButtonPress>", self._hide, add="+")
+
+    def _schedule(self, _event=None):
+        self._cancel()
+        self._after = self.widget.after(self.delay, self._show)
+
+    def _cancel(self):
+        if self._after is not None:
+            try:
+                self.widget.after_cancel(self._after)
+            except Exception:
+                pass
+            self._after = None
+
+    def _show(self):
+        if self._tip is not None or not self.text:
+            return
+        try:
+            x = self.widget.winfo_rootx() + 8
+            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        except Exception:
+            return
+        tip = tk.Toplevel(self.widget)
+        tip.wm_overrideredirect(True)
+        tip.wm_geometry(f"+{x}+{y}")
+        tk.Label(tip, text=self.text, bg=TEXT, fg="#ffffff",
+                 padx=8, pady=3, font=("DejaVu Sans", 9),
+                 relief="flat", bd=0).pack()
+        self._tip = tip
+
+    def _hide(self, _event=None):
+        self._cancel()
+        if self._tip is not None:
+            try:
+                self._tip.destroy()
+            except Exception:
+                pass
+            self._tip = None
+
+
 class App:
     def __init__(self, root, start=None):
         self.root = root
@@ -145,6 +196,10 @@ class App:
                   background=[("selected", CARD)],
                   foreground=[("selected", ACCENT)])
         style.configure("TButton", padding=(8, 4))
+        style.configure("Tool.TButton", padding=(5, 2), font=("DejaVu Sans", 12))
+        style.configure("ToolOn.TButton", padding=(5, 2), font=("DejaVu Sans", 12),
+                        background="#dbe8ff")
+        style.map("ToolOn.TButton", background=[("active", "#c7d8f5")])
         style.configure("Accent.TButton", padding=(10, 5),
                         font=("DejaVu Sans", 9, "bold"))
         style.map("Accent.TButton",
@@ -215,23 +270,25 @@ class App:
 
         bar = ttk.Frame(main, style="Card.TFrame")
         bar.pack(fill="x", pady=(0, 4))
-        self.mode_btn = ttk.Button(bar, text="Seleziona", width=10,
-                                   command=lambda: self._set_mode("select"))
-        self.mode_btn.pack(side="left")
-        self.wire_btn = ttk.Button(bar, text="Filo", width=6,
-                                   command=lambda: self._set_mode("wire"))
-        self.wire_btn.pack(side="left", padx=(3, 8))
-        ttk.Button(bar, text="Undo", width=6, command=self._undo).pack(side="left")
-        ttk.Button(bar, text="Redo", width=6, command=self._redo).pack(side="left", padx=(3, 8))
-        ttk.Button(bar, text="Simula", width=7, style="Accent.TButton",
-                   command=self._after_change).pack(side="left")
-        self.sound_btn = ttk.Button(bar, text="Ascolta", command=self._play_sound)
+        self.mode_btn = self._tool_button(bar, "\u2196", "Seleziona / sposta (Esc)",
+                                          lambda: self._set_mode("select"))
+        self.wire_btn = self._tool_button(bar, "\u21c4", "Filo: collega due pin",
+                                          lambda: self._set_mode("wire"))
+        self._tool_sep(bar)
+        self._tool_button(bar, "\u21b6", "Annulla (Ctrl+Z)", self._undo)
+        self._tool_button(bar, "\u21b7", "Ripeti (Ctrl+Y)", self._redo)
+        self._tool_button(bar, "\u21bb", "Ruota componente (R)", self._rotate_selected)
+        self._tool_sep(bar)
+        self._tool_button(bar, "\u27f3", "Simula il circuito", self._after_change,
+                          style="Accent.TButton")
+        self.sound_btn = self._tool_button(bar, "\u266a", "Ascolta / ferma il suono",
+                                           self._play_sound)
         self.status = ttk.Label(bar, text="", style="Status.TLabel")
         self.status.pack(side="left", padx=(14, 0))
         self.viol = ttk.Label(bar, text="", style="Card.TLabel", foreground=FAIL)
         self.viol.pack(side="left", padx=(10, 0))
-        self.play = ttk.Button(bar, text="Pausa", width=7, command=self._toggle)
-        self.play.pack(side="right")
+        self.play = self._tool_button(bar, "\u23f8", "Pausa / riprendi",
+                                      self._toggle, side="right")
         self.clock = ttk.Label(bar, text="", style="Muted.TLabel")
         self.clock.pack(side="right", padx=(0, 8))
         self.signal = ttk.Combobox(bar, state="readonly", width=12)
@@ -478,8 +535,8 @@ class App:
         self.armed = None if mode != "place" else self.armed
         if mode != "wire":
             self.wire_from = None
-        self.mode_btn.configure(text="Seleziona" if mode != "wire" else "Seleziona")
-        self.wire_btn.configure(text="Filo" if mode != "wire" else "Filo *")
+        self.mode_btn.configure(style="ToolOn.TButton" if mode != "wire" else "Tool.TButton")
+        self.wire_btn.configure(style="ToolOn.TButton" if mode == "wire" else "Tool.TButton")
         if mode == "wire":
             self._hint("Filo: clicca il primo pin, poi il secondo")
         else:
@@ -494,6 +551,16 @@ class App:
 
     def _hint(self, text):
         self.hint.configure(text=text)
+
+    def _tool_button(self, parent, glyph, tip, command, style="Tool.TButton", side="left"):
+        b = ttk.Button(parent, text=glyph, width=3, style=style, command=command)
+        b.pack(side=side, padx=1)
+        Tooltip(b, tip)
+        return b
+
+    def _tool_sep(self, parent):
+        ttk.Separator(parent, orient="vertical").pack(side="left", fill="y",
+                                                      padx=6, pady=2)
 
     def _fill_palette(self):
         groups = {}
@@ -706,7 +773,7 @@ class App:
             if self.sound_proc.poll() is None:
                 self.sound_proc.terminate()
             self.sound_proc = None
-            self.sound_btn.configure(text="Ascolta")
+            self.sound_btn.configure(text="\u266a")
         has = bool(self.doc and any(
             self.doc.part(pid) is not None and self.doc.part(pid).kind in ("SPK", "BUZZ")
             for pid in self.doc.parts))
@@ -720,7 +787,7 @@ class App:
         if self.sound_proc is not None and self.sound_proc.poll() is None:
             self.sound_proc.terminate()
             self.sound_proc = None
-            self.sound_btn.configure(text="Ascolta")
+            self.sound_btn.configure(text="\u266a")
             self._hint("Suono fermato")
             return
         self.sound_proc = None
@@ -737,7 +804,7 @@ class App:
             self._hint(f"WAV pronto: {info['path']}")
             return
         self.sound_proc = info["proc"]
-        self.sound_btn.configure(text="Ferma")
+        self.sound_btn.configure(text="\u25a0")
         player = info.get("player") or "player"
         self._hint(f"Ascolta {info['frequency']:.0f} Hz in loop, "
                    f"segnale dell'altoparlante ({player}) - premi Ferma")
@@ -746,7 +813,7 @@ class App:
     def _poll_sound(self):
         if self.sound_proc is not None and self.sound_proc.poll() is not None:
             self.sound_proc = None
-            self.sound_btn.configure(text="Ascolta")
+            self.sound_btn.configure(text="\u266a")
 
     def _on_close(self):
         if self.sound_proc is not None and self.sound_proc.poll() is None:
@@ -1557,7 +1624,7 @@ class App:
 
     def _toggle(self):
         self.playing = not self.playing
-        self.play.configure(text="Pausa" if self.playing else "Riprendi")
+        self.play.configure(text="\u23f8" if self.playing else "\u25b6")
 
     def _draw_overlay(self):
         if self.schem is None or self.doc is None:
