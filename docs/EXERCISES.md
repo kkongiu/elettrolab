@@ -17,7 +17,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp11` | Oscillatore a rilascio con PUT | Transitorio | picco 14.5 mA, periodo 1.04 s | PUT, carica RC, LED impulsivo |
 | `exp11b` | PUT step 2: il suono | Transitorio | ~567 Hz, 5.7 mA di picco | secondo oscillatore in banda audio, altoparlante |
 | `exp11c` | PUT step 3: amplificazione | Transitorio | ~627 Hz, 53.7 mA di picco | 2N2222 amplifica il PUT, altoparlante sul collettore |
-| `exp11d` | PUT step 4: uscita pulsata | Transitorio | ~650 Hz modulato, 53.7 mA di picco | due oscillatori, modulazione del gate, sirena |
+| `exp11d` | PUT step 4: uscita pulsata | Transitorio | 420↔590 Hz, 53.7 mA di picco | due oscillatori, modulazione del gate, sirena |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 
@@ -197,16 +197,17 @@ funzionare l'amplificatore anche nel modello semplificato del PUT.
 
 Due oscillatori PUT: il lento `Q1` (a sinistra) e l'audio `Q2` (al centro), più
 l'amplificatore a 2N2222. Il catodo di `Q1` pilota il gate di `Q2` tramite
-`R11 = 10 kΩ`, con `C3 = 2,2 µF` che leviga i salti. La soglia di `Q2` cambia a
-ogni impulso lento, quindi il tono acuto viene modulato: è la sirena "whoop".
+`R11 = 10 kΩ`, con `C3 = 0,1 µF` che leviga i salti. A ogni impulso lento la
+soglia di `Q2` cambia, quindi il tono acuto viene modulato (effetto "whoop").
 
-- l'oscillatore lento crea un inviluppo periodico sul gate di `Q2`
-- il tono acuto (~650 Hz) viene modulato e amplificato sull'altoparlante
+- l'oscillatore lento fa oscillare il gate di `Q2` tra ~0 e ~3,7 V
+- la frequenza alterna tra circa **420 e 590 Hz** (two-tone), con l'ampiezza che pulsa
 - corrente di picco sull'altoparlante: **53.7 mA**
 
-Per vedere più cicli in una simulazione breve `C1` è **0,47 µF** (nel circuito
-del libro è 2,2 µF, quindi il whoop reale è più lento). Ascolta con
-`./lab run exp11d --play` o il pulsante **Ascolta** in GUI.
+R1/C1 sono accordati (`47 kΩ` / `4,7 µF`) per un duty cycle ampio, così il whoop
+è chiaro in una simulazione breve; nel circuito del libro sono `470 kΩ` / `2,2 µF`
+e il whoop è più lento. Ascolta con `./lab run exp11d --play` o il pulsante
+**Ascolta** in GUI (loop, poi **Ferma**).
 
 ### exp13 - Friggere un LED
 

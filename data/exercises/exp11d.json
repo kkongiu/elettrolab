@@ -1,16 +1,16 @@
 {
   "id": "exp11d",
   "title": "PUT step 4: uscita pulsata (sirena)",
-  "notes": "L'oscillatore lento (Q1, a sinistra) pilota il gate dell'oscillatore audio (Q2) tramite R11=10 kΩ; C3=2,2 µF leviga i salti. La soglia di Q2 cambia a ogni impulso lento, quindi il tono acuto viene modulato e si sente un 'whoop' da sirena: due oscillatori + amplificatore a 2N2222. Per vedere piu' cicli in una simulazione breve C1 e' 0,47 µF (nel circuito del libro e' 2,2 µF: il whoop reale e' piu' lento).",
+  "notes": "Due oscillatori PUT: il lento (Q1, a sinistra) e l'audio (Q2, al centro), piu' l'amplificatore a 2N2222. Il catodo di Q1 pilota il gate di Q2 tramite R11=10 kΩ e C3=0,1 µF: a ogni impulso lento la soglia di Q2 cambia, quindi il tono acuto viene modulato (whoop). R1/C1 sono accordati per un duty cycle ampio, cosi' il whoop e' ben visibile e udibile nella simulazione (nel circuito del libro R1=470 kΩ, C1=2,2 µF, whoop piu' lento).",
   "analysis": "transient",
   "tstop": 1.5,
   "dt": 0.00002,
   "parts": {
     "V1": {"type": "supply_6v"},
-    "R1": {"type": "resistor", "r": "470k"},
+    "R1": {"type": "resistor", "r": "47k"},
     "R2": {"type": "resistor", "r": "15k"},
     "R3": {"type": "resistor", "r": "27k"},
-    "C1": {"type": "capacitor", "c": "0.47u"},
+    "C1": {"type": "capacitor", "c": "4.7u"},
     "Q1": {"type": "put"},
     "R5": {"type": "resistor", "r": "470k"},
     "R6": {"type": "resistor", "r": "33k"},
@@ -23,7 +23,7 @@
     "R8": {"type": "resistor", "r": "100"},
     "LS1": {"type": "speaker", "r": 8},
     "R11": {"type": "resistor", "r": "10k"},
-    "C3": {"type": "capacitor", "c": "2.2u"}
+    "C3": {"type": "capacitor", "c": "0.1u"}
   },
   "nets": {
     "p": ["V1.+", "R1.1", "R2.1", "R5.1", "R6.1", "R8.1"],
@@ -39,8 +39,8 @@
     "gnd": ["V1.-", "R3.2", "C1.-", "R7.2", "C2.-", "C3.-", "Q3.E", "R10.2"]
   },
   "expect": {
-    "V(a1)": {"min": 0, "max": 4.6},
-    "V(g2)": {"min": 0, "max": 4},
-    "I(LS1)": {"min": 0, "max": 0.08}
+    "V(a1)": {"min": 0, "max": 5},
+    "V(g2)": {"min": 0, "max": 4.5},
+    "I(LS1)": {"min": 0, "max": 0.1}
   }
 }

@@ -98,33 +98,28 @@ def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False, loop
 
     t = np.asarray(res.time, dtype=float)
     y = np.asarray(signal, dtype=float)
-    lo, hi = float(np.min(y)), float(np.max(y))
-    threshold = lo + (hi - lo) * 0.5
-    edges = np.where((y[:-1] <= threshold) & (y[1:] > threshold))[0]
-    if len(edges) >= 2:
-        i0, i1 = int(edges[0]), int(edges[1])
-        tseg, seg = t[i0:i1], y[i0:i1]
-    else:
-        tseg, seg = t, y
+    # Usa l'intera forma d'onda simulata: cosi' si sente anche la modulazione
+    # (es. il "whoop" della sirena), non solo un singolo periodo ripetuto.
+    dur = float(t[-1] - t[0])
+    n = max(32, int(round(dur * rate)))
+    seg = np.interp(np.linspace(t[0], t[-1], n), t, y)
     seg = seg - float(np.mean(seg))
-    n = max(32, int(round((tseg[-1] - tseg[0]) * rate)))
-    seg = np.interp(np.linspace(tseg[0], tseg[-1], n), tseg, seg)
     k = max(1, int(rate / 12000))
     seg = np.convolve(seg, np.ones(k) / k, mode="same")
 
-    wanted = max(n, int(seconds * rate))
-    cycles = max(1, int(round(wanted / n)))
-    n_out = cycles * n
-    out = np.tile(seg, cycles)
+    total = max(n, int(round(seconds * rate)))
+    reps = max(1, int(np.ceil(total / n)))
+    out = np.tile(seg, reps)[:total]
+    out = out - float(np.mean(out))
     peak = float(np.max(np.abs(out)))
     if peak < 1e-12:
         raise AudioError("segnale dell'altoparlante nullo")
-    out = np.tanh((out / peak) * 8.0)
+    out = np.tanh((out / peak) * 3.0)
     out -= float(np.mean(out))
     peak = float(np.max(np.abs(out)))
     out *= 0.85 / peak
     if not loop:
-        fade = min(n_out // 4, int(0.01 * rate))
+        fade = min(len(out) // 4, int(0.01 * rate))
         if fade > 0:
             out[:fade] *= np.linspace(0.0, 1.0, fade)
             out[-fade:] *= np.linspace(1.0, 0.0, fade)
@@ -136,7 +131,7 @@ def render(circ, res, path=None, seconds=2.0, rate=44100, play_audio=False, loop
     return {
         "path": str(path),
         "frequency": f,
-        "duration": n_out / rate,
+        "duration": len(out) / rate,
         "rate": rate,
         "player": player,
         "proc": proc,
