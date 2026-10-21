@@ -64,7 +64,8 @@ Da fare:
 - [ ] Rinomina delle reti dall'interfaccia
 - [ ] Creazione di un nuovo tipo di componente dall'editor
 - [ ] "Fissa i valori attuali come attesi" per generare `expect`
-- [ ] Vista breadboard 2D con occupazione dei fori
+- [x] Vista breadboard 2D con connettivita' e validazione (exp03/06/09/13)
+- [ ] Breadboard 2D per tutti gli esercizi
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.
@@ -100,7 +101,6 @@ Regola: nessun testo, figura o materiale di terzi.
 
 ## Fase 5 - Laboratorio completo
 
-- [ ] Breadboard 3D e jumper
 - [ ] Emulazione di microcontroller (fuori scope a breve termine)
 - [ ] Condivisione dei progetti
 - [ ] Modalita' insegnante e classe

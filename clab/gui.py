@@ -11,6 +11,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 from . import report
+from .breadboard import Breadboard
+from .breadboards import BREADBOARDS
 from .circuit import CircuitError
 from .db import DB
 from .document import Document, slugify
@@ -80,6 +82,7 @@ class App:
         self._loading = False
         self.sim_cache = {}
         self._slide_after = None
+        self.bb = None
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
@@ -231,11 +234,16 @@ class App:
         self.nb = ttk.Notebook(main)
         self.nb.pack(fill="both", expand=True)
         codef = ttk.Frame(self.nb, style="Card.TFrame")
+        bbf = ttk.Frame(self.nb, style="Card.TFrame")
         plotf = ttk.Frame(self.nb, style="Card.TFrame")
         dataf = ttk.Frame(self.nb, style="Card.TFrame")
+        self.bb_frame = bbf
         self.nb.add(codef, text="Codice")
+        self.nb.add(bbf, text="Breadboard")
         self.nb.add(plotf, text="Grafico")
         self.nb.add(dataf, text="Dati")
+        self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
+        self.bb_canvas.pack(fill="both", expand=True)
 
         cbar = ttk.Frame(codef, style="Card.TFrame")
         cbar.pack(fill="x")
@@ -441,6 +449,9 @@ class App:
         else:
             self.problems_list = self.doc.problems()
         self.schem = Schematic(self.scv, self.doc, self.res)
+        eid = self.doc.meta.get("id")
+        self.bb = Breadboard(self.bb_canvas, self.doc, self.res,
+                             BREADBOARDS.get(eid) if eid else None)
         if self.selected not in self.doc.parts:
             self.selected = None
         if reset_anim:
@@ -1047,6 +1058,8 @@ class App:
             else:
                 self.clock.configure(text="DC" if self.res is not None else "")
             self.schem.draw(t, d if self.playing else 0.0, self.playing)
+            if self.bb is not None and self.nb.select() == str(self.bb_frame):
+                self.bb.draw(t, d if self.playing else 0.0, self.playing)
             self._draw_overlay()
             self.frame += 1
             if t is not None and self.vline is not None and self.frame % 4 == 0:

@@ -24,6 +24,7 @@ I test ngspice vengono saltati automaticamente se `ngspice` non e' nel `PATH`.
 | `test_document.py` | reti, merge, layout, salvataggio |
 | `test_physics.py` | residuo MNA, RC/RLC, NPN, PUT, violazioni |
 | `test_ngspice.py` | confronto con SPICE su LED, RC, NPN |
+| `test_breadboard.py` | connettivita' della breadboard, corti e fili mancanti |
 
 Tolleranze usate:
 

@@ -132,6 +132,25 @@ secondi. Ogni componente ha una corrente interpolata all'istante corrente:
 
 La stessa legenda compare sotto lo schema.
 
+## Breadboard 2D
+
+![Breadboard exp03](breadboard.png)
+
+La scheda **Breadboard** mostra il circuito su una breadboard virtuale:
+fori, rail di alimentazione, componenti e jumper colorati per rete.
+
+- copertura attuale: `exp03`, `exp06`, `exp09`, `exp13`
+- per gli altri esercizi compare "Breadboard non disponibile"
+- il layout e' in `clab/breadboards.py`: ogni pin e' mappato a un foro
+  (`A5`, `T+5`, ...) e ogni jumper e' una polilinea di fori
+- `validate_layout()` ricostruisce la connettivita' della breadboard (colonne
+  A-E e F-J, rail, jumper) e verifica che ogni rete del circuito sia connessa
+  e che non ci siano corti tra reti diverse
+- il test `tests/test_breadboard.py` valida tutti i layout e controlla che un
+  filo mancante o un corto vengano rilevati
+
+![Breadboard RC](breadboard-rc.png)
+
 ## Simboli
 
 | Tipo | Simbolo |

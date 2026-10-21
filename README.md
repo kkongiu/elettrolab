@@ -16,6 +16,7 @@ database sono generici e non legati a un corso specifico.
   in sovratensione, cortocircuito della sorgente
 - CLI con menu, grafico ASCII, CSV, sweep di parametri
 - GUI con schema animato: corrente che scorre, LED che si accendono, guasti
+- Breadboard 2D con fori, rail e validazione elettrica per gli esercizi base
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
@@ -221,22 +222,23 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 21 test core (documento, fisica, ngspice)
+./lab test                 # 25 test core (documento, fisica, ngspice, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 10 esercizi contro le attese
 ```
 
 I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,
-la bruciatura in transitorio, il merge delle reti, il layout, il confronto con
-ngspice e il server MCP (tool, risorse, trasporto stdio, scrittura protetta).
+la bruciatura in transitorio, il merge delle reti, il layout, la breadboard,
+il confronto con ngspice e il server MCP (tool, risorse, trasporto stdio,
+scrittura protetta).
 I test SPICE vengono saltati se `ngspice` non e' installato; i test MCP se
 `mcp` non e' nel Python usato.
 
 ## Documentazione
 
 - `docs/ARCHITECTURE.md` - moduli, solver, scelte numeriche, limiti
-- `docs/GUI.md` - schema animato, simboli, layout, animazione
+- `docs/GUI.md` - schema animato, breadboard, simboli, layout, animazione
 - `docs/CIRCUIT-FORMAT.md` - schema JSON dei circuiti e delle attese
 - `docs/COMPONENTS.md` - catalogo, tipi, come estendere il database
 - `docs/EXERCISES.md` - esercizi, valori attesi, cosa e' simulabile
