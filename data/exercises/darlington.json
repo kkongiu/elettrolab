@@ -1,0 +1,26 @@
+{
+  "id": "darlington",
+  "title": "Interruttore Darlington (guadagno enorme)",
+  "notes": "Due NPN in cascata (Darlington): l'emettitore di Q1 pilota la base di Q2, i collettori sono insieme al positivo. Una corrente di base piccolissima in Q1 (7,6 µA attraverso R1=1 MΩ) viene amplificata due volte (beta x beta), così Q2 satura e accende il LED con ~15 mA. Guadagno totale Ic(Q2)/Ib(Q1) ≈ 1900. Circuito originale, non dagli esercizi del libro.",
+  "analysis": "dc",
+  "parts": {
+    "V1": {"type": "battery_9v"},
+    "Q1": {"type": "transistor_npn"},
+    "Q2": {"type": "transistor_npn"},
+    "R1": {"type": "resistor", "r": "1M"},
+    "R2": {"type": "resistor", "r": "470"},
+    "D1": {"type": "led_red"}
+  },
+  "nets": {
+    "p": ["V1.+", "R1.1", "Q1.C", "R2.1"],
+    "b1": ["R1.2", "Q1.B"],
+    "e1": ["Q1.E", "Q2.B"],
+    "d2": ["R2.2", "D1.A"],
+    "c2": ["D1.K", "Q2.C"],
+    "gnd": ["V1.-", "Q2.E"]
+  },
+  "expect": {
+    "I(D1)": {"approx": 0.01458, "tol": 0.05},
+    "I(Q2)": {"approx": 0.01458, "tol": 0.05}
+  }
+}

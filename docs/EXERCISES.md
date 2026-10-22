@@ -21,6 +21,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
 | `exp14` | Un bagliore pulsante | Transitorio | LED ~1 mA, impulsi morbidi ogni ~2 s | condensatori per accensione/spegnimento graduali |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
+| `darlington` | Interruttore Darlington | DC | `Ic = 14.6 mA` da `Ib = 7.6 µA` | due NPN in cascata, guadagno ~1900 |
 
 ## Dettaglio
 
@@ -253,6 +254,25 @@ assestarsi a 5 V: e' il ringing.
 ```
 
 Con 200 ohm lo smorzamento critico elimina l'oscillazione.
+
+### darlington - Interruttore Darlington
+
+Circuito originale (non dagli esercizi del libro) per mostrare il guadagno
+composto. Due NPN in cascata: l'emettitore di `Q1` pilota la base di `Q2`, i
+collettori sono entrambi al positivo. La base di `Q1` prende corrente attraverso
+`R1 = 1 MΩ`, cioe' solo **7,6 µA**. `Q1` la amplifica (~1,8 mA), che diventa la
+corrente di base di `Q2`, che satura e accende il LED con **14,6 mA**
+(`R2 = 470 Ω` + LED).
+
+- guadagno complessivo `Ic(Q2) / Ib(Q1)` ≈ **1900** (circa beta al quadrato)
+- `Q2` e' in saturazione (`Vce ≈ 0,2 V`), quindi il LED e' acceso pieno
+- serve una resistenza sul collettore (`R2`) per limitare la corrente del LED
+
+```bash
+./lab run darlington
+./lab run darlington --set R1.r=100k   # piu' corrente di base, LED piu' luminoso
+./lab gui darlington
+```
 
 ## Come funziona la verifica
 
