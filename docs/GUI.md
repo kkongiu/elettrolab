@@ -41,6 +41,10 @@ Tasti:
 | `Ctrl+S` | salva |
 | `Ctrl+N` | nuovo circuito |
 
+Anche i **fili** sono selezionabili: clicca su un filo (lontano dai pin), viene
+evidenziato in rosso e il pannello mostra la connessione; `Canc` (o `Elimina`)
+rimuove tutta la rete.
+
 La griglia di posizionamento e' da 10 px. I fili sono instradati
 automaticamente: rotaia di massa in basso, percorsi a L per le reti a due pin,
 bus per le reti con piu' pin. I layout possono dichiarare percorsi espliciti.

@@ -125,6 +125,7 @@ class App:
         self.res = None
         self.schem = None
         self.selected = None
+        self.selected_wire = None
         self.armed = None
         self.mode = "select"
         self.wire_from = None
@@ -532,6 +533,9 @@ class App:
         self.armed = None
         self.wire_from = None
         self.drag = None
+        self.selected_wire = None
+        if self.schem is not None:
+            self.schem.sel_net = None
         self._set_mode("select")
 
     def _set_mode(self, mode):
@@ -672,6 +676,7 @@ class App:
         self.doc = doc
         self.schem = None
         self.selected = None
+        self.selected_wire = None
         self.wire_from = None
         self.bb_wire_from = None
         self.armed = None
@@ -691,6 +696,7 @@ class App:
     def _new_schem(self):
         old = self.schem
         s = Schematic(self.scv, self.doc, self.res)
+        s.sel_net = self.selected_wire
         if old is not None:
             s.zoom = old.zoom
             s.pan_x = old.pan_x
@@ -724,6 +730,10 @@ class App:
         self._update_sound_button()
         if self.selected not in self.doc.parts:
             self.selected = None
+        if self.selected_wire not in self.doc.nets:
+            self.selected_wire = None
+        if self.schem is not None:
+            self.schem.sel_net = self.selected_wire
         if reset_anim:
             self.t_anim = 0.0
         self._update_header()
@@ -1124,6 +1134,19 @@ class App:
 
     def _update_props(self):
         self._clear_props()
+        if self.selected_wire:
+            name = self.selected_wire
+            refs = self.doc.nets.get(name, [])
+            ttk.Label(self.prop_box, text=f"Connessione {name}", style="Card.TLabel",
+                      font=("DejaVu Sans", 9, "bold")).pack(anchor="w")
+            ttk.Label(self.prop_box,
+                      text=", ".join(refs) if refs else "(nessun pin)",
+                      style="Muted.TLabel", wraplength=210).pack(anchor="w", pady=(2, 0))
+            btns = ttk.Frame(self.prop_box, style="Card.TFrame")
+            btns.pack(fill="x", pady=(6, 2))
+            ttk.Button(btns, text="Elimina", width=8,
+                       command=self._delete_selected).pack(side="left")
+            return
         pid = self.selected
         if pid is None or pid not in self.doc.parts:
             ttk.Label(self.prop_box, text="Nessun componente selezionato",
@@ -1336,6 +1359,19 @@ class App:
             self._after_change()
             return
         pid = self.schem.part_at(vx, vy)
+        if pid is None:
+            net = self.schem.wire_at(vx, vy)
+            if net:
+                self.selected = None
+                self.selected_wire = net
+                self.drag = None
+                self.schem.sel_net = net
+                self._update_props()
+                self._hint(f"Connessione {net}: premi Canc per eliminarla")
+                return
+        self.selected_wire = None
+        if self.schem is not None:
+            self.schem.sel_net = None
         self.selected = pid
         if pid:
             x, y, _ = self.doc.position(pid)
@@ -1507,12 +1543,34 @@ class App:
         self._after_board_change()
 
     def _delete_selected(self):
+        if self.selected_wire:
+            self._delete_net(self.selected_wire)
+            return
         if self.selected in self.doc.parts:
             self._push_undo()
             self.doc.delete_part(self.selected)
             self.selected = None
             self.dirty = True
             self._after_change()
+
+    def _delete_net(self, name):
+        if self.doc is None or name not in self.doc.nets:
+            return
+        self._push_undo()
+        if self.bb_first.get() and self.doc.board is not None:
+            self.doc.board["wires"] = [w for w in self.doc.board.get("wires", [])
+                                       if w.get("net") != name]
+            self.doc.nets = derive_nets(self.doc, self.doc.board)
+        else:
+            self.doc.nets.pop(name, None)
+        self.selected_wire = None
+        self.selected = None
+        self.dirty = True
+        self._after_change()
+        if name in self.doc.nets:
+            self._hint(f"Connessione {name}: ponticelli rimossi, ma resta un collegamento fisico")
+        else:
+            self._hint(f"Connessione {name} eliminata")
 
     def _new(self):
         if not self._confirm_discard():

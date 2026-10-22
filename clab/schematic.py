@@ -7,6 +7,7 @@ from .units import fmt
 
 INK = "#1f2937"
 WIRE = "#64748b"
+SEL = "#e11d48"
 MUTED = "#6b7280"
 DOT = "#f59e0b"
 RED = "#ef4444"
@@ -69,6 +70,7 @@ class Schematic:
         self.view_w = 860
         self.view_h = 340
         self.phase = {}
+        self.sel_net = None
         if self.layout and self.layout.get("parts"):
             self._build_routes()
             self._compute_crossings()
@@ -143,6 +145,35 @@ class Schematic:
             if x0 <= vx <= x1 and y0 <= vy <= y1:
                 return pid
         return None
+
+    def wire_at(self, vx, vy, radius=9):
+        best, best_d = None, radius
+
+        def dist(p, a, b):
+            ax, ay = a
+            bx, by = b
+            dx, dy = bx - ax, by - ay
+            l2 = dx * dx + dy * dy
+            if l2 <= 0:
+                return math.hypot(p[0] - ax, p[1] - ay)
+            f = max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / l2))
+            return math.hypot(p[0] - (ax + f * dx), p[1] - (ay + f * dy))
+
+        if self.rail:
+            x0, x1, y = self.rail
+            d = dist((vx, vy), (x0, y), (x1, y))
+            if d < best_d:
+                best, best_d = (self.doc.ground or "gnd"), d
+        for name, x0, x1, y in self.buses:
+            d = dist((vx, vy), (x0, y), (x1, y))
+            if d < best_d:
+                best, best_d = name, d
+        for path in self.paths:
+            for a, b in zip(path.poly, path.poly[1:]):
+                d = dist((vx, vy), a, b)
+                if d < best_d:
+                    best, best_d = path.net, d
+        return best
 
     def _loc(self, x, y, rot, u, v):
         if rot == 90:
@@ -318,10 +349,13 @@ class Schematic:
         self.junctions = sorted(dots)
 
     def _draw_path(self, path):
+        sel = path.net == self.sel_net
+        color = SEL if sel else WIRE
+        width = 3.0 if sel else 1.9
         for i, (a, b) in enumerate(zip(path.poly, path.poly[1:])):
             splits = self.cross.get((path.key, i), [])
             if not splits or abs(a[0] - b[0]) > 1e-9:
-                self.line([a, b], color=WIRE, width=1.9)
+                self.line([a, b], color=color, width=width)
                 continue
             x = a[0]
             y0, y1 = sorted((a[1], b[1]))
@@ -330,11 +364,11 @@ class Schematic:
                 top = max(y0, cy - 6)
                 bot = min(y1, cy + 6)
                 if top > cur:
-                    self.line([(x, cur), (x, top)], color=WIRE, width=1.9,
+                    self.line([(x, cur), (x, top)], color=color, width=width,
                               capstyle="butt")
                 cur = max(cur, bot)
             if cur < y1:
-                self.line([(x, cur), (x, y1)], color=WIRE, width=1.9,
+                self.line([(x, cur), (x, y1)], color=color, width=width,
                           capstyle="butt")
 
     def text(self, x, y, txt, anchor="center", color=MUTED, size=9):
@@ -412,9 +446,13 @@ class Schematic:
 
         if self.rail:
             x0, x1, y = self.rail
-            self.line([(x0, y), (x1, y)], color=WIRE, width=2.2)
+            gsel = self.sel_net == (self.doc.ground or "gnd")
+            self.line([(x0, y), (x1, y)], color=SEL if gsel else WIRE,
+                      width=3.0 if gsel else 2.2)
         for name, x0, x1, y in self.buses:
-            self.line([(x0, y), (x1, y)], color=WIRE, width=2.0)
+            bsel = self.sel_net == name
+            self.line([(x0, y), (x1, y)], color=SEL if bsel else WIRE,
+                      width=3.0 if bsel else 2.0)
         for path in self.paths:
             self._draw_path(path)
         for x, y in self.junctions:
