@@ -221,7 +221,13 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
             if st == 0:
                 _stamp_g(A, a, k, 1e-9)
             else:
-                _stamp_g(A, a, k, 1.0 / max(p.num("ron"), 1e-6))
+                g = 1.0 / max(p.num("ron"), 1e-6)
+                _stamp_g(A, a, k, g)
+                von = p.num("von")
+                if a >= 0:
+                    b[a] += g * von
+                if k >= 0:
+                    b[k] -= g * von
         elif kind == "GND":
             continue
         else:
@@ -315,7 +321,7 @@ def _update_puts(circ, x, state):
             if va > vg + vf + 1e-6:
                 out[pid] = 1
         else:
-            iak = (va - vk) / max(p.num("ron"), 1e-6)
+            iak = (va - vk - p.num("von")) / max(p.num("ron"), 1e-6)
             if iak < p.num("ihold"):
                 out[pid] = 0
     return out
@@ -390,7 +396,7 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
             a, k = circ.node(pid, "A"), circ.node(pid, "K")
             vv = _pin_v(x, a) - _pin_v(x, k)
             st = q_on.get(pid, 0)
-            i = vv / max(p.num("ron"), 1e-6) if st else 0.0
+            i = max(0.0, (vv - p.num("von")) / max(p.num("ron"), 1e-6)) if st else 0.0
             pw = i * vv
         elif kind == "GND":
             i = 0.0

@@ -19,6 +19,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp11c` | PUT step 3: amplificazione | Transitorio | ~627 Hz, 53.7 mA di picco | 2N2222 amplifica il PUT, altoparlante sul collettore |
 | `exp11d` | PUT step 4: uscita pulsata | Transitorio | 420↔590 Hz, 53.7 mA di picco | due oscillatori, modulazione del gate, sirena |
 | `exp13` | Friggere un LED | DC | `I(D1) = 720 mA` | senza resistenza il LED si brucia |
+| `exp14` | Un bagliore pulsante | Transitorio | LED ~1 mA, impulsi morbidi ogni ~2 s | condensatori per accensione/spegnimento graduali |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 
 ## Dettaglio
@@ -218,6 +219,25 @@ serve la resistenza.
 ```bash
 ./lab run exp13
 ./lab run exp03
+```
+
+### exp14 - Un bagliore pulsante
+
+Esperimento 14 del libro. E' l'oscillatore a rilassamento con PUT di `exp11`,
+modificato per far "respirare" il LED: C1 e' grande (100 µF) e si scarica
+attraverso R4 (1 kΩ), quindi la salita e' graduale; C2 (220 µF nel libro)
+immagazzina l'impulso e lo restituisce lentamente attraverso R5 (330 Ω) e il LED,
+cosi' la luce sfuma invece di spegnersi di colpo. Alimentazione a 9 V.
+
+- R1 = 33 kΩ, R2 = R3 = R4 = 1 kΩ, R5 = 330 Ω
+- il LED si accende con impulsi morbidi (~1 mA di picco) e si spegne sfumando
+- nel modello C2 e' **120 µF** invece di 220 µF: il LED a tratti conduce solo
+  sopra 1,8 V, mentre quello reale a 9 V/220 µF si accende debolmente grazie
+  alla curva esponenziale
+
+```bash
+./lab run exp14 --plot "I(D1)"
+./lab gui exp14
 ```
 
 ### lrc - RLC serie

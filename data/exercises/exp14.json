@@ -1,0 +1,32 @@
+{
+  "id": "exp14",
+  "title": "Un bagliore pulsante (battito)",
+  "notes": "Variante dell'oscillatore a rilassamento con PUT pensata per far 'respirare' il LED invece di farlo lampeggiare. C1 e' grande (100 µF) e si scarica attraverso R4, quindi il fronte di salita e' graduale; C2 immagazzina l'impulso e lo restituisce lentamente attraverso R5 e il LED, cosi' la luce sfuma come un battito. Rispetto al libro C2 e' 120 µF invece di 220 µF: il modello a tratti del LED conduce solo sopra 1,8 V, mentre il LED reale a 9 V/220 µF si accende debolmente grazie alla curva esponenziale.",
+  "analysis": "transient",
+  "tstop": 8,
+  "dt": 0.001,
+  "parts": {
+    "V1": {"type": "battery_9v"},
+    "R1": {"type": "resistor", "r": "33k"},
+    "R2": {"type": "resistor", "r": "1k"},
+    "R3": {"type": "resistor", "r": "1k"},
+    "R4": {"type": "resistor", "r": "1k"},
+    "C1": {"type": "capacitor", "c": "100u"},
+    "Q1": {"type": "put"},
+    "C2": {"type": "capacitor", "c": "120u"},
+    "R5": {"type": "resistor", "r": "330"},
+    "D1": {"type": "led_red"}
+  },
+  "nets": {
+    "p": ["V1.+", "R1.1", "R2.1"],
+    "a": ["R1.2", "Q1.A", "C1.+"],
+    "g": ["R2.2", "R3.1", "Q1.G"],
+    "k": ["Q1.K", "R4.1", "C2.+", "R5.1"],
+    "out": ["R5.2", "D1.A"],
+    "gnd": ["V1.-", "R3.2", "C1.-", "R4.2", "C2.-", "D1.K"]
+  },
+  "expect": {
+    "V(a)": {"min": 0, "max": 5.5},
+    "I(D1)": {"min": 0, "max": 0.01}
+  }
+}
