@@ -275,9 +275,9 @@ class App:
                                           lambda: self._set_mode("select"))
         self.wire_btn = self._tool_button(bar, "\u21c4", "Filo: collega due pin",
                                           lambda: self._set_mode("wire"))
-        self.erase_btn = self._tool_button(bar, "\u232b",
-                                           "Gomma: elimina un collegamento (clicca un pin)",
-                                           lambda: self._set_mode("erase"))
+        self.delete_btn = self._tool_button(bar, "\u2716",
+                                            "Elimina la selezione (Canc/Backspace)",
+                                            self._delete_selected)
         self._tool_sep(bar)
         self._tool_button(bar, "\u21b6", "Annulla (Ctrl+Z)", self._undo)
         self._tool_button(bar, "\u21b7", "Ripeti (Ctrl+Y)", self._redo)
@@ -412,6 +412,8 @@ class App:
         self.root.bind_all("<Control-s>", lambda e: self._key_guard() or self._save())
         self.root.bind_all("<Control-n>", lambda e: self._key_guard() or self._new())
         self.root.bind_all("<Delete>", lambda e: self._key_guard() or self._delete_selected())
+        self.root.bind_all("<KP_Delete>", lambda e: self._key_guard() or self._delete_selected())
+        self.root.bind_all("<BackSpace>", lambda e: self._key_guard() or self._delete_selected())
         self.root.bind_all("<r>", lambda e: self._key_guard() or self._rotate_selected())
         self.root.bind_all("<Escape>", lambda e: self._escape())
         self.root.bind_all("<Control-0>", lambda e: self._key_guard() or self._reset_view())
@@ -496,9 +498,9 @@ class App:
             "Schema:\n"
             "  scroll = zoom, trascina tasto destro = sposta, Ctrl+0 = ripristina vista\n"
             "  clic = seleziona, trascina = sposta componente\n"
-            "  R = ruota, Canc = elimina\n"
+            "  R = ruota, Canc/Backspace = elimina (anche un filo selezionato)\n"
             "  modalit\u00e0 Filo: clicca due pin per collegarli\n"
-            "  modalit\u00e0 Gomma: clicca un pin per eliminare il suo collegamento\n\n"
+            "  clic su un filo = selezionalo, poi Canc per eliminarlo\n\n"
             "Breadboard:\n"
             "  trascina componenti, R ruota, Canc elimina\n\n"
             "Finestra:\n"
@@ -546,11 +548,8 @@ class App:
         on, off = "ToolOn.TButton", "Tool.TButton"
         self.mode_btn.configure(style=on if mode == "select" else off)
         self.wire_btn.configure(style=on if mode == "wire" else off)
-        self.erase_btn.configure(style=on if mode == "erase" else off)
         if mode == "wire":
             self._hint("Filo: clicca il primo pin, poi il secondo")
-        elif mode == "erase":
-            self._hint("Gomma: clicca un pin per eliminare il suo collegamento")
         else:
             self._hint("Seleziona e trascina. R ruota, Canc elimina.")
 
@@ -1318,9 +1317,6 @@ class App:
             self._after_change()
             self._hint(f"{pid} aggiunto. Trascina per spostarlo, clicca due pin in modalità Filo.")
             return
-        if self.mode == "erase":
-            self._erase_at(vx, vy)
-            return
         if self.mode == "wire":
             pin = self.schem.pin_at(vx, vy)
             if pin is None:
@@ -1381,70 +1377,6 @@ class App:
         else:
             self.drag = None
         self._update_props()
-
-    def _erase_at(self, vx, vy):
-        if self.schem is None:
-            return
-        pin = self.schem.pin_at(vx, vy)
-        if pin is None:
-            self._hint("Gomma: clicca su un pin per eliminare il suo collegamento")
-            return
-        pid, p = pin
-        net = self.doc.net_of(pid, p)
-        if net is None:
-            self._hint(f"{pid}.{p} non e' collegato")
-            return
-        if self.bb_first.get() and self.doc.board is not None:
-            hole = self.doc.board.get("parts", {}).get(pid, {}).get("pins", {}).get(p)
-            if not hole:
-                self._hint(f"{pid}.{p} non e' posizionato sulla breadboard")
-                return
-            if parse_hole(hole)[0] in RAIL_Y:
-                self._hint("Pin sul rail: non si scollega dalla breadboard")
-                return
-        self._push_undo()
-        if self.bb_first.get() and self.doc.board is not None:
-            self._erase_board_pin(pid, p, net)
-        else:
-            self.doc.disconnect(pid, p)
-            for name, refs in list(self.doc.nets.items()):
-                if len(refs) < 2:
-                    del self.doc.nets[name]
-        self.selected = None
-        self.dirty = True
-        self._after_change()
-        still = self.doc.net_of(pid, p)
-        if still:
-            self._hint(f"{pid}.{p} resta collegato ({still}) tramite la breadboard")
-        else:
-            self._hint(f"{pid}.{p} scollegato (rete {net})")
-
-    def _erase_board_pin(self, pid, p, net):
-        board = self.doc.board
-        hole = board.get("parts", {}).get(pid, {}).get("pins", {}).get(p)
-        if not hole:
-            return
-        refs = list(self.doc.nets.get(net, []))
-        board["wires"] = [w for w in board.get("wires", [])
-                          if hole not in w.get("points", [])]
-        remaining = [r for r in refs if r != f"{pid}.{p}"]
-        if len(remaining) >= 2 and not self._refs_connected(board, remaining):
-            holes = []
-            for r in remaining:
-                rp, rpin = r.rsplit(".", 1)
-                h = board.get("parts", {}).get(rp, {}).get("pins", {}).get(rpin)
-                if h:
-                    holes.append(h)
-            if len(holes) >= 2:
-                hub = holes[0]
-                for h in holes[1:]:
-                    board["wires"].append({"net": net, "points": [hub, h]})
-        self.doc.nets = derive_nets(self.doc, board)
-
-    def _refs_connected(self, board, refs):
-        nets = derive_nets(self.doc, board)
-        refset = set(refs)
-        return any(refset <= set(rs) for rs in nets.values())
 
     def _on_motion(self, event):
         if self.doc is None or self.schem is None:

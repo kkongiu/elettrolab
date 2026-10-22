@@ -27,7 +27,6 @@ non ne hanno bisogno.
 |---|---|
 | `Seleziona` | clicca un componente per selezionarlo, trascinalo per spostarlo |
 | `Filo` | clicca il primo pin, poi il secondo; la rete viene creata o unita |
-| `Gomma` | clicca un pin per eliminare il suo collegamento (se il filo unisce due soli pin, si stacca tutto) |
 | palette | clicca un componente, poi clicca sulla tela per posizionarlo |
 
 Tasti:
@@ -35,15 +34,15 @@ Tasti:
 | Tasto | Azione |
 |---|---|
 | `R` | ruota il componente selezionato di 90 gradi |
-| `Canc` | elimina il componente selezionato |
+| `Canc` / `Backspace` | elimina il componente o la connessione selezionata |
 | `Esc` | annulla filo, posizionamento o selezione |
 | `Ctrl+Z` / `Ctrl+Y` | undo / redo |
 | `Ctrl+S` | salva |
 | `Ctrl+N` | nuovo circuito |
 
 Anche i **fili** sono selezionabili: clicca su un filo (lontano dai pin), viene
-evidenziato in rosso e il pannello mostra la connessione; `Canc` (o `Elimina`)
-rimuove tutta la rete.
+evidenziato in rosso e il pannello mostra la connessione; il pulsante `✖`
+(o `Canc`/`Backspace`) la rimuove subito.
 
 La griglia di posizionamento e' da 10 px. I fili sono instradati
 automaticamente: rotaia di massa in basso, percorsi a L per le reti a due pin,
