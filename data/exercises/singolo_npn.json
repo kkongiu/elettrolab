@@ -1,0 +1,23 @@
+{
+  "id": "singolo_npn",
+  "title": "Un solo transistor (confronto con il Darlington)",
+  "notes": "Stesso pilotaggio del Darlington (base via R1=1 MΩ) ma con UN solo NPN: la corrente di base e' solo ~8 µA e il transistor amplifica di beta=240, quindi al massimo ~2 mA. Il LED resta fioco e il transistor in zona attiva (Vce ≈ 6 V). Confronta con 'darlington': li' beta x beta fa saturare e da' 14,6 mA. Per avere il LED pieno con un solo transistor serve R1 piu' bassa (es. 100 kΩ).",
+  "analysis": "dc",
+  "parts": {
+    "V1": {"type": "battery_9v"},
+    "Q1": {"type": "transistor_npn"},
+    "R1": {"type": "resistor", "r": "1M"},
+    "R2": {"type": "resistor", "r": "470"},
+    "D1": {"type": "led_red"}
+  },
+  "nets": {
+    "p": ["V1.+", "R1.1", "R2.1"],
+    "b": ["R1.2", "Q1.B"],
+    "d": ["R2.2", "D1.A"],
+    "c": ["D1.K", "Q1.C"],
+    "gnd": ["V1.-", "Q1.E"]
+  },
+  "expect": {
+    "I(D1)": {"approx": 0.00199, "tol": 0.05}
+  }
+}

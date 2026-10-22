@@ -22,6 +22,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `exp14` | Un bagliore pulsante | Transitorio | LED ~1 mA, impulsi morbidi ogni ~2 s | condensatori per accensione/spegnimento graduali |
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 | `darlington` | Interruttore Darlington | DC | `Ic = 14.6 mA` da `Ib = 7.6 µA` | due NPN in cascata, guadagno ~1900 |
+| `singolo_npn` | Un solo transistor (confronto) | DC | `I(D1) = 2 mA` da `Ib = 8 µA` | un NPN non basta: LED fioco, resta in zona attiva |
 
 ## Dettaglio
 
@@ -272,6 +273,22 @@ corrente di base di `Q2`, che satura e accende il LED con **14,6 mA**
 ./lab run darlington
 ./lab run darlington --set R1.r=100k   # piu' corrente di base, LED piu' luminoso
 ./lab gui darlington
+```
+
+### singolo_npn - Un solo transistor (confronto)
+
+Stesso pilotaggio del Darlington (`R1 = 1 MΩ`), ma con **un solo NPN** (LED sul
+collettore, emettitore a massa). Con soli ~8 µA di base e `beta = 240`, il
+transistor puo' dare al massimo `Ic = beta·Ib ≈ 2 mA`: resta in **zona attiva**
+(`Vce ≈ 6 V`) e il LED e' **fioco**. E' il confronto diretto con `darlington`,
+dove `beta × beta` satura il transistor e da' 14,6 mA.
+
+Per avere il LED pieno con un solo transistor serve una base piu' "spinta":
+
+```bash
+./lab run singolo_npn                    # 2 mA, LED fioco, Vce ~6 V
+./lab run singolo_npn --set R1.r=100k    # ~14,6 mA, saturo, LED pieno
+./lab run darlington                     # 14,6 mA con solo 7,6 µA (beta al quadrato)
 ```
 
 ## Come funziona la verifica
