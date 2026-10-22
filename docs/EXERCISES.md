@@ -23,6 +23,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `lrc` | RLC serie | Transitorio | picco 9.14 V, `f0 = 15.9 Hz` | risonanza e smorzamento |
 | `darlington` | Interruttore Darlington | DC | `Ic = 14.6 mA` da `Ib = 7.6 µA` | due NPN in cascata, guadagno ~1900 |
 | `singolo_npn` | Un solo transistor (confronto) | DC | `I(D1) = 2 mA` da `Ib = 8 µA` | un NPN non basta: LED fioco, resta in zona attiva |
+| `led_diretto` | LED collegato diretto | DC | `I(D1) = 15 mA` | senza transistor: sempre acceso, nessun controllo |
 
 ## Dettaglio
 
@@ -289,6 +290,22 @@ Per avere il LED pieno con un solo transistor serve una base piu' "spinta":
 ./lab run singolo_npn                    # 2 mA, LED fioco, Vce ~6 V
 ./lab run singolo_npn --set R1.r=100k    # ~14,6 mA, saturo, LED pieno
 ./lab run darlington                     # 14,6 mA con solo 7,6 µA (beta al quadrato)
+```
+
+### led_diretto - LED collegato diretto
+
+Confronto finale: senza transistor, il LED e' collegato tra l'alimentatore
+(tramite `R2 = 470 Ω`) e la massa. Si accende subito con **15 mA**... e resta
+**sempre acceso**, perche' non c'e' nulla che possa interrompere il circuito.
+Serve solo `R2` a limitare la corrente.
+
+Mostra a cosa serve davvero il transistor: **non ad accendere** il LED, ma a
+**controllarlo** (accenderlo/spegnerlo) con un segnale sulla base.
+
+```bash
+./lab run led_diretto      # 15 mA, sempre acceso
+./lab run singolo_npn      # 2 mA, ma acceso solo perche' la base e' pilotata
+./lab run darlington       # 14,6 mA, controllabile con pochi µA
 ```
 
 ## Come funziona la verifica

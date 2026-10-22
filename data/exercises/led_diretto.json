@@ -1,0 +1,19 @@
+{
+  "id": "led_diretto",
+  "title": "LED collegato diretto (sempre acceso)",
+  "notes": "Tolti i transistor, il LED e' collegato direttamente tra l'alimentatore (attraverso R2) e la massa: si accende subito... e resta acceso per sempre. R2 serve solo a limitare la corrente. E' il confronto che mostra a cosa serve davvero il transistor: non ad accendere il LED, ma a CONTROLLARLO (accenderlo e spegnerlo) con un segnale sulla base.",
+  "analysis": "dc",
+  "parts": {
+    "V1": {"type": "battery_9v"},
+    "R2": {"type": "resistor", "r": "470"},
+    "D1": {"type": "led_red"}
+  },
+  "nets": {
+    "p": ["V1.+", "R2.1"],
+    "d": ["R2.2", "D1.A"],
+    "gnd": ["V1.-", "D1.K"]
+  },
+  "expect": {
+    "I(D1)": {"approx": 0.015, "tol": 0.05}
+  }
+}
