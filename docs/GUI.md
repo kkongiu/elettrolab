@@ -27,6 +27,7 @@ non ne hanno bisogno.
 |---|---|
 | `Seleziona` | clicca un componente per selezionarlo, trascinalo per spostarlo |
 | `Filo` | clicca il primo pin, poi il secondo; la rete viene creata o unita |
+| `Gomma` | clicca un pin per eliminare il suo collegamento (se il filo unisce due soli pin, si stacca tutto) |
 | palette | clicca un componente, poi clicca sulla tela per posizionarlo |
 
 Tasti:
