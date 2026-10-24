@@ -26,6 +26,8 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `led_diretto` | LED collegato diretto | DC | `I(D1) = 15 mA` | senza transistor: sempre acceso, nessun controllo |
 | `diodo` | Il diodo: conduce in un solo verso | DC | `I(D1) = 83 mA`, `V(A) = 0.71 V` | caduta diretta 0,7 V, blocco in inversa |
 | `raddrizzatore` | Raddrizzatore a mezz'onda | Transitorio | picco 11,3 V sul carico, 113 mA | diodo + sorgente AC: l'alternata diventa unidirezionale |
+| `ponte` | Ponte a onda intera (4 diodi) | Transitorio | picco 10,2 V, ripple a 100 Hz | 4 diodi: usa entrambe le semionde |
+| `filtro` | Ponte + condensatore | Transitorio | ~9,7 V, ripple ~0,8 V | filtro capacitivo: tensione quasi continua |
 
 ## Dettaglio
 
@@ -333,6 +335,31 @@ alternata a una pulsante unidirezionale.
 ./lab run raddrizzatore
 ```
 
+### ponte - Ponte a onda intera (4 diodi)
+
+Ponte di Graetz con quattro `diode_power`. In ogni semionda conducono due diodi
+e la corrente attraversa il carico sempre nello stesso verso. Il picco vale
+`12 - 2*0,9 = 10,2 V` e il ripple e' a **100 Hz** (il doppio della rete),
+perche' si usano anche le semionde negative. A `t = 0,015 s` la sorgente e'
+a `-12 V`, ma l'uscita e' ancora `+10,2 V`: e' la prova che la semionda
+negativa non viene buttata via.
+
+```bash
+./lab run ponte
+```
+
+### filtro - Ponte + condensatore di livellamento
+
+Lo stesso ponte con `C1 = 1000 µF` in parallelo al carico. Il condensatore si
+carica sui picchi e si scarica su `R1` quando i diodi sono spenti. In
+equilibrio l'uscita resta a circa **9,7 V** con un ripple di **~0,8 V**: da
+pulsante a quasi continua. Piu' grande e' `C` (o minore la corrente di
+carico), minore e' il ripple.
+
+```bash
+./lab run filtro
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -362,9 +389,10 @@ controllo su corrente o tensione.
 
 ## Copertura e limiti
 
-Coperti dal motore attuale: partitori, LED, **diodo**, **sorgente AC** e
-raddrizzatori, interruttori, carica e scarica RC, risonanza RLC, rele' con
-isteresi, potenziometri, transistor NPN, PUT.
+Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
+**sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
+interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
+potenziometri, transistor NPN, PUT.
 
 Non ancora coperti: MOSFET, PWM/controllo switching, trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in

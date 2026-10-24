@@ -188,18 +188,27 @@ def derive_nets(doc, layout):
         groups.setdefault(uf.find(hole), []).append(f"{pid}.{pin}")
 
     gnd_root = None
+    preferred = getattr(doc, "ground", None)
+    if preferred in doc.nets:
+        for ref in doc.nets[preferred]:
+            rpid, rpin = ref.rsplit(".", 1)
+            hole = pin_holes.get((rpid, rpin))
+            if hole:
+                gnd_root = uf.find(hole)
+                break
     sources = sorted(pid for pid in doc.parts
                      if doc.part(pid) is not None and doc.part(pid).kind == "V")
-    for pid in sources:
-        p = doc.part(pid)
-        for pin in p.spec.pins:
-            if pin == "-":
-                hole = pin_holes.get((pid, pin))
-                if hole:
-                    gnd_root = uf.find(hole)
-                    break
-        if gnd_root is not None:
-            break
+    if gnd_root is None:
+        for pid in sources:
+            p = doc.part(pid)
+            for pin in p.spec.pins:
+                if pin == "-":
+                    hole = pin_holes.get((pid, pin))
+                    if hole:
+                        gnd_root = uf.find(hole)
+                        break
+            if gnd_root is not None:
+                break
     if gnd_root is None:
         for pid in doc.parts:
             p = doc.part(pid)

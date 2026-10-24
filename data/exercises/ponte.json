@@ -1,0 +1,26 @@
+{
+  "id": "ponte",
+  "title": "Ponte a onda intera (4 diodi)",
+  "notes": "Ponte di Graetz con quattro diodi di potenza. In ogni semionda conducono due diodi e portano la corrente al carico sempre nello stesso verso: sul carico arriva |12 sin| meno due cadute (circa 1,8 V), cioe' un picco di 10,2 V. Il ripple e' a 100 Hz, il doppio della rete, perche' vengono usate entrambe le semionde. Rispetto al raddrizzatore a mezz'onda si sfrutta anche la semionda negativa.",
+  "analysis": "transient",
+  "tstop": 0.5,
+  "dt": 0.0001,
+  "parts": {
+    "V1": {"type": "ac_source", "amp": 12, "freq": 50},
+    "D1": {"type": "diode_power"},
+    "D2": {"type": "diode_power"},
+    "D3": {"type": "diode_power"},
+    "D4": {"type": "diode_power"},
+    "R1": {"type": "resistor", "r": "100"}
+  },
+  "nets": {
+    "ac1": ["V1.+", "D1.A", "D3.K"],
+    "ac2": ["V1.-", "D2.A", "D4.K"],
+    "vplus": ["D1.K", "D2.K", "R1.1"],
+    "gnd": ["D3.A", "D4.A", "R1.2"]
+  },
+  "expect": {
+    "V(vplus)": {"at": 0.015, "approx": 10.2, "tol": 0.05, "max": 10.5, "min": -0.05},
+    "I(R1)": {"peak_min": 0.08, "max": 0.12, "min": -0.001}
+  }
+}

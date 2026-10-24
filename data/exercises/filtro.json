@@ -1,0 +1,27 @@
+{
+  "id": "filtro",
+  "title": "Ponte + condensatore di livellamento",
+  "notes": "Lo stesso ponte con un condensatore da 1000 uF in parallelo al carico. Il condensatore si carica sui picchi e si scarica attraverso R1 quando i diodi sono spenti, 'tenendo su' la tensione: l'uscita passa da pulsante (0-10 V) a quasi continua (circa 9,7 V) con un ripple di circa 0,8 V. Aumentando C, o riducendo la corrente di carico, il ripple diminuisce; e' il principio del filtro capacitivo di un alimentatore.",
+  "analysis": "transient",
+  "tstop": 0.5,
+  "dt": 0.0001,
+  "parts": {
+    "V1": {"type": "ac_source", "amp": 12, "freq": 50},
+    "D1": {"type": "diode_power"},
+    "D2": {"type": "diode_power"},
+    "D3": {"type": "diode_power"},
+    "D4": {"type": "diode_power"},
+    "R1": {"type": "resistor", "r": "100"},
+    "C1": {"type": "capacitor", "c": "1000u"}
+  },
+  "nets": {
+    "ac1": ["V1.+", "D1.A", "D3.K"],
+    "ac2": ["V1.-", "D2.A", "D4.K"],
+    "vplus": ["D1.K", "D2.K", "R1.1", "C1.+"],
+    "gnd": ["D3.A", "D4.A", "R1.2", "C1.-"]
+  },
+  "expect": {
+    "V(vplus)": {"at": 0.44, "approx": 9.67, "tol": 0.05, "max": 10.5},
+    "I(R1)": {"peak_min": 0.08, "max": 0.11, "min": -0.001}
+  }
+}

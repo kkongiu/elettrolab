@@ -1,0 +1,9 @@
+{
+  "id": "diode_power",
+  "kind": "D",
+  "name": "Diodo di potenza",
+  "pins": ["A", "K"],
+  "params": {"vf": 0.9, "rd": 0.1, "imax": 5},
+  "limits": {"imax": 5},
+  "learn": "Diodo raddrizzatore di potenza (tipo 1N5408): regge correnti elevate, con caduta diretta di circa 0,9 V. E' quello che si usa nei ponti raddrizzatori."
+}
