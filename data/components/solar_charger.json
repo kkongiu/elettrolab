@@ -1,0 +1,9 @@
+{
+  "id": "solar_charger",
+  "kind": "SW",
+  "name": "Controller di carica 12 V",
+  "pins": ["1", "2", "FB"],
+  "params": {"period": 0.00001, "duty": 0.8, "t_soft": 0.002, "ron": 0.1, "roff": 1000000000.0, "vref": 14.4, "ki": 10},
+  "limits": {},
+  "learn": "Controller di carica solare (modello buck CV 14,4 V). Con questo pannello la corrente e' limitata dal pannello stesso (~0,4 A); non modella il limite di corrente CC, il float ne' lo stato di carica della batteria."
+}

@@ -35,7 +35,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `buck_5a` | Buck 24 V -> 12 V 5 A | Transitorio | 12 V, 5 A, ripple ~0,05 V; gradino 5->6 A | potenza: L/C e limiti scalati, dt fine per il PWM |
 | `trasformatore` | Trasformatore 230 V -> 24 V | Transitorio | 24 V efficaci (34 V di picco), 1 A; primario 0,148 A | rapporto n = N2/N1, corrente riflessa |
 | `alimentatore` | Alimentatore 230 V -> 12 V completo | Transitorio | bus ~27 V, uscita 12 V, 0,5 A | trasformatore + ponte + filtro + buck regolato |
-| `faretto_solare` | Faretto solare 12 V + caricabatteria 5 V | Transitorio | 5 V/1 A, 12 V/10 W; batteria carica di giorno, scarica di notte | pannello 10 W, batteria 12 V, LM2596 |
+| `carica_solare` | Caricabatteria solare 12 V -> 5 V | Transitorio | 5 V/1 A; batteria carica di giorno, scarica di notte | pannello 10 W, controller, batteria 12 V, LM2596 |
 
 ## Dettaglio
 
@@ -474,24 +474,21 @@ simulazione dura ~6 s (esercizio differito all'avvio).
 ./lab run alimentatore
 ```
 
-### faretto_solare - Faretto solare 12 V + caricabatteria 5 V
+### carica_solare - Caricabatteria solare 12 V -> 5 V
 
-Pannello 12 V ~10 W (Vmp 18 V, R serie 9,1 Ω) -> Schottky -> batteria 12 V
-(12,6 V, R interna 0,2 Ω). Di giorno `SWP` e' chiuso e il faretto spento: il
-pannello alimenta il charger 5 V e carica leggermente la batteria. A
-`t = 10 ms` `SWP` apre e `SWL` chiude: di notte faretto 12 V/10 W e LM2596
-sono alimentati dalla batteria. L'LM2596 e' un buck a 5 V fisso (`vref = 5`,
-L 33 µH, Schottky, 220 µF).
+Pannello 12 V ~10 W (Vmp 18 V, R serie 9,1 Ω) -> controller di carica buck CV
+14,4 V -> batteria 12 V (12,6 V, R interna 0,2 Ω) -> LM2596T-5.0 -> 5 V/1 A.
+Il controller e' un buck con retroazione a 14,4 V; con questo pannello la
+corrente e' limitata dal pannello (~0,4 A), quindi la batteria si carica di
+~0,25 A. A `t = 10 ms` `SWP` apre (notte): il pannello si scollega e la
+batteria alimenta il carico 5 V.
 
-Bilancio: di giorno il pannello copre a malapena il charger (~0,5 A) e carica
-la batteria di ~0,2 A; di notte la batteria eroga ~1,26 A (faretto 0,85 A +
-charger 0,5 A). Con una 12 V 7 Ah si hanno poche ore; per entrambi i carichi
-serve un pannello piu' grande o una batteria piu' capiente. Il pannello e' un
-modello Thevenin (niente curva I-V/MPP); la batteria e' ideale (niente stato di
-carica, CC/CV o sovrascarica).
+Il modello non simula il limite di corrente CC, il float, lo stato di carica
+della batteria ne' il punto di massima potenza del pannello. La batteria e'
+una sorgente ideale: la tensione non sale con la carica.
 
 ```bash
-./lab run faretto_solare
+./lab run carica_solare
 ```
 
 ## Come funziona la verifica
@@ -527,7 +524,7 @@ Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
 potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
-**convertitore buck**, **buck con retroazione**, **buck 5 A**, **trasformatore 230/24 V** e **alimentatore completo 230 V -> 12 V** e **faretto solare 12 V + 5 V**.
+**convertitore buck**, **buck con retroazione**, **buck 5 A**, **trasformatore 230/24 V** e **alimentatore completo 230 V -> 12 V** e **caricabatteria solare 12 V -> 5 V**.
 
 Non ancora coperti: trasformatori reali (mutua induttanza, perdite,
 saturazione), timer 555, logica 74xx, amplificatori operazionali, analisi in

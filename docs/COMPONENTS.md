@@ -118,7 +118,7 @@ Esempi: `diode`, `diode_power`, `diode_schottky` (`vf = 0,4 V`).
 - `period`, `duty`, `t_soft`: interruttore PWM (periodo, frazione di chiusura, rampa iniziale).
 - `vref`, `ki`: retroazione integrale; con `FB` all'uscita mantiene `V(FB) = vref`.
 - `FF` (opzionale): feedforward; il duty parte da `vref/V(FF)` per compensare le variazioni dell'ingresso.
-- Esempi: `switch_spst`, `switch_pwm`, `lm2596` (buck 5 V fisso, 100 kHz nel modello).
+- Esempi: `switch_spst`, `switch_pwm`, `lm2596` (buck 5 V fisso, 100 kHz nel modello), `solar_charger` (buck CV 14,4 V).
 
 ### C
 

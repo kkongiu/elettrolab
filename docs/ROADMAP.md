@@ -102,7 +102,7 @@ deve accorgersi del cambio di motore.
 
 ## Fase 4 - Contenuti
 
-- [x] Progetto faretto solare 12 V + caricabatteria 5 V (LM2596)
+- [x] Progetto caricabatteria solare 12 V -> 5 V (controller + LM2596)
 - [ ] Set di esercizi progressivo su corrente, tensione, resistenza
 - [ ] Elettronica digitale di base
 - [ ] Lezioni con domande e verifiche

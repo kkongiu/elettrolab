@@ -1,0 +1,57 @@
+{
+  "id": "carica_solare",
+  "title": "Caricabatteria solare 12 V -> 5 V (LM2596)",
+  "notes": "Pannello 12 V ~10 W (Vmp 18 V, R serie 9,1 ohm) -> controller di carica buck CV 14,4 V -> batteria 12 V (12,6 V, R interna 0,2 ohm) -> LM2596T-5.0 -> 5 V/1 A. Il controller e' un buck con retroazione a 14,4 V: con questo pannello la corrente e' limitata dal pannello (~0,4 A), quindi la batteria si carica di ~0,25 A. A t = 10 ms SWP apre (notte): il pannello si scollega e la batteria alimenta il carico 5 V. Il modello non simula CC/float, stato di carica ne' MPP del pannello.",
+  "analysis": "transient",
+  "tstop": 0.02,
+  "dt": 0.0000002,
+  "parts": {
+    "V1": {"type": "panel_18v"},
+    "RP": {"type": "resistor", "r": 9.1, "pmax": 100},
+    "DP": {"type": "diode_schottky"},
+    "SWP": {"type": "switch_spst", "closed": true, "t_open": 0.01},
+    "CHG1": {"type": "solar_charger"},
+    "DCHG": {"type": "diode_schottky"},
+    "LCHG": {"type": "inductor", "l": "100u", "imax": 2},
+    "CIN1": {"type": "capacitor", "c": "470u", "vmax": 25},
+    "COUT": {"type": "capacitor", "c": "220u", "vmax": 25},
+    "V2": {"type": "battery_12v"},
+    "RB": {"type": "resistor", "r": 0.2, "pmax": 2000},
+    "CIN2": {"type": "capacitor", "c": "470u", "vmax": 25},
+    "SW1": {"type": "lm2596"},
+    "D1": {"type": "diode_schottky"},
+    "L1": {"type": "inductor", "l": "33u", "imax": 3},
+    "C5": {"type": "capacitor", "c": "220u", "vmax": 16},
+    "LAMP5": {"type": "lamp", "vn": 5, "p": 5, "r": 5, "pmax": 10}
+  },
+  "nets": {
+    "pv": ["V1.+", "RP.1"],
+    "pvd": ["RP.2", "DP.A"],
+    "pdc": ["DP.K", "SWP.1"],
+    "chin": ["SWP.2", "CIN1.+", "CHG1.1"],
+    "chsw": ["CHG1.2", "DCHG.K", "LCHG.1"],
+    "bat": ["LCHG.2", "COUT.+", "CHG1.FB", "RB.2", "CIN2.+", "SW1.1"],
+    "bati": ["V2.+", "RB.1"],
+    "sw": ["SW1.2", "D1.K", "L1.1"],
+    "out5": ["L1.2", "C5.+", "LAMP5.1", "SW1.FB"],
+    "gnd": ["V1.-", "V2.-", "CIN1.-", "DCHG.A", "COUT.-", "CIN2.-", "D1.A", "C5.-", "LAMP5.2"]
+  },
+  "expect": {
+    "V(out5)": [
+      {"at": 0.008, "approx": 5.0, "tol": 0.05},
+      {"at": 0.018, "approx": 4.97, "tol": 0.05},
+      {"max": 5.5}
+    ],
+    "I(LAMP5)": {"at": 0.008, "approx": 1.0, "tol": 0.1},
+    "V(bat)": [
+      {"at": 0.008, "approx": 12.65, "tol": 0.03},
+      {"at": 0.018, "approx": 12.52, "tol": 0.05}
+    ],
+    "I(LCHG)": {"at": 0.008, "approx": 0.41, "tol": 0.1},
+    "I(DP)": {"at": 0.008, "approx": 0.40, "tol": 0.1},
+    "I(V2)": [
+      {"at": 0.008, "approx": -0.25, "tol": 0.2},
+      {"at": 0.018, "approx": 0.42, "tol": 0.1}
+    ]
+  }
+}

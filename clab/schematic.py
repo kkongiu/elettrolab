@@ -520,6 +520,8 @@ class Schematic:
         if k == "SW":
             if p.type == "lm2596":
                 return f"{pid}  LM2596 5 V"
+            if p.type == "solar_charger":
+                return f"{pid}  CHG 14.4 V"
             return f"{pid}  {'chiuso' if p.get('closed', True) else 'aperto'}"
         if k == "C":
             c = p.num("c")
