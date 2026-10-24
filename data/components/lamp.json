@@ -1,0 +1,9 @@
+{
+  "id": "lamp",
+  "kind": "LAMP",
+  "name": "Lampadina 12 V 6 W",
+  "pins": ["1", "2"],
+  "params": {"vn": 12, "p": 6, "r": 24, "pmax": 8},
+  "limits": {"pmax": 8},
+  "learn": "Lampadina a incandescenza: si comporta come una resistenza. A 12 V e 6 W assorbe 0,5 A (R = V^2/P = 24 ohm). Si accende quando la tensione e' vicina a quella nominale vn."
+}

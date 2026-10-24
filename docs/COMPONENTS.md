@@ -41,6 +41,7 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `kind` | Componenti | Pin | Parametri | Limiti |
 |---|---|---|---|---|
 | `R` | resistenze | `1`, `2` | `r` | `pmax` |
+| `LAMP` | lampadine | `1`, `2` | `vn`, `p`, `r`, `pmax` | `pmax` |
 | `V` | sorgenti di tensione | `+`, `-` | `v` | `imax` |
 | `LED` | LED | `A`, `K` | `vf`, `rd`, `imax` | `imax` |
 | `SW` | interruttori | `1`, `2` | `closed`, `ron`, `roff`, `t_close`, `t_open` | - |
@@ -64,6 +65,15 @@ componenti non primitivi saranno delegati a ngspice in una fase successiva
 
 - `r`: resistenza in ohm.
 - `pmax`: potenza massima in watt; oltre questa soglia scatta `overpower`.
+
+### LAMP
+
+- `r`: resistenza del filamento in ohm (24 ohm per una 12 V 6 W).
+- `vn`: tensione nominale in volt; sotto meta' di `vn` la lampadina e' spenta.
+- `p`: potenza nominale, solo informativa.
+- `pmax`: potenza massima in watt; oltre scatta `overpower`.
+La lampadina e' modellata come una resistenza: l'accensione (alone giallo)
+e' solo grafica.
 
 ### V
 

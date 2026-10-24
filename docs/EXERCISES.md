@@ -408,7 +408,8 @@ Lo stesso convertitore, ma il pin **FB** dell'interruttore PWM e' collegato
 all'uscita e `vref = 12 V`: un controllore integrale misura `V(out)`, calcola
 l'errore rispetto a 12 V e corregge il ciclo di lavoro. A duty fisso 0,5
 l'uscita resterebbe a ~11,5 V per la caduta del diodo; la retroazione alza il
-duty a ~0,52 e porta l'uscita a **12 V**.
+duty a ~0,52 e porta l'uscita a **12 V**. Il carico e' una **lampadina 12 V 6 W** (24 Ω), che
+a piena tensione si accende: l'uscita diventa cosi' esplicita anche a video.
 
 A `t = 0,012 s` un secondo carico da 24 Ω entra in parallelo (`SW2`): la
 corrente raddoppia, l'uscita cala per un istante e il controllore la riporta a

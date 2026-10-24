@@ -426,6 +426,10 @@ class Schematic:
             return "eccitato" if self._relay_on(pid, t) else "riposo"
         if kind == "SPK":
             return "suona" if abs(i) > 1e-6 else "silenzio"
+        if kind == "LAMP":
+            v = abs(self._volt(pid, "1", t) - self._volt(pid, "2", t))
+            vn = p.num("vn") if "vn" in p.params else 12.0
+            return "accesa" if v > 0.5 * vn else "spenta"
         return ""
 
     def _out(self, pid, pin, i):
@@ -544,8 +548,12 @@ class Schematic:
                 self._burn(x, y)
             else:
                 self._led_glow(pid, x, y, t)
+        if kind == "LAMP":
+            self._lamp_glow(pid, x, y, t)
         if kind == "R":
             self._resistor(x, y, rot)
+        elif kind == "LAMP":
+            self._lamp(x, y, rot)
         elif kind == "C":
             self._capacitor(x, y, rot)
         elif kind == "L":
@@ -748,6 +756,37 @@ class Schematic:
             a = self._loc(x, y, rot, 2, k * 16)
             b = self._loc(x, y, rot, 11, k * 25)
             self.line([a, b], width=1.1)
+
+    def _lamp(self, x, y, rot):
+        self.line([self._loc(x, y, rot, -45, 0), self._loc(x, y, rot, -18, 0)])
+        self.line([self._loc(x, y, rot, 18, 0), self._loc(x, y, rot, 45, 0)])
+        X, Y = self.T(x, y)
+        r = 18 * self.s
+        self.c.create_oval(X - r, Y - r, X + r, Y + r, outline=INK,
+                           fill="", width=max(1.1, 1.6 * self.s))
+        self.line([self._loc(x, y, rot, -9, -9), self._loc(x, y, rot, 9, 9)], width=1.1)
+        self.line([self._loc(x, y, rot, -9, 9), self._loc(x, y, rot, 9, -9)], width=1.1)
+
+    def _lamp_glow(self, pid, x, y, t):
+        p = self.doc.part(pid)
+        if p is None or self.res is None:
+            return
+        v = abs(self._volt(pid, "1", t) - self._volt(pid, "2", t))
+        vn = p.num("vn") if "vn" in p.params else 12.0
+        raw = max(0.0, min(1.0, (v / max(vn, 1e-9) - 0.3) / 0.7))
+        prev = self.led_glow.get(pid, 0.0)
+        if raw > 0.02:
+            ratio = max(raw, prev)
+        else:
+            ratio = max(0.0, prev - self.dreal / 0.25)
+        self.led_glow[pid] = ratio
+        if ratio <= 0.01:
+            return
+        for rad, f in ((30, 0.30), (22, 0.50)):
+            X, Y = self.T(x, y)
+            r = rad * self.s
+            self.c.create_oval(X - r, Y - r, X + r, Y + r,
+                               fill=_blend(BG, DOT, ratio * f), outline="")
 
     def _diode(self, x, y, rot):
         self.line([self._loc(x, y, rot, -45, 0), self._loc(x, y, rot, -13, 0)])

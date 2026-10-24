@@ -62,6 +62,7 @@ KIND_LABELS = {
     "PUT": "Transistor",
     "MOS": "Transistor",
     "SPK": "Altoparlanti",
+    "LAMP": "Lampadine",
 }
 
 

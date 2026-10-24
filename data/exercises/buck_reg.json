@@ -1,7 +1,7 @@
 {
   "id": "buck_reg",
   "title": "Buck 24 V -> 12 V con retroazione",
-  "notes": "Lo stesso buck, ma il pin FB dell'interruttore PWM e' collegato all'uscita e vref = 12 V: un controllore integrale corregge il duty da solo. Il duty fisso di 0,5 darebbe circa 11,5 V per la caduta del diodo; la retroazione lo alza a ~0,52 e porta l'uscita a 12 V. A t = 0,012 s un secondo carico da 24 ohm entra in parallelo (SW2): la corrente raddoppia, l'uscita cala per un istante e poi torna a 12 V. E' la differenza tra un alimentatore 'aperto' e uno regolato.",
+  "notes": "Lo stesso buck, ma il pin FB dell'interruttore PWM e' collegato all'uscita e vref = 12 V: un controllore integrale corregge il duty da solo. Il duty fisso di 0,5 darebbe circa 11,5 V per la caduta del diodo; la retroazione lo alza a ~0,52 e porta l'uscita a 12 V. Il carico e' una lampadina da 12 V 6 W (24 ohm), che a piena tensione si accende. A t = 0,012 s un secondo carico da 24 ohm entra in parallelo (SW2): la corrente raddoppia, l'uscita cala per un istante e poi torna a 12 V. E' la differenza tra un alimentatore 'aperto' e uno regolato.",
   "analysis": "transient",
   "tstop": 0.024,
   "dt": 0.000001,
@@ -11,16 +11,16 @@
     "D1": {"type": "diode_power"},
     "L1": {"type": "inductor", "l": "1m", "imax": 5},
     "C1": {"type": "capacitor", "c": "100u", "vmax": 25},
-    "R1": {"type": "resistor", "r": "24"},
+    "LAMP1": {"type": "lamp"},
     "R2": {"type": "resistor", "r": "24"},
     "SW2": {"type": "switch_spst", "closed": false, "t_close": 0.012}
   },
   "nets": {
     "p": ["V1.+", "SW1.1"],
     "sw": ["SW1.2", "D1.K", "L1.1"],
-    "out": ["L1.2", "C1.+", "R1.1", "R2.1", "SW1.FB"],
+    "out": ["L1.2", "C1.+", "LAMP1.1", "R2.1", "SW1.FB"],
     "load2": ["R2.2", "SW2.1"],
-    "gnd": ["V1.-", "D1.A", "C1.-", "R1.2", "SW2.2"]
+    "gnd": ["V1.-", "D1.A", "C1.-", "LAMP1.2", "SW2.2"]
   },
   "expect": {
     "V(out)": [
@@ -28,6 +28,7 @@
       {"at": 0.023, "approx": 12.0, "tol": 0.05},
       {"max": 13.0, "min": -0.05}
     ],
+    "I(LAMP1)": {"at": 0.023, "approx": 0.5, "tol": 0.1},
     "I(R2)": {"at": 0.023, "approx": 0.5, "tol": 0.1, "peak_min": 0.3}
   }
 }

@@ -142,7 +142,7 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on, ctrl
 
     for pid, p in circ.parts.items():
         kind = p.kind
-        if kind in ("R", "SPK"):
+        if kind in ("R", "SPK", "LAMP"):
             if kind == "SPK":
                 a, c = circ.node(pid, "+"), circ.node(pid, "-")
             else:
@@ -398,7 +398,7 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, 
         kind = p.kind
         i = 0.0
         pw = 0.0
-        if kind in ("R", "SPK"):
+        if kind in ("R", "SPK", "LAMP"):
             if kind == "SPK":
                 a, c = circ.node(pid, "+"), circ.node(pid, "-")
             else:

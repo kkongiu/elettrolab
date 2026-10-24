@@ -28,6 +28,7 @@ scelto nell'esercizio o con l'euristica di `_auto_timing`.
 | V | sorgente ideale | nessuna resistenza interna |
 | SW | `Ron` / `Roff` | stato statico o `t_close`/`t_open` |
 | POT | due resistenze, `rtotal·pos` e `rtotal·(1−pos)` | lineare |
+| LAMP | `V = R·I` | filamento come resistenza, senza dipendenza dalla temperatura |
 
 Le sorgenti ideali sono una semplificazione importante: nei circuiti con
 condensatori grandi la ricarica produce picchi di corrente che una batteria

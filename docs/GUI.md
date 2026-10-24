@@ -52,7 +52,7 @@ bus per le reti con piu' pin. I layout possono dichiarare percorsi espliciti.
 
 La palette e' generata dal catalogo `data/components/`: aggiungere un file JSON
 aggiunge un pulsante. Sono disponibili resistenze, condensatori, induttori,
-batterie, LED rossi e verdi, interruttori, potenziometri, rele' a un polo, rele'
+batterie, lampadine, LED rossi e verdi, interruttori, potenziometri, rele' a un polo, rele'
 a due poli e il simbolo di massa.
 
 La **massa** e' un componente con un pin: quando lo posizioni, il pin entra
@@ -124,6 +124,7 @@ secondi. Ogni componente ha una corrente interpolata all'istante corrente:
   piccole restano visibili; un LED bruciato mostra una X;
 - l'alone dei LED ha una persistenza di circa 250 ms reali: un impulso da
   20 ms, come quello del relè in exp08, resta visibile per alcuni frame;
+- anche le lampadine hanno un alone giallo, proporzionale a `V/vn`;
 - il cursore sul grafico segue l'animazione; `Pausa` ferma tutto.
 
 ## Convenzioni di disegno
