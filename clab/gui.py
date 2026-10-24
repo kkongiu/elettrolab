@@ -384,7 +384,7 @@ class App:
         ttk.Button(bbar, text="Ottimizza", command=self._optimize_board).pack(
             side="left", padx=(8, 0))
         ttk.Button(bbar, text="Adatta", command=self._bb_fit).pack(side="left", padx=(4, 0))
-        ttk.Label(bbar, text="trascina · R ruota · Canc elimina",
+        ttk.Label(bbar, text="trascina · clic filo = rete · R ruota · Canc elimina",
                   style="Muted.TLabel").pack(side="left", padx=8)
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
         self.bb_canvas.pack(fill="both", expand=True)
@@ -902,6 +902,7 @@ class App:
         if old is not None:
             bb.zoom, bb.pan_x, bb.pan_y = old.zoom, old.pan_x, old.pan_y
         bb.selected = self.selected
+        bb.sel_net = self.selected_wire
         return bb
 
     def _bb_zoom(self, event, factor=None):
@@ -997,8 +998,26 @@ class App:
             self._hint("Jumper rimosso; reti ricalcolate")
             return
         pid = self.bb.part_at(vx, vy)
+        if pid is None:
+            idx = wire_at(self.doc.board, vx, vy)
+            if idx is not None:
+                net = self.doc.board["wires"][idx].get("net")
+                if net and net != "fisico":
+                    self.selected = None
+                    self.selected_wire = net
+                    self.bb.selected = None
+                    self.bb.sel_net = net
+                    if self.schem is not None:
+                        self.schem.sel_net = net
+                    self._update_props()
+                    self._hint(f"Rete {net}: premi Canc per eliminarla")
+                    return
         self.selected = pid
+        self.selected_wire = None
         self.bb.selected = pid
+        self.bb.sel_net = None
+        if self.schem is not None:
+            self.schem.sel_net = None
         self._update_props()
         self._bb_drag = None
         self.bb_canvas.focus_set()

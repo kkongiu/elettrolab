@@ -7,7 +7,7 @@ esportabile in SVG.
 ## Cosa fa
 
 - catalogo `data/footprints/*.json` (pad, foro, ingombro, serigrafia);
-- posizionamento automatico in riga (per ora);
+- posizionamento automatico a righe (max ~90 mm, poi va a capo);
 - instradamento semplice: le reti non di massa a catena, la massa su una pista
   in basso;
 - serigrafia: contorni, riferimenti, valori e polarità;
@@ -37,8 +37,8 @@ forzare `"footprint": "..."`; altrimenti si usa il default per `kind`
 
 ## Limiti (MVP)
 
-- un lato, THT, nessun via; posizionamento in riga; router semplice **senza
-  clearance/DRC**; niente Gerber/KiCad;
+- un lato, THT, nessun via; posizionamento a righe (max ~90 mm); router
+  semplice **senza clearance/DRC**; niente Gerber/KiCad;
 - non è pronto per la fabbricazione: è un'anteprima;
 - la serigrafia non è ancora ottimizzata (sovrapposizioni possibili).
 

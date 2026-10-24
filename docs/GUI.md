@@ -160,6 +160,9 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
   disponibile via `generate(..., spread=True)`
 - **zoom/pan**: rotella = zoom (0,4×–6×), tasto destro = pan, **Adatta**
   ripristina la vista; le etichette scalano con lo zoom
+- **evidenzia rete**: clicca un filo per evidenziare quella rete, o un
+  componente per evidenziare le sue reti; le altre si attenuano; `Canc`
+  elimina la rete selezionata (in Breadboard-first rimuove i jumper)
 - **editing**: trascina un componente da un foro all'altro (snap al foro); i
   jumper collegati ai suoi pin lo seguono, quindi le connessioni restano giunte; `R`
   per ruotare, `Canc` per eliminare; i jumper vengono ri-rotati, il layout e'
@@ -188,7 +191,7 @@ La scheda **PCB** mostra un'anteprima a un lato: footprint THT, piste in rame,
 pad e fori, serigrafia con contorni, riferimenti, valori e polarità. Il
 pulsante **Esporta SVG** salva il disegno in scala 1:1 (1 unità = 1 mm).
 
-È un'anteprima didattica, non un CAD: posizionamento in riga, router semplice
+È un'anteprima didattica, non un CAD: posizionamento a righe, router semplice
 senza clearance/DRC, niente Gerber. Vedi `docs/PCB.md`.
 
 ```bash

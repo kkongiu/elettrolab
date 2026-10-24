@@ -36,6 +36,7 @@ class Breadboard:
         self.pan_y = 0.0
         self.fit_s = 0.0
         self.selected = None
+        self.sel_net = None
 
     def virtual(self, x, y):
         if self.s <= 0:
@@ -223,11 +224,21 @@ class Breadboard:
                                    fill=color, outline="")
 
     def _wires(self):
+        focus = set()
+        if self.selected:
+            for pin in self.doc.pins(self.selected):
+                net = self.doc.net_of(self.selected, pin)
+                if net:
+                    focus.add(net)
+        elif self.sel_net:
+            focus.add(self.sel_net)
         for wire in self.layout.get("wires", []):
             pts = [hole_xy(p) for p in wire.get("points", [])]
             if len(pts) < 2:
                 continue
-            color = self._net_color(wire.get("net", ""))
+            net = wire.get("net", "")
+            active = not focus or net in focus
+            color = self._net_color(net) if active else "#d7d7d7"
             if len(pts) == 2:
                 (x1, y1), (x2, y2) = pts
                 dx, dy = x2 - x1, y2 - y1
@@ -239,9 +250,10 @@ class Breadboard:
                 p2 = self.T(*pts[1])
                 self.c.create_line(p1[0], p1[1], pc[0], pc[1], p2[0], p2[1],
                                    smooth=True, fill=color,
-                                   width=max(1.3, 2.4 * self.s), capstyle="round")
+                                   width=max(1.0, (2.4 if active else 1.0) * self.s),
+                                   capstyle="round")
             else:
-                self.line(pts, color=color, width=2.2)
+                self.line(pts, color=color, width=(2.2 if active else 1.0))
 
     def _part(self, pid, t):
         p = self.doc.part(pid)

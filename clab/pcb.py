@@ -85,7 +85,30 @@ class PcbLayout:
         self._silk()
 
     def _place(self):
+        MAX_W = 90.0
+        ROW_GAP = 6.0
+        rows = {}
+        self.parts = {}
+        row_parts = []
+        row_index = 0
+        row_top = 0.0
+        row_h = 0.0
         cursor = 0.0
+
+        def close_row():
+            nonlocal row_parts, row_index, row_top, row_h, cursor
+            if not row_parts:
+                return
+            for e in row_parts:
+                e["row"] = row_index
+                self.parts[e["pid"]] = e
+            rows[row_index] = row_parts
+            row_index += 1
+            row_top += row_h + ROW_GAP
+            row_parts = []
+            row_h = 0.0
+            cursor = 0.0
+
         for pid in self.doc.parts:
             p = self.doc.part(pid)
             fid = footprint_id(p)
@@ -96,10 +119,16 @@ class PcbLayout:
             if missing:
                 raise PcbError(f"{pid}: pin senza pad in {fid}: {', '.join(missing)}")
             x0, y0, x1, y1 = fp.bbox()
+            w, h = x1 - x0, y1 - y0
+            if row_parts and cursor + w > MAX_W:
+                close_row()
             x = cursor - x0
-            pads = {pin: (x + pad[0], pad[1]) for pin, pad in fp.pads.items()}
-            self.parts[pid] = {"fp": fp, "x": x, "y": 0.0, "pads": pads}
-            cursor = x + (x1 - x0) + GAP
+            y = row_top - y0
+            pads = {pin: (x + pad[0], y + pad[1]) for pin, pad in fp.pads.items()}
+            row_parts.append({"pid": pid, "fp": fp, "x": x, "y": y, "pads": pads})
+            cursor = x + w + GAP
+            row_h = max(row_h, h)
+        close_row()
         if not self.parts:
             raise PcbError("nessun componente con footprint")
         xs, ys = [], []
@@ -113,35 +142,51 @@ class PcbLayout:
             e["x"] += dx
             e["y"] += dy
             e["pads"] = {pin: (p[0] + dx, p[1] + dy) for pin, p in e["pads"].items()}
+        self.rows = rows
         self.board = (max(xs) - min(xs) + 2 * MARGIN, max(ys) - min(ys) + 2 * MARGIN)
 
     def _route(self):
+        ROW_GAP = 6.0
         gnd = self.doc.ground
-        bus_y = self.board[1] - MARGIN / 2
-        gnd_pads = []
+        bounds = {}
+        for e in self.parts.values():
+            r = e["row"]
+            x0, y0, x1, y1 = e["fp"].bbox()
+            top, bot = e["y"] + y0, e["y"] + y1
+            if r in bounds:
+                bounds[r][0] = min(bounds[r][0], top)
+                bounds[r][1] = max(bounds[r][1], bot)
+            else:
+                bounds[r] = [top, bot]
+        edge_x = self.board[0] - MARGIN / 2
+        bus_y = {r: v[1] + ROW_GAP / 2 for r, v in bounds.items()}
+        gnd_by_row = {}
         for net, refs in self.doc.nets.items():
             pts = []
             for ref in refs:
                 pid, pin = ref.rsplit(".", 1)
                 e = self.parts.get(pid)
                 if e and pin in e["pads"]:
-                    pts.append(e["pads"][pin])
+                    pts.append((e["pads"][pin], e["row"]))
             if net == gnd:
-                gnd_pads += pts
+                for (x, y), r in pts:
+                    gnd_by_row.setdefault(r, []).append((x, y))
             elif len(pts) >= 2:
-                pts.sort()
-                for a, b in zip(pts, pts[1:]):
+                pts = sorted(pts, key=lambda t: t[0][0])
+                for (a, _), (b, _) in zip(pts, pts[1:]):
                     if abs(a[1] - b[1]) < 1e-6:
                         self.traces.append({"net": net, "points": [a, b]})
                     else:
                         self.traces.append({"net": net, "points": [a, (b[0], a[1]), b]})
-        if gnd_pads:
-            gnd_pads.sort()
-            if len(gnd_pads) >= 2:
-                self.traces.append({"net": gnd, "points": [(gnd_pads[0][0], bus_y),
-                                                           (gnd_pads[-1][0], bus_y)]})
-            for x, y in gnd_pads:
-                self.traces.append({"net": gnd, "points": [(x, y), (x, bus_y)]})
+        for r, pads in gnd_by_row.items():
+            by = bus_y[r]
+            xs = [x for x, y in pads]
+            self.traces.append({"net": gnd, "points": [(min(xs), by), (edge_x, by)]})
+            for x, y in pads:
+                self.traces.append({"net": gnd, "points": [(x, y), (x, by)]})
+        if len(bus_y) > 1:
+            ys = sorted(bus_y.values())
+            self.traces.append({"net": gnd, "points": [(edge_x, ys[0]), (edge_x, ys[-1])]})
 
     def _label(self, pid):
         p = self.doc.part(pid)

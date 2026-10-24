@@ -27,7 +27,8 @@ database sono generici e non legati a un corso specifico.
   fondamentale e le armoniche; il pulsante lo ripete in loop fino a Ferma
 - disposizione **compatta**: i componenti sono avvicinati alle loro
   connessioni; **Ottimizza** rigenera il layout; zoom con rotella, pan col
-  tasto destro, **Adatta** per ripristinare
+  tasto destro, **Adatta**; clic su un filo evidenzia la rete (le altre si
+  attenuano)
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
