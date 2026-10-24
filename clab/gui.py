@@ -902,7 +902,7 @@ class App:
         self.selected = None
         self.dirty = True
         self._after_board_change()
-        self._hint("Disposizione ottimizzata: componenti vicini alle connessioni")
+        self._hint("Disposizione ottimizzata: componenti distribuiti sulla breadboard")
 
     def _make_bb(self, board):
         old = getattr(self, "bb", None)

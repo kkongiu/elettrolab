@@ -324,12 +324,13 @@ def place_part(doc, layout, pid, hole):
     offs = _offsets(len(p.spec.pins))
     span = max(offs) + 1
     group = 0 if row in "ABCDE" else 1
+    wire_cols = _wire_cols(layout)
     starts = [col - i for i in range(span)]
     starts = [c for c in starts if c >= 1 and c + span - 1 <= COLS]
     for c0 in starts:
         cols = [c0 + offs[i] for i in range(len(p.spec.pins))]
         holes = [f"{row}{c}" for c in cols]
-        if any(h in used for h in holes) or any(c in used_cols[group] for c in cols):
+        if any(h in used for h in holes) or any(c in used_cols[group] or c in wire_cols[group] for c in cols):
             continue
         layout["parts"][pid] = {"pins": dict(zip(p.spec.pins, holes))}
         if p.kind == "V":
@@ -339,7 +340,7 @@ def place_part(doc, layout, pid, hole):
     return False, "spazio occupato: libera i fori o sposta il componente"
 
 
-def generate(doc, spread=False):
+def generate(doc, spread=True):
     layout = {"parts": {}, "wires": []}
     gnd = doc.ground
     sources = sorted(pid for pid in doc.parts if doc.part(pid) is not None and doc.part(pid).kind == "V")
@@ -591,6 +592,29 @@ def reroute(doc, layout):
     return route_wires(doc, layout)
 
 
+def _wire_cols(layout, skip_net=None):
+    cols = {0: set(), 1: set()}
+    for wire in layout.get("wires", []):
+        if skip_net is not None and wire.get("net") == skip_net:
+            continue
+        for h in wire.get("points", []):
+            try:
+                kind, c = parse_hole(h)
+            except ValueError:
+                continue
+            if kind not in RAIL_Y:
+                cols[0 if kind in "ABCDE" else 1].add(c)
+    return cols
+
+
+def _pin_net(doc, pid, pin):
+    ref = f"{pid}.{pin}"
+    for net, refs in doc.nets.items():
+        if ref in refs:
+            return net
+    return None
+
+
 def shift_part(doc, layout, pid, dcol, drow):
     if pid not in layout.get("parts", {}):
         return False, "componente assente"
@@ -621,6 +645,8 @@ def shift_part(doc, layout, pid, dcol, drow):
         group = 0 if ROWS[nr] in "ABCDE" else 1
         if nc in used_cols[group]:
             return False, "colonna occupata"
+        if nc in _wire_cols(layout, skip_net=_pin_net(doc, pid, pin))[group]:
+            return False, "colonna occupata da un filo"
         new[pin] = target
     old = dict(pins)
     layout["parts"][pid]["pins"] = new

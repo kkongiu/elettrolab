@@ -35,24 +35,26 @@ class BreadboardTests(unittest.TestCase):
             eid = path.stem
             with self.subTest(exercise=eid):
                 circ = load(eid)
-                layout = generate(circ)
-                errors = validate_layout(circ, layout)
-                self.assertEqual(errors, [])
-                for pid, part in circ.parts.items():
-                    self.assertIn(pid, layout["parts"])
-                    for pin in part.spec.pins:
-                        self.assertIn(pin, layout["parts"][pid]["pins"])
+                for spread in (True, False):
+                    layout = generate(circ, spread=spread)
+                    errors = validate_layout(circ, layout)
+                    self.assertEqual(errors, [])
+                    for pid, part in circ.parts.items():
+                        self.assertIn(pid, layout["parts"])
+                        for pin in part.spec.pins:
+                            self.assertIn(pin, layout["parts"][pid]["pins"])
 
     def test_derive_nets_matches_circuit(self):
         for path in sorted((ROOT / "data" / "exercises").glob("*.json")):
             eid = path.stem
             with self.subTest(exercise=eid):
                 circ = load(eid)
-                layout = generate(circ)
-                derived = derive_nets(circ, layout)
-                self.assertEqual({frozenset(v) for v in derived.values()},
-                                 {frozenset(v) for v in circ.nets.values()})
-                self.assertIn("gnd", derived)
+                for spread in (True, False):
+                    layout = generate(circ, spread=spread)
+                    derived = derive_nets(circ, layout)
+                    self.assertEqual({frozenset(v) for v in derived.values()},
+                                     {frozenset(v) for v in circ.nets.values()})
+                    self.assertIn("gnd", derived)
 
     def test_manual_jumper_changes_nets(self):
         circ = load("exp03")
@@ -68,7 +70,7 @@ class BreadboardTests(unittest.TestCase):
 
     def test_move_carries_wires(self):
         circ = load("exp03")
-        layout = generate(circ)
+        layout = generate(circ, spread=False)
         original = {frozenset(v) for v in derive_nets(circ, layout).values()}
         old_pin = layout["parts"]["D1"]["pins"]["A"]
         attached = [i for i, wire in enumerate(layout["wires"])
@@ -92,10 +94,10 @@ class BreadboardTests(unittest.TestCase):
 
     def test_place_new_part_keeps_existing_nets(self):
         doc = load_doc("exp03")
-        layout = generate(doc)
+        layout = generate(doc, spread=False)
         before = {frozenset(v) for v in derive_nets(doc, layout).values()}
         pid = doc.add_part("resistor")
-        self.assertTrue(place_part(doc, layout, pid, "C15")[0])
+        self.assertTrue(place_part(doc, layout, pid, "F15")[0])
         self.assertIn(pid, layout["parts"])
         after = {frozenset(v) for v in derive_nets(doc, layout).values()}
         self.assertTrue(before.issubset(after))
@@ -139,7 +141,7 @@ class BreadboardTests(unittest.TestCase):
 
     def test_shift_rotate_and_reroute(self):
         doc = load_doc("exp03")
-        layout = generate(doc)
+        layout = generate(doc, spread=False)
         doc.board = layout
         ok, msg = False, "nessuna direzione libera"
         for dcol, drow in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1)):

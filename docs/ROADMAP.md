@@ -60,7 +60,7 @@ Fatto:
 - [x] Generatore breadboard 2D per tutti i circuiti
 - [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
 - [x] I jumper seguono i componenti quando vengono spostati o ruotati
-- [x] Disposizione compatta/topologica con distanza minima e pulsante di ottimizzazione
+- [x] Disposizione distribuita sull'intera board, modalità compatta e pulsante di ottimizzazione
 - [x] Router A* dei fili sulla breadboard (colonne/rail, niente corti)
 - [x] Zoom/pan della breadboard
 - [x] Jumper manuali, gomma, breadboard-first e derivazione reti/sync schema
