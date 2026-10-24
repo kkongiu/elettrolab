@@ -461,11 +461,13 @@ isolamento reale. Non sono modellati magnetizzazione, perdite e saturazione.
 
 Rete 230 V efficaci -> trasformatore 230/24 V -> ponte a 4 diodi -> filtro da
 1000 µF -> buck regolato a 12 V. Il bus DC parte da 0 e sale verso ~30 V; il
-buck mantiene l'uscita a 12 V e la lampadina da 6 W assorbe ~0,5 A. `RSEC` da
-5 Ω rappresenta la resistenza degli avvolgimenti e limita la corrente di
-carica; `RREF1` da 10 MΩ dà un riferimento al primario isolato (solo per il
-simulatore). `dt = 0,5 µs` per il PWM: la simulazione dura ~6 s (esercizio
-differito all'avvio).
+buck mantiene l'uscita a 12 V e la lampadina da 6 W assorbe ~0,5 A. Il pin
+**FF** dell'interruttore PWM e' collegato al bus: il duty parte da `vref/Vbus`
+(feedforward), compensa il ripple a 100 Hz e l'integratore corregge solo le
+perdite. Il **soft-start** di 15 ms evita il sovraelongamento (max ~12,5 V).
+`RSEC` da 5 Ω limita la carica del filtro; `RREF1` da 10 MΩ riferisce il
+primario isolato (solo per il simulatore). `dt = 0,5 µs` per il PWM: la
+simulazione dura ~6 s (esercizio differito all'avvio).
 
 ```bash
 ./lab run alimentatore

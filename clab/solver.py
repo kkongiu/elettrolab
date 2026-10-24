@@ -683,6 +683,8 @@ def _tran(circ):
     ctrl = {pid: (p.num("duty") if "duty" in p.params else 0.5)
             for pid, p in circ.parts.items()
             if p.kind == "SW" and p.get("vref", 0) > 0 and circ.connected(pid, "FB")}
+    ff = {pid for pid in ctrl if circ.connected(pid, "FF")}
+    corr = {pid: 0.0 for pid in ff}
     time = np.zeros(nsteps)
     relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
     viol_acc = {}
@@ -720,7 +722,14 @@ def _tran(circ):
             vfb = _pin_v(x, fb) if fb >= 0 else 0.0
             err = p.num("vref") - vfb
             ki = p.num("ki") if "ki" in p.params else 0.0
-            ctrl[pid] = min(max(ctrl[pid] + ki * err * dt, 0.0), 1.0)
+            if pid in ff:
+                ffn = circ.node(pid, "FF")
+                vff = _pin_v(x, ffn) if ffn >= 0 else 0.0
+                dff = p.num("vref") / max(vff, 0.1)
+                corr[pid] = min(max(corr[pid] + ki * err * dt, -0.4), 0.4)
+                ctrl[pid] = min(max(dff + corr[pid], 0.0), 1.0)
+            else:
+                ctrl[pid] = min(max(ctrl[pid] + ki * err * dt, 0.0), 1.0)
         for viol in res.violations:
             key = (viol["part"], viol["code"])
             item = dict(viol)

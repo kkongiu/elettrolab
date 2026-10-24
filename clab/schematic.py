@@ -226,7 +226,9 @@ class Schematic:
             dx, dy = offs[pin]
             return self._loc(x, y, rot, dx, dy)
         if p.kind == "SW" and pin == "FB":
-            return self._loc(x, y, rot, 0, -45)
+            return self._loc(x, y, rot, -30, -45)
+        if p.kind == "SW" and pin == "FF":
+            return self._loc(x, y, rot, 30, -45)
         if p.kind == "XFMR":
             offs = {"P+": (-70, -40), "P-": (-70, 40),
                     "S+": (70, -40), "S-": (70, 40)}

@@ -45,7 +45,7 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `XFMR` | trasformatori | `P+`, `P-`, `S+`, `S-` | `n`, `imax`, `imax2` | `imax`, `imax2` |
 | `V` | sorgenti di tensione | `+`, `-` | `v` | `imax` |
 | `LED` | LED | `A`, `K` | `vf`, `rd`, `imax` | `imax` |
-| `SW` | interruttori | `1`, `2` | `closed`, `ron`, `roff`, `t_close`, `t_open` | - |
+| `SW` | interruttori | `1`, `2` (+ `FB`, `FF` per il PWM) | `closed`, `ron`, `roff`, `t_close`, `t_open`, `period`, `duty`, `t_soft`, `vref`, `ki` | - |
 | `C` | condensatori | `+`, `-` | `c` | `vmax` |
 | `L` | induttori | `1`, `2` | `l` | `imax` |
 | `POT` | potenziometri | `1`, `2`, `W` | `rtotal`, `pos`, `mode` | - |
@@ -102,6 +102,9 @@ perdite e saturazione.
 - `closed`: stato iniziale (in DC anche stato finale).
 - `ron`, `roff`: resistenze di chiusura e apertura.
 - `t_close`, `t_open`: istanti di commutazione nel transitorio, in secondi.
+- `period`, `duty`, `t_soft`: interruttore PWM (periodo, frazione di chiusura, rampa iniziale).
+- `vref`, `ki`: retroazione integrale; con `FB` all'uscita mantiene `V(FB) = vref`.
+- `FF` (opzionale): feedforward; il duty parte da `vref/V(FF)` per compensare le variazioni dell'ingresso.
 
 ### C
 
