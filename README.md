@@ -25,11 +25,12 @@ database sono generici e non legati a un corso specifico.
 - suono: l'esercizio exp11b (step 2 del PUT) ha un altoparlante; `--play` o il
   pulsante Ascolta riproducono il segnale reale dell'altoparlante, con la
   fondamentale e le armoniche; il pulsante lo ripete in loop fino a Ferma
-- disposizione **compatta** con **distanza minima** tra i componenti
-  (breadboard da 40 colonne): i componenti sono vicini alle connessioni; **Ottimizza** rigenera il layout; zoom con rotella, pan col
+- disposizione **distribuita sull'intera breadboard** (40 colonne, righe A–J):
+  **Ottimizza** rigenera il layout; la modalità **compatta** (con distanza
+  minima) resta via `generate(..., spread=False)`; zoom con rotella, pan col
   tasto destro, **Adatta**; clic su un filo evidenzia la rete (le altre si
   attenuano); i fili sono instradati con **A\*** sui fori (evitano le colonne
-  usate da altri componenti)
+  usate da altri componenti e dai fili)
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
