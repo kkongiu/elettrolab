@@ -1,0 +1,53 @@
+{
+  "id": "faretto_solare",
+  "title": "Faretto solare 12 V + caricabatteria 5 V (LM2596)",
+  "notes": "Pannello 12 V ~10 W (Vmp 18 V, R serie 9,1 ohm) -> Schottky -> batteria 12 V (12,6 V, R interna 0,2 ohm). Di giorno (SWP chiuso, faretto spento) il pannello tiene il caricabatteria 5 V e carica leggermente la batteria; a t = 10 ms SWP apre e SWL chiude: di notte faretto 12 V/10 W e LM2596 sono alimentati dalla batteria. L'LM2596 e' un buck a 5 V fisso (vref 5, L 33 uH, Schottky, 220 uF). Attenzione al bilancio: il pannello da 10 W copre a malapena il charger da 5 W; di notte la batteria eroga ~1,26 A (faretto + charger): serve una batteria adeguata e, per entrambi i carichi, un pannello piu' grande.",
+  "analysis": "transient",
+  "tstop": 0.02,
+  "dt": 0.0000002,
+  "parts": {
+    "V1": {"type": "panel_18v"},
+    "RP": {"type": "resistor", "r": 9.1, "pmax": 100},
+    "DP": {"type": "diode_schottky"},
+    "SWP": {"type": "switch_spst", "closed": true, "t_open": 0.01},
+    "V2": {"type": "battery_12v"},
+    "RB": {"type": "resistor", "r": 0.2, "pmax": 2000},
+    "SWL": {"type": "switch_spst", "closed": false, "t_close": 0.01},
+    "LAMP12": {"type": "lamp", "vn": 12, "p": 10, "r": 14.4, "pmax": 12},
+    "CIN": {"type": "capacitor", "c": "470u", "vmax": 25},
+    "SW1": {"type": "lm2596"},
+    "D1": {"type": "diode_schottky"},
+    "L1": {"type": "inductor", "l": "33u", "imax": 3},
+    "C5": {"type": "capacitor", "c": "220u", "vmax": 16},
+    "LAMP5": {"type": "lamp", "vn": 5, "p": 5, "r": 5, "pmax": 10}
+  },
+  "nets": {
+    "pv": ["V1.+", "RP.1"],
+    "pvd": ["RP.2", "DP.A"],
+    "pdc": ["DP.K", "SWP.1"],
+    "bat": ["SWP.2", "RB.2", "CIN.+", "SW1.1", "SWL.1"],
+    "bati": ["V2.+", "RB.1"],
+    "fl": ["SWL.2", "LAMP12.1"],
+    "sw": ["SW1.2", "D1.K", "L1.1"],
+    "out5": ["L1.2", "C5.+", "LAMP5.1", "SW1.FB"],
+    "gnd": ["V1.-", "V2.-", "LAMP12.2", "CIN.-", "D1.A", "C5.-", "LAMP5.2"]
+  },
+  "expect": {
+    "V(out5)": [
+      {"at": 0.008, "approx": 4.9, "tol": 0.05},
+      {"at": 0.018, "approx": 4.9, "tol": 0.05},
+      {"max": 5.5}
+    ],
+    "I(LAMP5)": {"at": 0.008, "approx": 0.98, "tol": 0.1},
+    "V(bat)": [
+      {"at": 0.008, "approx": 12.64, "tol": 0.03},
+      {"at": 0.018, "approx": 12.35, "tol": 0.05}
+    ],
+    "I(LAMP12)": {"at": 0.018, "approx": 0.85, "tol": 0.1},
+    "I(DP)": {"at": 0.008, "approx": 0.54, "tol": 0.1},
+    "I(V2)": [
+      {"at": 0.008, "approx": -0.22, "tol": 0.2},
+      {"at": 0.018, "approx": 1.26, "tol": 0.1}
+    ]
+  }
+}

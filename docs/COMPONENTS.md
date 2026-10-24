@@ -93,6 +93,8 @@ perdite e saturazione.
 - La sorgente e' ideale: non ha resistenza interna.
 - `wave: "sin"`: sorgente sinusoidale; `amp` e' il picco (V), `freq` in Hz,
   `offset` in V. Se `amp` manca si puo' usare `vrms`.
+- Esempi: `supply_12v`; `battery_12v` (12,6 V, surge 100 A); `panel_18v`
+  (pannello 12 V, Vmp 18 V). La resistenza interna va aggiunta esterna.
 
 ### LED
 
@@ -106,6 +108,7 @@ perdite e saturazione.
 Diodo a giunzione o di potenza: stesso modello a tratti del LED
 (`V = vf + rd*I`), senza emissione luminosa. `vf = 0,7 V` per il diodo
 piccolo, `0,9 V` per quello di potenza; `imax` provoca `burned`.
+Esempi: `diode`, `diode_power`, `diode_schottky` (`vf = 0,4 V`).
 
 ### SW
 
@@ -115,6 +118,7 @@ piccolo, `0,9 V` per quello di potenza; `imax` provoca `burned`.
 - `period`, `duty`, `t_soft`: interruttore PWM (periodo, frazione di chiusura, rampa iniziale).
 - `vref`, `ki`: retroazione integrale; con `FB` all'uscita mantiene `V(FB) = vref`.
 - `FF` (opzionale): feedforward; il duty parte da `vref/V(FF)` per compensare le variazioni dell'ingresso.
+- Esempi: `switch_spst`, `switch_pwm`, `lm2596` (buck 5 V fisso, 100 kHz nel modello).
 
 ### C
 

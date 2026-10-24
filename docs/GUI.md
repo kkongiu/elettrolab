@@ -52,7 +52,7 @@ bus per le reti con piu' pin. I layout possono dichiarare percorsi espliciti.
 
 La palette e' generata dal catalogo `data/components/`: aggiungere un file JSON
 aggiunge un pulsante. Sono disponibili resistenze, condensatori, induttori,
-batterie, lampadine, trasformatori, LED rossi e verdi, interruttori, potenziometri, rele' a un polo, rele'
+batterie, lampadine, trasformatori, pannelli solari, diodi Schottky, LM2596, LED rossi e verdi, interruttori, potenziometri, rele' a un polo, rele'
 a due poli e il simbolo di massa.
 
 La **massa** e' un componente con un pin: quando lo posizioni, il pin entra

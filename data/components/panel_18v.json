@@ -1,0 +1,9 @@
+{
+  "id": "panel_18v",
+  "kind": "V",
+  "name": "Pannello solare 12 V",
+  "pins": ["+", "-"],
+  "params": {"v": 18, "imax": 3},
+  "limits": {"imax": 3},
+  "learn": "Pannello 12 V ~10 W: nel modello e' una sorgente Vmp 18 V con resistenza serie esterna (Thevenin); la curva I-V e il punto di massima potenza non sono modellati."
+}

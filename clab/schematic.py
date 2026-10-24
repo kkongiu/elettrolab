@@ -518,6 +518,8 @@ class Schematic:
         if k == "D":
             return f"{pid}  D"
         if k == "SW":
+            if p.type == "lm2596":
+                return f"{pid}  LM2596 5 V"
             return f"{pid}  {'chiuso' if p.get('closed', True) else 'aperto'}"
         if k == "C":
             c = p.num("c")

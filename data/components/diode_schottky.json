@@ -1,0 +1,9 @@
+{
+  "id": "diode_schottky",
+  "kind": "D",
+  "name": "Diodo Schottky",
+  "pins": ["A", "K"],
+  "params": {"vf": 0.4, "rd": 0.02, "imax": 3},
+  "limits": {"imax": 3},
+  "learn": "Diodo Schottky: caduta diretta ~0,4 V e recupero rapido. Usato per il blocco del pannello e per il ricircolo del buck."
+}

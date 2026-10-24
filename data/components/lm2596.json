@@ -1,0 +1,9 @@
+{
+  "id": "lm2596",
+  "kind": "SW",
+  "name": "LM2596T-5.0",
+  "pins": ["1", "2", "FB"],
+  "params": {"period": 0.00001, "duty": 0.42, "t_soft": 0.002, "ron": 0.1, "roff": 1000000000.0, "vref": 5, "ki": 10},
+  "limits": {},
+  "learn": "LM2596T-5.0: buck step-down a 5 V fisso, 3 A max, 150 kHz (modello semplificato a 100 kHz). Esterni: induttore 33 uH, Schottky, 220 uF; non isola. Il pin FB va collegato all'uscita 5 V."
+}

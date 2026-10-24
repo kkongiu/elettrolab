@@ -1,0 +1,9 @@
+{
+  "id": "battery_12v",
+  "kind": "V",
+  "name": "Batteria 12 V",
+  "pins": ["+", "-"],
+  "params": {"v": 12.6, "imax": 100},
+  "limits": {"imax": 100},
+  "learn": "Batteria 12 V (SLA) a riposo 12,6 V. La resistenza interna va aggiunta esternamente (circa 0,2 ohm); non modella carica/scarica, stato di carica ne' sovrascarica."
+}

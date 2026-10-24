@@ -11,7 +11,7 @@ database sono generici e non legati a un corso specifico.
 ## Stato
 
 - Motore MNA: DC e transitorio (backward Euler)
-- Componenti: R, C, L, V, LED, diodo, lampadina, trasformatore, interruttore/PWM, potenziometro, rele', NPN, PUT, MOSFET, altoparlante
+- Componenti: R, C, L, V, LED, diodo, lampadina, trasformatore, interruttore/PWM, potenziometro, rele', NPN, PUT, MOSFET, altoparlante, pannello solare, batteria, LM2596
 - Violazioni didattiche: LED bruciato, resistenza in sovrapotenza, condensatore
   in sovratensione, cortocircuito della sorgente
 - CLI con menu, grafico ASCII, CSV, sweep di parametri
@@ -32,7 +32,9 @@ database sono generici e non legati a un corso specifico.
 - Progetti utente salvati in `data/projects/`
 - alimentatore switching 230 V -> 12 V: trasformatore, ponte, filtro, buck con
   retroazione e feedforward
-- 28 esercizi verificati automaticamente
+- progetto solare: pannello 12 V -> batteria -> faretto 12 V + LM2596 5 V
+  (scenari giorno/notte)
+- 29 esercizi verificati automaticamente
 - 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
@@ -239,7 +241,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ./lab test                 # 38 test core (documento, fisica, audio, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
-./lab check                # 28 esercizi contro le attese
+./lab check                # 29 esercizi contro le attese
 ```
 
 I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,

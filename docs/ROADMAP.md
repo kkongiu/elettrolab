@@ -11,7 +11,7 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 28 esercizi; 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
+- [x] 29 esercizi; 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (fatta)
@@ -102,6 +102,7 @@ deve accorgersi del cambio di motore.
 
 ## Fase 4 - Contenuti
 
+- [x] Progetto faretto solare 12 V + caricabatteria 5 V (LM2596)
 - [ ] Set di esercizi progressivo su corrente, tensione, resistenza
 - [ ] Elettronica digitale di base
 - [ ] Lezioni con domande e verifiche
