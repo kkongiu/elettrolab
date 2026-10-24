@@ -34,6 +34,13 @@ Le sorgenti ideali sono una semplificazione importante: nei circuiti con
 condensatori grandi la ricarica produce picchi di corrente che una batteria
 reale limiterebbe con la sua resistenza interna.
 
+## Trasformatore ideale
+
+Modello a due porte: `v2 = n·v1`, `i1 = -n·i2` (n = N2/N1), con il secondario
+riferito a massa tramite un resistore di riferimento. Non sono modellati
+magnetizzazione, perdite nel rame/ferro, saturazione e isolamento galvanico
+(il simulatore usa un riferimento comune).
+
 ## LED
 
 Modello a tratti:

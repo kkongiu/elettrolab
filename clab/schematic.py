@@ -133,6 +133,8 @@ class Schematic:
             return (x - 50, y - 50, x + 50, y + 50)
         if kind == "MOS":
             return (x - 50, y - 50, x + 50, y + 50)
+        if kind == "XFMR":
+            return (x - 80, y - 55, x + 80, y + 55)
         if rot in (90, 270):
             w, h = 36, 58
         else:
@@ -225,6 +227,11 @@ class Schematic:
             return self._loc(x, y, rot, dx, dy)
         if p.kind == "SW" and pin == "FB":
             return self._loc(x, y, rot, 0, -45)
+        if p.kind == "XFMR":
+            offs = {"P+": (-70, -40), "P-": (-70, 40),
+                    "S+": (70, -40), "S-": (70, 40)}
+            dx, dy = offs[pin]
+            return self._loc(x, y, rot, dx, dy)
         i = pins.index(pin)
         return self._loc(x, y, rot, -45 if i == 0 else 45, 0)
 
@@ -529,6 +536,8 @@ class Schematic:
             vn = p.num("vn") if "vn" in p.params else 12.0
             pw = p.num("p") if "p" in p.params else 0.0
             return f"{pid}  {vn:g} V {pw:g} W"
+        if k == "XFMR":
+            return f"{pid}  n={p.num('n'):.3g}"
         if k == "NPN":
             return f"{pid}  NPN"
         if k == "PUT":
@@ -562,6 +571,8 @@ class Schematic:
             self._capacitor(x, y, rot)
         elif kind == "L":
             self._inductor(x, y, rot)
+        elif kind == "XFMR":
+            self._transformer(x, y, rot)
         elif kind == "V":
             if p.get("wave") == "sin":
                 self._ac_source(x, y, rot)
@@ -696,6 +707,26 @@ class Schematic:
                     for u, v in ((-30, -9), (30, -9), (30, 9), (-30, 9))]
             self.c.create_polygon(*self.flat(body), outline=INK, fill="",
                                   width=max(1.1, 1.7 * self.s))
+
+    def _transformer(self, x, y, rot):
+        for dy in (-40, 40):
+            self.line([self._loc(x, y, rot, -70, dy), self._loc(x, y, rot, -22, dy)])
+            self.line([self._loc(x, y, rot, 70, dy), self._loc(x, y, rot, 22, dy)])
+        for cx in (-20, 20):
+            pts = [self._loc(x, y, rot, cx, -40)]
+            for k in range(8):
+                yy = -40 + (k + 1) * 10
+                xx = cx + (6 if k % 2 == 0 else -6)
+                pts.append(self._loc(x, y, rot, xx, yy))
+            pts.append(self._loc(x, y, rot, cx, 40))
+            self.line(pts, width=1.2)
+        for cx in (-5, 5):
+            self.line([self._loc(x, y, rot, cx, -45),
+                       self._loc(x, y, rot, cx, 45)], width=1.0)
+        for cx in (-20, 20):
+            X, Y = self.T(*self._loc(x, y, rot, cx, -40))
+            r = 2.2 * self.s
+            self.c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
 
     def _battery(self, x, y, rot):
         self.line([self._loc(x, y, rot, -45, 0), self._loc(x, y, rot, -24, 0)])

@@ -41,7 +41,7 @@ class Circuit:
         self.warnings = []
         self._index_nodes()
         self._validate()
-        self.n_branches = sum(1 for p in self.parts.values() if p.kind in ("V", "L"))
+        self.n_branches = sum(1 for p in self.parts.values() if p.kind in ("V", "L", "XFMR"))
 
     def _index_nodes(self):
         for net, pins in self.nets.items():

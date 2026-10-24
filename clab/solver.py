@@ -137,7 +137,7 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on, ctrl
     b = np.zeros(N)
     br = {}
     for pid, p in circ.parts.items():
-        if p.kind in ("V", "L"):
+        if p.kind in ("V", "L", "XFMR"):
             br[pid] = n + len(br)
 
     for pid, p in circ.parts.items():
@@ -162,6 +162,23 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on, ctrl
             else:
                 req = l / dt
                 _branch(circ, A, b, br[pid], a, c, 0.0, req=req, hist=iprev.get(pid, 0.0))
+        elif kind == "XFMR":
+            pp, pm = circ.node(pid, "P+"), circ.node(pid, "P-")
+            sp, sm = circ.node(pid, "S+"), circ.node(pid, "S-")
+            nn = p.num("n")
+            k = br[pid]
+            if sp >= 0:
+                A[k, sp] += 1.0
+                A[sp, k] += 1.0
+            if sm >= 0:
+                A[k, sm] -= 1.0
+                A[sm, k] -= 1.0
+            if pp >= 0:
+                A[k, pp] -= nn
+                A[pp, k] -= nn
+            if pm >= 0:
+                A[k, pm] += nn
+                A[pm, k] += nn
         elif kind == "C":
             if mode == "dc":
                 continue
@@ -413,6 +430,14 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, 
         elif kind == "L":
             i = x[br[pid]]
             pw = 0.0
+        elif kind == "XFMR":
+            pp, pm = circ.node(pid, "P+"), circ.node(pid, "P-")
+            nn = p.num("n")
+            ib = x[br[pid]]
+            i = -nn * ib
+            v1 = _pin_v(x, pp) - _pin_v(x, pm)
+            pw = abs(v1 * i)
+            res.currents[f"{pid}.2"] = float(-ib)
         elif kind == "C":
             a, c = circ.node(pid, "+"), circ.node(pid, "-")
             if mode == "transient":
@@ -534,6 +559,23 @@ def _violations(circ, res, x, led_on):
                     "message": f"{pid}: {abs(i):.2f} A di drain superano il massimo di "
                                f"{to_float(imax):.2f} A, il MOSFET si brucia",
                     "value": abs(i), "limit": to_float(imax)})
+        elif kind == "XFMR":
+            imax = p.get("imax")
+            ip = abs(res.currents.get(pid, 0.0))
+            if imax is not None and ip > to_float(imax) * 1.02:
+                res.violations.append({
+                    "part": pid, "code": "overcurrent",
+                    "message": f"{pid}: {ip * 1e3:.0f} mA al primario superano il massimo di "
+                               f"{to_float(imax) * 1e3:.0f} mA, il trasformatore si surriscalda",
+                    "value": ip, "limit": to_float(imax)})
+            imax2 = p.get("imax2")
+            isec = abs(res.currents.get(f"{pid}.2", 0.0))
+            if imax2 is not None and isec > to_float(imax2) * 1.02:
+                res.violations.append({
+                    "part": pid, "code": "overcurrent",
+                    "message": f"{pid}: {isec:.2f} A al secondario superano il massimo di "
+                               f"{to_float(imax2):.2f} A, il trasformatore si surriscalda",
+                    "value": isec, "limit": to_float(imax2)})
         elif kind == "V":
             imax = p.get("imax")
             if imax is not None and abs(i) > to_float(imax) * 1.02:
@@ -648,6 +690,8 @@ def _tran(circ):
     waves = {f"V({name})": np.zeros(nsteps) for name in circ.node_names}
     for pid in circ.parts:
         waves[f"I({pid})"] = np.zeros(nsteps)
+        if circ.part(pid).kind == "XFMR":
+            waves[f"I({pid}.2)"] = np.zeros(nsteps)
 
     for step in range(nsteps):
         t = (step + 1) * dt
@@ -688,6 +732,8 @@ def _tran(circ):
             waves[f"V({name})"][step] = v[i]
         for pid in circ.parts:
             waves[f"I({pid})"][step] = res.currents[pid]
+            if circ.part(pid).kind == "XFMR":
+                waves[f"I({pid}.2)"][step] = res.currents.get(f"{pid}.2", 0.0)
         for pid, p in relays:
             cp, cm = circ.node(pid, "COIL+"), circ.node(pid, "COIL-")
             vc = (_pin_v(x, cp) - _pin_v(x, cm)) if (cp >= 0 or cm >= 0) else 0.0
@@ -708,6 +754,9 @@ def _tran(circ):
     res.relay_states = relay_hist
     res.nodes = {name: float(waves[f"V({name})"][-1]) for name in circ.node_names}
     res.currents = {pid: float(waves[f"I({pid})"][-1]) for pid in circ.parts}
+    for pid in circ.parts:
+        if circ.part(pid).kind == "XFMR":
+            res.currents[f"{pid}.2"] = float(waves[f"I({pid}.2)"][-1])
     _violations(circ, res, x, led)
     res.violations = sorted(viol_acc.values(), key=lambda v: (v["part"], v["code"]))
     return res

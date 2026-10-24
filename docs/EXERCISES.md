@@ -33,6 +33,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `buck` | Convertitore buck 24 V -> 12 V | Transitorio | 11,5 V, 0,8 A, ripple ~0,05 V | switching step-down: PWM + L + C + diodo |
 | `buck_reg` | Buck 24 V -> 12 V con retroazione | Transitorio | 12 V prima e dopo il raddoppio del carico | retroazione integrale: il duty si corregge da solo |
 | `buck_5a` | Buck 24 V -> 12 V 5 A | Transitorio | 12 V, 5 A, ripple ~0,05 V; gradino 5->6 A | potenza: L/C e limiti scalati, dt fine per il PWM |
+| `trasformatore` | Trasformatore 230 V -> 24 V | Transitorio | 24 V efficaci (34 V di picco), 1 A; primario 0,148 A | rapporto n = N2/N1, corrente riflessa |
 
 ## Dettaglio
 
@@ -442,6 +443,19 @@ controllo PWM.
 ./lab run buck_5a
 ```
 
+### trasformatore - 230 V -> 24 V
+
+Sorgente a 230 V efficaci (picco 325 V) sul primario di un trasformatore
+ideale con `n = 24/230 = 0,1043`: il secondario va a **24 V efficaci** (picco
+34 V). Con un carico da 24 Ω la corrente di picco e' 1,41 A; il primario vede
+la corrente riflessa `i1 = n*i2 = 0,148 A`. `RREF1` da 10 MΩ serve solo al
+simulatore per riferire il secondario a massa; non e' un percorso di
+isolamento reale. Non sono modellati magnetizzazione, perdite e saturazione.
+
+```bash
+./lab run trasformatore
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -475,7 +489,7 @@ Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
 potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
-**convertitore buck**, **buck con retroazione** e **buck 5 A**.
+**convertitore buck**, **buck con retroazione**, **buck 5 A** e **trasformatore 230/24 V**.
 
 Non ancora coperti: trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in

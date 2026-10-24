@@ -1,0 +1,9 @@
+{
+  "id": "transformer",
+  "kind": "XFMR",
+  "name": "Trasformatore",
+  "pins": ["P+", "P-", "S+", "S-"],
+  "params": {"n": 0.104348, "imax": 1, "imax2": 5},
+  "limits": {"imax": 1, "imax2": 5},
+  "learn": "Trasformatore ideale: la tensione al secondario e' n volte quella al primario (v2 = n*v1) e la corrente si riflette come i1 = -n*i2, con n = N2/N1. Per 230 V -> 24 V, n = 24/230 ~ 0,104. Il secondario e' separato dal primario, ma nel simulatore va riferito a massa (o a un resistore di riferimento). Non modella magnetizzazione, perdite e saturazione."
+}

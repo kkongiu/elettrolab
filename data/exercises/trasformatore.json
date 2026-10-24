@@ -1,0 +1,27 @@
+{
+  "id": "trasformatore",
+  "title": "Trasformatore 230 V -> 24 V",
+  "notes": "Trasformatore ideale con n = 24/230 = 0,1043: la tensione di rete (230 V efficaci, picco 325 V) scende a 24 V efficaci (picco 34 V). Il carico da 24 ohm assorbe 1 A di picco; il primario vede la corrente riflessa i1 = n*i2 = 0,148 A. RREF1 da 10 Mohm serve solo a dare un riferimento al secondario nel simulatore: non e' un percorso di isolamento reale.",
+  "analysis": "transient",
+  "tstop": 0.02,
+  "dt": 0.00001,
+  "parts": {
+    "V1": {"type": "ac_source", "freq": 50, "amp": 325.27},
+    "T1": {"type": "transformer", "n": 0.104348},
+    "R1": {"type": "resistor", "r": "24", "pmax": 100},
+    "RREF1": {"type": "resistor", "r": 10000000}
+  },
+  "nets": {
+    "p": ["V1.+", "T1.P+"],
+    "gnd": ["V1.-", "T1.P-", "RREF1.2"],
+    "s": ["T1.S+", "R1.1"],
+    "gnd2": ["T1.S-", "R1.2", "RREF1.1"]
+  },
+  "expect": {
+    "V(p)": {"at": 0.005, "approx": 325.27, "tol": 0.02},
+    "V(s)": {"at": 0.005, "approx": 33.94, "tol": 0.02},
+    "I(R1)": {"at": 0.005, "approx": 1.414, "tol": 0.05},
+    "I(T1)": {"at": 0.005, "approx": 0.1476, "tol": 0.05},
+    "I(T1.2)": {"at": 0.005, "approx": 1.414, "tol": 0.05}
+  }
+}

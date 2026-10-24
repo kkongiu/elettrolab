@@ -63,6 +63,7 @@ KIND_LABELS = {
     "MOS": "Transistor",
     "SPK": "Altoparlanti",
     "LAMP": "Lampadine",
+    "XFMR": "Trasformatori",
 }
 
 

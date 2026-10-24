@@ -42,6 +42,7 @@ I parametri di istanza nel circuito sovrascrivono i default:
 |---|---|---|---|---|
 | `R` | resistenze | `1`, `2` | `r` | `pmax` |
 | `LAMP` | lampadine | `1`, `2` | `vn`, `p`, `r`, `pmax` | `pmax` |
+| `XFMR` | trasformatori | `P+`, `P-`, `S+`, `S-` | `n`, `imax`, `imax2` | `imax`, `imax2` |
 | `V` | sorgenti di tensione | `+`, `-` | `v` | `imax` |
 | `LED` | LED | `A`, `K` | `vf`, `rd`, `imax` | `imax` |
 | `SW` | interruttori | `1`, `2` | `closed`, `ron`, `roff`, `t_close`, `t_open` | - |
@@ -74,6 +75,14 @@ componenti non primitivi saranno delegati a ngspice in una fase successiva
 - `pmax`: potenza massima in watt; oltre scatta `overpower`.
 La lampadina e' modellata come una resistenza: l'accensione (alone giallo)
 e' solo grafica.
+
+### XFMR
+
+- `n`: rapporto `N2/N1`; `v2 = n*v1` e `i1 = -n*i2`. Per 230 V -> 24 V, `n = 24/230 ~ 0,104`.
+- `imax`, `imax2`: corrente massima al primario e al secondario.
+Il secondario e' separato dal primario, ma nel simulatore va riferito a massa
+(o a un resistore di riferimento). Non sono modellati magnetizzazione,
+perdite e saturazione.
 
 ### V
 
