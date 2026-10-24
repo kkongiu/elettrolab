@@ -154,6 +154,9 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
   reti aperte e corti
 - il test `tests/test_breadboard.py` genera e valida tutti gli esercizi, prova
   il determinismo, la rimozione di un pin e un corto artificiale
+- instradamento **A\*** sui fori: il filo evita le colonne usate da altri
+  componenti (niente corti), usa i rail per massa/alimentazione e preferisce
+  poche curve; le reti con più pin sono collegate a stella
 - **Ottimizza** rigenera il layout **compatto**: parte dall'alimentazione e
   avvicina i componenti alle loro connessioni (greedy nearest-point su
   righe/colonne), riducendo la lunghezza dei fili; la massima distanza resta

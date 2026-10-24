@@ -61,6 +61,7 @@ Fatto:
 - [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
 - [x] I jumper seguono i componenti quando vengono spostati o ruotati
 - [x] Disposizione compatta/topologica e pulsante di ottimizzazione
+- [x] Router A* dei fili sulla breadboard (colonne/rail, niente corti)
 - [x] Zoom/pan della breadboard
 - [x] Jumper manuali, gomma, breadboard-first e derivazione reti/sync schema
 - [x] Aggiunta di componenti direttamente dalla breadboard

@@ -28,7 +28,8 @@ database sono generici e non legati a un corso specifico.
 - disposizione **compatta**: i componenti sono avvicinati alle loro
   connessioni; **Ottimizza** rigenera il layout; zoom con rotella, pan col
   tasto destro, **Adatta**; clic su un filo evidenzia la rete (le altre si
-  attenuano)
+  attenuano); i fili sono instradati con **A\*** sui fori (evitano le colonne
+  usate da altri componenti)
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`

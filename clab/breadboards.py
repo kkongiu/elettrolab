@@ -1,3 +1,4 @@
+import heapq
 import math
 import re
 
@@ -456,14 +457,89 @@ def _positive_net(doc):
     return doc.net_of(sources[0], "+")
 
 
+def _group(hole):
+    kind, col = parse_hole(hole)
+    if kind in RAIL_Y:
+        return (2, kind)
+    return (0 if kind in "ABCDE" else 1, col)
+
+
+def _compress(path):
+    out = []
+    last = None
+    for h in path:
+        g = _group(h)
+        if g != last:
+            out.append(h)
+            last = g
+    if out and out[-1] != path[-1]:
+        out.append(path[-1])
+    return out
+
+
+def _route_holes(start, goal, owner, net):
+    def free(h):
+        return owner.get(_group(h)) in (None, net)
+
+    if not free(start) or not free(goal):
+        return None
+    s0 = (start, 4)
+    dist = {s0: 0}
+    prev = {}
+    heap = [(0, s0)]
+    while heap:
+        d, st = heapq.heappop(heap)
+        if d > dist.get(st, 1e18):
+            continue
+        h, dr = st
+        if h == goal:
+            path = [h]
+            while st in prev:
+                st = prev[st]
+                path.append(st[0])
+            path.reverse()
+            return path
+        kind, col = parse_hole(h)
+        if kind in RAIL_Y:
+            continue
+        ri = ROWS.index(kind)
+        for nr, nc, nd, base in ((ri - 1, col, 0, 0), (ri + 1, col, 1, 0),
+                                 (ri, col - 1, 2, 1), (ri, col + 1, 3, 1)):
+            if not (0 <= nr < len(ROWS) and 1 <= nc <= COLS):
+                continue
+            nh = f"{ROWS[nr]}{nc}"
+            if not free(nh):
+                continue
+            cost = base
+            if base == 0 and _group(h) != _group(nh):
+                cost = 1
+            turn = 0 if dr == 4 or dr == nd else 2
+            nst = (nh, nd)
+            ndist = d + cost + turn
+            if ndist < dist.get(nst, 1e18):
+                dist[nst] = ndist
+                prev[nst] = st
+                heapq.heappush(heap, (ndist, nst))
+    return None
+
+
 def route_wires(doc, layout, pos_net=None, gnd=None):
     gnd = gnd if gnd is not None else doc.ground
     pos_net = pos_net if pos_net is not None else _positive_net(doc)
     layout["wires"] = []
+    owner = {}
+    for pid in doc.parts:
+        p = doc.part(pid)
+        if p is None:
+            continue
+        for pin in p.spec.pins:
+            hole = layout.get("parts", {}).get(pid, {}).get("pins", {}).get(pin)
+            if hole:
+                net = doc.net_of(pid, pin)
+                owner[_group(hole)] = net if net is not None else f"~{pid}.{pin}"
+    for rail in RAIL_Y:
+        owner[(2, rail)] = gnd if rail.endswith("-") else pos_net
     bottom_used = {gnd: False, pos_net: False}
-
-    def hole_col(hole):
-        return int(HOLE_RE.fullmatch(hole).group(2))
 
     for net, refs in doc.nets.items():
         holes = []
@@ -479,17 +555,22 @@ def route_wires(doc, layout, pos_net=None, gnd=None):
                 if _is_rail_hole(hole):
                     continue
                 kind, col = parse_hole(hole)
-                if kind in "FGHIJ":
-                    rail = bottom
+                rail = bottom if kind in "FGHIJ" else top
+                layout["wires"].append({"net": net, "points": [hole, f"{rail}{col}"]})
+                owner[(2, rail)] = net
+                if rail.startswith("B"):
                     bottom_used[net] = True
-                else:
-                    rail = top
-                layout["wires"].append({"net": net,
-                                        "points": [hole, f"{rail}{col}"]})
-        elif len(holes) >= 2:
+            continue
+        if len(holes) >= 2:
             hub = holes[0]
-            for hole in holes[1:]:
-                layout["wires"].append({"net": net, "points": [hub, hole]})
+            for target in holes[1:]:
+                path = _route_holes(hub, target, owner, net)
+                if path is None:
+                    path = [hub, target]
+                pts = _compress(path)
+                layout["wires"].append({"net": net, "points": pts})
+                for h in path:
+                    owner[_group(h)] = net
     if bottom_used.get(gnd):
         layout["wires"].append({"net": gnd, "points": ["T-1", "B-1"]})
     if pos_net is not None and bottom_used.get(pos_net):
