@@ -34,6 +34,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `buck_reg` | Buck 24 V -> 12 V con retroazione | Transitorio | 12 V prima e dopo il raddoppio del carico | retroazione integrale: il duty si corregge da solo |
 | `buck_5a` | Buck 24 V -> 12 V 5 A | Transitorio | 12 V, 5 A, ripple ~0,05 V; gradino 5->6 A | potenza: L/C e limiti scalati, dt fine per il PWM |
 | `trasformatore` | Trasformatore 230 V -> 24 V | Transitorio | 24 V efficaci (34 V di picco), 1 A; primario 0,148 A | rapporto n = N2/N1, corrente riflessa |
+| `alimentatore` | Alimentatore 230 V -> 12 V completo | Transitorio | bus ~27 V, uscita 12 V, 0,5 A | trasformatore + ponte + filtro + buck regolato |
 
 ## Dettaglio
 
@@ -456,6 +457,20 @@ isolamento reale. Non sono modellati magnetizzazione, perdite e saturazione.
 ./lab run trasformatore
 ```
 
+### alimentatore - 230 V -> 12 V (catena completa)
+
+Rete 230 V efficaci -> trasformatore 230/24 V -> ponte a 4 diodi -> filtro da
+1000 µF -> buck regolato a 12 V. Il bus DC parte da 0 e sale verso ~30 V; il
+buck mantiene l'uscita a 12 V e la lampadina da 6 W assorbe ~0,5 A. `RSEC` da
+5 Ω rappresenta la resistenza degli avvolgimenti e limita la corrente di
+carica; `RREF1` da 10 MΩ dà un riferimento al primario isolato (solo per il
+simulatore). `dt = 0,5 µs` per il PWM: la simulazione dura ~6 s (esercizio
+differito all'avvio).
+
+```bash
+./lab run alimentatore
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -489,7 +504,7 @@ Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
 potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
-**convertitore buck**, **buck con retroazione**, **buck 5 A** e **trasformatore 230/24 V**.
+**convertitore buck**, **buck con retroazione**, **buck 5 A**, **trasformatore 230/24 V** e **alimentatore completo 230 V -> 12 V**.
 
 Non ancora coperti: trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in

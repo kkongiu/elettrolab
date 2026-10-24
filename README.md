@@ -30,7 +30,7 @@ database sono generici e non legati a un corso specifico.
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
-- 27 esercizi verificati automaticamente
+- 28 esercizi verificati automaticamente
 - 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
@@ -237,7 +237,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ./lab test                 # 38 test core (documento, fisica, audio, breadboard)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
-./lab check                # 27 esercizi contro le attese
+./lab check                # 28 esercizi contro le attese
 ```
 
 I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,

@@ -1,0 +1,44 @@
+{
+  "id": "alimentatore",
+  "title": "Alimentatore 230 V -> 12 V (catena completa)",
+  "notes": "Catena completa: rete 230 V efficaci -> trasformatore 230/24 V -> ponte a 4 diodi -> filtro 1000 uF -> buck regolato a 12 V. Il bus DC parte da 0 e sale verso ~30 V; il buck tiene l'uscita a 12 V (la lampadina da 6 W assorbe ~0,5 A). RSEC da 5 ohm rappresenta la resistenza degli avvolgimenti e limita la corrente di carica del filtro; RREF da 10 Mohm da' un riferimento al primario isolato (artificio del simulatore). dt = 0,5 us per risolvere il PWM; la simulazione e' lenta (circa 6 s).",
+  "analysis": "transient",
+  "tstop": 0.06,
+  "dt": 0.0000005,
+  "parts": {
+    "V1": {"type": "ac_source", "freq": 50, "amp": 325.27},
+    "T1": {"type": "transformer", "n": 0.104348},
+    "RSEC": {"type": "resistor", "r": 5, "pmax": 1000},
+    "D1": {"type": "diode_power", "imax": 10},
+    "D2": {"type": "diode_power", "imax": 10},
+    "D3": {"type": "diode_power", "imax": 10},
+    "D4": {"type": "diode_power", "imax": 10},
+    "CBUS": {"type": "capacitor", "c": "1000u", "vmax": 50},
+    "SW1": {"type": "switch_pwm", "period": 0.00005, "duty": 0.5, "t_soft": 0.006, "vref": 12, "ki": 10},
+    "D5": {"type": "diode_power"},
+    "L1": {"type": "inductor", "l": "1m", "imax": 3},
+    "C2": {"type": "capacitor", "c": "100u", "vmax": 25},
+    "LAMP1": {"type": "lamp", "vn": 12, "p": 6, "r": 24, "pmax": 10},
+    "RREF1": {"type": "resistor", "r": 10000000}
+  },
+  "nets": {
+    "p": ["V1.+", "T1.P+"],
+    "gndp": ["V1.-", "T1.P-", "RREF1.2"],
+    "sraw": ["T1.S+", "RSEC.1"],
+    "sa": ["RSEC.2", "D1.A", "D3.K"],
+    "sb": ["T1.S-", "D2.A", "D4.K"],
+    "bus": ["D1.K", "D2.K", "CBUS.+", "SW1.1"],
+    "sw": ["SW1.2", "D5.K", "L1.1"],
+    "out": ["L1.2", "C2.+", "LAMP1.1", "SW1.FB"],
+    "gnd": ["D3.A", "D4.A", "RREF1.1", "CBUS.-", "D5.A", "C2.-", "LAMP1.2"]
+  },
+  "expect": {
+    "V(out)": [
+      {"at": 0.03, "approx": 12.4, "tol": 0.05},
+      {"at": 0.057, "approx": 12.2, "tol": 0.05},
+      {"max": 14.5}
+    ],
+    "I(LAMP1)": {"at": 0.057, "approx": 0.51, "tol": 0.1},
+    "V(bus)": {"at": 0.057, "approx": 27.2, "tol": 0.1}
+  }
+}
