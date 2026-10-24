@@ -525,6 +525,10 @@ class Schematic:
             return f"{pid}  {fmt(p.num('rtotal'), '\u03a9')}"
         if k == "SPK":
             return f"{pid}  {fmt(p.num('r'), '\u03a9')}"
+        if k == "LAMP":
+            vn = p.num("vn") if "vn" in p.params else 12.0
+            pw = p.num("p") if "p" in p.params else 0.0
+            return f"{pid}  {vn:g} V {pw:g} W"
         if k == "NPN":
             return f"{pid}  NPN"
         if k == "PUT":
