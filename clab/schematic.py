@@ -410,6 +410,8 @@ class Schematic:
             if burned:
                 return "bruciato"
             return "acceso" if i > 1e-6 else "spento"
+        if kind == "D":
+            return "conduce" if i > 1e-6 else "interdetto"
         if kind in ("NPN", "PUT"):
             return "on" if i > 1e-6 else "off"
         if kind in ("RELAY", "RELAY2"):
@@ -481,9 +483,15 @@ class Schematic:
         if k == "R":
             return f"{pid}  {fmt(p.num('r'), '\u03a9')}"
         if k == "V":
+            if p.get("wave") == "sin":
+                amp = p.num("amp") if "amp" in p.params else 0.0
+                freq = p.num("freq") if "freq" in p.params else 50.0
+                return f"{pid}  {fmt(amp, 'V')} / {freq:g} Hz"
             return f"{pid}  {fmt(p.num('v'), 'V')}"
         if k == "LED":
             return f"{pid}  LED"
+        if k == "D":
+            return f"{pid}  D"
         if k == "SW":
             return f"{pid}  {'chiuso' if p.get('closed', True) else 'aperto'}"
         if k == "C":
@@ -529,11 +537,16 @@ class Schematic:
         elif kind == "L":
             self._inductor(x, y, rot)
         elif kind == "V":
-            self._battery(x, y, rot)
+            if p.get("wave") == "sin":
+                self._ac_source(x, y, rot)
+            else:
+                self._battery(x, y, rot)
         elif kind == "SW":
             self._switch(pid, x, y, rot, t)
         elif kind == "LED":
             self._led(x, y, rot)
+        elif kind == "D":
+            self._diode(x, y, rot)
         elif kind == "POT":
             self._pot(x, y, rot)
         elif kind == "RELAY":
@@ -573,6 +586,13 @@ class Schematic:
             self.text(x, y + 64, f"{self._label(pid)}   I = {fmt(i, 'A')}{suffix}",
                       size=9, color=INK)
         elif kind == "LED":
+            if rot in (90, 270):
+                self.text(x + 40, y - 7, self._label(pid), anchor="w", size=9, color=INK)
+                self.text(x + 40, y + 8, f"I = {fmt(i, 'A')}{suffix}", anchor="w", size=8, color=DOT)
+            else:
+                self.text(x, y - 40, self._label(pid), anchor="s", size=9, color=INK)
+                self.text(x, y + 40, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)
+        elif kind == "D":
             if rot in (90, 270):
                 self.text(x + 40, y - 7, self._label(pid), anchor="w", size=9, color=INK)
                 self.text(x + 40, y + 8, f"I = {fmt(i, 'A')}{suffix}", anchor="w", size=8, color=DOT)
@@ -652,6 +672,20 @@ class Schematic:
         self.text(*self._loc(x, y, rot, -34, -16), "+", size=10, color=INK)
         self.text(*self._loc(x, y, rot, 34, -16), "\u2212", size=10, color=INK)
 
+    def _ac_source(self, x, y, rot):
+        self.line([self._loc(x, y, rot, -45, 0), self._loc(x, y, rot, -18, 0)])
+        self.line([self._loc(x, y, rot, 18, 0), self._loc(x, y, rot, 45, 0)])
+        X, Y = self.T(x, y)
+        r = 18 * self.s
+        self.c.create_oval(X - r, Y - r, X + r, Y + r, outline=INK,
+                           width=max(1.1, 1.8 * self.s))
+        pts = [self._loc(x, y, rot, -10 + 20 * i / 12,
+                         5 * math.sin(2 * math.pi * i / 12))
+               for i in range(13)]
+        self.line(pts, width=1.2)
+        self.text(*self._loc(x, y, rot, -34, -16), "+", size=10, color=INK)
+        self.text(*self._loc(x, y, rot, 34, -16), "\u2212", size=10, color=INK)
+
     def _sw_closed(self, pid, t):
         p = self.doc.part(pid)
         if p is None:
@@ -692,6 +726,15 @@ class Schematic:
             a = self._loc(x, y, rot, 2, k * 16)
             b = self._loc(x, y, rot, 11, k * 25)
             self.line([a, b], width=1.1)
+
+    def _diode(self, x, y, rot):
+        self.line([self._loc(x, y, rot, -45, 0), self._loc(x, y, rot, -13, 0)])
+        self.line([self._loc(x, y, rot, 8, 0), self._loc(x, y, rot, 45, 0)])
+        tri = [self._loc(x, y, rot, -13, -13), self._loc(x, y, rot, -13, 13),
+               self._loc(x, y, rot, 8, 0)]
+        self.c.create_polygon(*self.flat(tri), outline=INK, fill="",
+                              width=max(1.1, 1.8 * self.s))
+        self.line([self._loc(x, y, rot, 8, -13), self._loc(x, y, rot, 8, 13)])
 
     def _led_glow(self, pid, x, y, t):
         i = abs(self._cur(pid, t))

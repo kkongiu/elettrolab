@@ -1,0 +1,9 @@
+{
+  "id": "diode",
+  "kind": "D",
+  "name": "Diodo",
+  "pins": ["A", "K"],
+  "params": {"vf": 0.7, "rd": 0.1, "imax": 1},
+  "limits": {"imax": 1},
+  "learn": "Diodo raddrizzatore: conduce solo dall'anodo (A) al catodo (K), con una caduta diretta di circa 0,7 V. In inversa blocca la corrente."
+}

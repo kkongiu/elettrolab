@@ -1,0 +1,9 @@
+{
+  "id": "ac_source",
+  "kind": "V",
+  "name": "Sorgente AC",
+  "pins": ["+", "-"],
+  "params": {"v": 0, "wave": "sin", "freq": 50, "amp": 12, "offset": 0},
+  "limits": {"imax": 1},
+  "learn": "Sorgente sinusoidale: amp e' il valore di picco (V), freq la frequenza in Hz. La rete a 230 V efficaci ha un picco di circa 325 V."
+}

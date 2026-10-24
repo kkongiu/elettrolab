@@ -1,0 +1,20 @@
+{
+  "id": "diodo",
+  "title": "Il diodo: conduce in un solo verso",
+  "notes": "Batteria da 9 V, resistenza da 100 ohm e un diodo al silicio. Il diodo lascia passare la corrente solo dall'anodo (A) al catodo (K) e introduce una caduta diretta di circa 0,7 V. La corrente vale (9 - 0,7) / (100 + 0,1) = 83 mA e la tensione sull'anodo e' circa 0,71 V. Se lo giri, il diodo blocca e la corrente si annulla.",
+  "analysis": "dc",
+  "parts": {
+    "V1": {"type": "battery_9v"},
+    "R1": {"type": "resistor", "r": "100"},
+    "D1": {"type": "diode"}
+  },
+  "nets": {
+    "p": ["V1.+", "R1.1"],
+    "m": ["R1.2", "D1.A"],
+    "gnd": ["V1.-", "D1.K"]
+  },
+  "expect": {
+    "I(D1)": {"approx": 0.083, "tol": 0.05},
+    "V(m)": {"approx": 0.71, "tol": 0.05}
+  }
+}

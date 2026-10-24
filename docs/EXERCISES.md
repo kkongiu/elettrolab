@@ -24,6 +24,8 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `darlington` | Interruttore Darlington | DC | `Ic = 14.6 mA` da `Ib = 7.6 µA` | due NPN in cascata, guadagno ~1900 |
 | `singolo_npn` | Un solo transistor (confronto) | DC | `I(D1) = 2 mA` da `Ib = 8 µA` | un NPN non basta: LED fioco, resta in zona attiva |
 | `led_diretto` | LED collegato diretto | DC | `I(D1) = 15 mA` | senza transistor: sempre acceso, nessun controllo |
+| `diodo` | Il diodo: conduce in un solo verso | DC | `I(D1) = 83 mA`, `V(A) = 0.71 V` | caduta diretta 0,7 V, blocco in inversa |
+| `raddrizzatore` | Raddrizzatore a mezz'onda | Transitorio | picco 11,3 V sul carico, 113 mA | diodo + sorgente AC: l'alternata diventa unidirezionale |
 
 ## Dettaglio
 
@@ -308,6 +310,29 @@ Mostra a cosa serve davvero il transistor: **non ad accendere** il LED, ma a
 ./lab run darlington       # 14,6 mA, controllabile con pochi µA
 ```
 
+### diodo - Il diodo: conduce in un solo verso
+
+Batteria 9 V, `R1 = 100 Ω`, diodo al silicio. Il diodo e' modellato a tratti:
+in conduzione `V = Vf + I*Rd` con `Vf = 0,7 V` e `Rd = 0,1 Ω`; in inversa e'
+un circuito aperto. La corrente vale `(9 - 0,7) / (100 + 0,1) = 83 mA` e la
+caduta sull'anodo `0,71 V`.
+
+```bash
+./lab run diodo
+```
+
+### raddrizzatore - Raddrizzatore a mezz'onda
+
+Sorgente sinusoidale (`ac_source`, 12 V di picco, 50 Hz) e un diodo in serie a
+un carico da `100 Ω`. Nel semicerchio positivo il diodo conduce e sul carico
+arriva `Vpicco - 0,7 = 11,3 V`; nel semicerchio negativo si interdice e il
+carico resta a 0 V. E' il primo mattone di un alimentatore: dalla tensione
+alternata a una pulsante unidirezionale.
+
+```bash
+./lab run raddrizzatore
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -337,10 +362,11 @@ controllo su corrente o tensione.
 
 ## Copertura e limiti
 
-Coperti dal motore attuale: partitori, LED, interruttori, carica e scarica RC,
-risonanza RLC, rele' con isteresi, potenziometri.
+Coperti dal motore attuale: partitori, LED, **diodo**, **sorgente AC** e
+raddrizzatori, interruttori, carica e scarica RC, risonanza RLC, rele' con
+isteresi, potenziometri, transistor NPN, PUT.
 
-Non ancora coperti: transistori bipolari e MOSFET, timer 555, logica 74xx,
-amplificatori operazionali, analisi in frequenza, trasformatori, altoparlanti,
-motori e tutto cio' che richiede modelli non lineari o subcircuiti. Questi
-richiedono nuovi `kind` o il fallback a ngspice descritto nella roadmap.
+Non ancora coperti: MOSFET, PWM/controllo switching, trasformatori (mutua
+induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in
+frequenza, motori e tutto cio' che richiede modelli non lineari o subcircuiti.
+Questi richiedono nuovi `kind` o il fallback a ngspice descritto nella roadmap.

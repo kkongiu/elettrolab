@@ -85,6 +85,23 @@ def _branch(circ, A, b, k, a, c, v, req=0.0, hist=0.0):
     b[k] = v - req * hist
 
 
+DIODES = ("LED", "D")
+
+
+def _source_v(p, t, mode):
+    if p.get("wave") == "sin":
+        if mode == "dc":
+            return to_float(p.get("offset", 0.0))
+        amp = p.get("amp")
+        if amp is None and "vrms" in p.params:
+            amp = to_float(p.get("vrms")) * math.sqrt(2.0)
+        amp = to_float(amp if amp is not None else 0.0)
+        off = to_float(p.get("offset", 0.0))
+        f = to_float(p.get("freq", 50.0))
+        return off + amp * math.sin(2.0 * math.pi * f * t)
+    return p.num("v")
+
+
 def _switch_closed(p, t, mode):
     closed = bool(p.get("closed", True))
     if mode == "dc":
@@ -119,7 +136,7 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
             _stamp_g(A, a, c, 1.0 / r)
         elif kind == "V":
             a, c = circ.node(pid, "+"), circ.node(pid, "-")
-            _branch(circ, A, b, br[pid], a, c, p.num("v"))
+            _branch(circ, A, b, br[pid], a, c, _source_v(p, t, mode))
         elif kind == "L":
             a, c = circ.node(pid, "1"), circ.node(pid, "2")
             l = p.num("l")
@@ -138,7 +155,7 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
                 b[a] += g * (vprev[a] if a >= 0 else 0.0)
             if c >= 0:
                 b[c] -= g * (vprev[c] if c >= 0 else 0.0)
-        elif kind == "LED":
+        elif kind in DIODES:
             a, k = circ.node(pid, "A"), circ.node(pid, "K")
             vf = p.num("vf")
             rd = max(p.num("rd"), 1e-3)
@@ -252,7 +269,9 @@ def _volts(circ, x):
 
 def _update_leds(circ, x, state):
     out = dict(state)
-    for pid, p in circ.by_kind("LED"):
+    for pid, p in circ.parts.items():
+        if p.kind not in DIODES:
+            continue
         a, k = circ.node(pid, "A"), circ.node(pid, "K")
         v = (x[a] if a >= 0 else 0.0) - (x[k] if k >= 0 else 0.0)
         vf = p.num("vf")
@@ -360,7 +379,7 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
                 i = p.num("c") / dt * ((_pin_v(x, a) - _pin_v(x, c)) -
                                        (_pin_v(vprev, a) - _pin_v(vprev, c)))
             pw = 0.0
-        elif kind == "LED":
+        elif kind in DIODES:
             a, k = circ.node(pid, "A"), circ.node(pid, "K")
             vv = _pin_v(x, a) - _pin_v(x, k)
             i = max(0.0, (vv - p.num("vf")) / max(p.num("rd"), 1e-3)) if led_on.get(pid) else 0.0
@@ -412,13 +431,14 @@ def _violations(circ, res, x, led_on):
     for pid, p in circ.parts.items():
         kind = p.kind
         i = res.currents.get(pid, 0.0)
-        if kind == "LED":
+        if kind in DIODES:
             imax = p.get("imax")
             if imax is not None and abs(i) > to_float(imax) * 1.02:
+                what = "LED" if kind == "LED" else "diodo"
                 res.violations.append({
                     "part": pid, "code": "burned",
                     "message": f"{pid}: {abs(i) * 1e3:.0f} mA superano il massimo di "
-                               f"{to_float(imax) * 1e3:.0f} mA, il LED si brucia",
+                               f"{to_float(imax) * 1e3:.0f} mA, il {what} si brucia",
                     "value": abs(i), "limit": to_float(imax)})
         elif kind in ("R", "SPK"):
             pmax = p.get("pmax")
@@ -470,7 +490,7 @@ def _violations(circ, res, x, led_on):
 
 def _dc(circ):
     res = Result(circ, "dc")
-    led = {pid: False for pid, _ in circ.by_kind("LED")}
+    led = {pid: False for pid, p in circ.parts.items() if p.kind in DIODES}
     relay = {pid: False for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")}
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     seen = set()
@@ -511,7 +531,7 @@ def _auto_timing(circ):
             rsum += p.num("rtotal")
         elif k in ("RELAY", "RELAY2"):
             rsum += p.num("rcoil")
-        elif k == "LED":
+        elif k in DIODES:
             rsum += p.num("rd")
         elif k == "C":
             caps.append(p.num("c"))
@@ -527,6 +547,12 @@ def _auto_timing(circ):
     tstop = max([6.0 * max(taus)] if taus else [1e-3])
     if f0s:
         tstop = max(tstop, 20.0 / max(f0s))
+    freqs = [to_float(p.get("freq", 50.0)) for pid, p in circ.parts.items()
+             if p.kind == "V" and p.get("wave") == "sin"]
+    if freqs:
+        period = 1.0 / max(freqs)
+        dt = min(dt, period / 200.0)
+        tstop = max(tstop, 5.0 * period)
     return dt, min(tstop, 120.0)
 
 
@@ -548,7 +574,7 @@ def _tran(circ):
     n = circ.n
     vprev = np.zeros(n)
     iprev = {pid: 0.0 for pid, _ in circ.by_kind("L")}
-    led = {pid: False for pid, _ in circ.by_kind("LED")}
+    led = {pid: False for pid, p in circ.parts.items() if p.kind in DIODES}
     relays = [(pid, p) for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")]
     relay = {pid: False for pid, _ in relays}
     relay_last = {pid: -1e9 for pid, _ in relays}

@@ -1,0 +1,22 @@
+{
+  "id": "raddrizzatore",
+  "title": "Raddrizzatore a mezz'onda",
+  "notes": "Sorgente sinusoidale da 12 V di picco a 50 Hz, un diodo e un carico da 100 ohm. Nel semicerchio positivo il diodo conduce e sul carico arriva la tensione meno 0,7 V; nel semicerchio negativo il diodo si interdice e il carico resta a 0 V. E' il mattone di base di ogni alimentatore: trasforma l'alternata in pulsante unidirezionale. Il condensatore, nel prossimo passo, la livellera'.",
+  "analysis": "transient",
+  "tstop": 0.06,
+  "dt": 0.0001,
+  "parts": {
+    "V1": {"type": "ac_source", "amp": 12, "freq": 50},
+    "D1": {"type": "diode"},
+    "R1": {"type": "resistor", "r": "100"}
+  },
+  "nets": {
+    "p": ["V1.+", "D1.A"],
+    "m": ["D1.K", "R1.1"],
+    "gnd": ["V1.-", "R1.2"]
+  },
+  "expect": {
+    "V(m)": {"min": -0.05, "max": 11.5, "peak_min": 10.5},
+    "I(D1)": {"min": -1e-4, "max": 0.12, "peak_min": 0.08}
+  }
+}

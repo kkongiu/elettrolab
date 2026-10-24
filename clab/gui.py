@@ -52,6 +52,7 @@ KIND_LABELS = {
     "C": "Condensatori",
     "L": "Induttori",
     "LED": "LED",
+    "D": "Diodi",
     "SW": "Interruttori",
     "POT": "Potenziometri",
     "RELAY": "Relè",
