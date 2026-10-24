@@ -36,8 +36,8 @@ database sono generici e non legati a un corso specifico.
   retroazione e feedforward
 - progetto solare: pannello 12 V -> controller di carica -> batteria
   -> LM2596 5 V (giorno/notte)
-- anteprima PCB (footprint THT, rame, serigrafia) con export SVG:
-  `./lab pcb exp03 -o exp03.svg`
+- anteprima PCB (footprint THT, rame, serigrafia, router con clearance/DRC)
+  con export SVG: `./lab pcb exp03 -o exp03.svg`
 - 29 esercizi verificati automaticamente
 - 40 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio, 2 PCB) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta

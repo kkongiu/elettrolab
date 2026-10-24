@@ -191,8 +191,9 @@ La scheda **PCB** mostra un'anteprima a un lato: footprint THT, piste in rame,
 pad e fori, serigrafia con contorni, riferimenti, valori e polarità. Il
 pulsante **Esporta SVG** salva il disegno in scala 1:1 (1 unità = 1 mm).
 
-È un'anteprima didattica, non un CAD: posizionamento a righe, router semplice
-senza clearance/DRC, niente Gerber. Vedi `docs/PCB.md`.
+È un'anteprima didattica, non un CAD: posizionamento a righe, router a griglia
+con clearance e **DRC**; le reti non instradate sono segnalate. La barra mostra
+dimensione, DRC e reti non instradate. Vedi `docs/PCB.md`.
 
 ```bash
 ./lab pcb exp03 -o exp03.svg

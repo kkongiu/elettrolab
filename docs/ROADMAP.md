@@ -122,7 +122,7 @@ Regola: nessun testo, figura o materiale di terzi.
 - [x] Catalogo footprint THT (`data/footprints/`)
 - [x] Anteprima PCB: rame, pad/fori, serigrafia, disposizione a righe
 - [x] Export SVG (1:1)
-- [ ] Router a griglia con clearance e DRC
+- [x] Router a griglia con clearance e DRC
 - [ ] Export Gerber/Excellon (gerbonara, Apache-2.0)
 - [ ] Export KiCad
 - [ ] Due lati, vias, SMD, rotazione

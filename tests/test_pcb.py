@@ -32,11 +32,14 @@ class PcbTests(unittest.TestCase):
         self.assertIn("D1", svg)
         self.assertIn("<polyline", svg)
         self.assertIn("<circle", svg)
+        self.assertEqual(pcb.violations, [])
+        self.assertEqual(pcb.warnings, [])
 
     def test_all_exercises_have_footprints(self):
         for path in sorted((ROOT / "data" / "exercises").glob("*.json")):
             with self.subTest(exercise=path.stem):
-                PcbLayout(self._doc(path.stem))
+                pcb = PcbLayout(self._doc(path.stem))
+                self.assertEqual(pcb.violations, [])
 
 
 if __name__ == "__main__":

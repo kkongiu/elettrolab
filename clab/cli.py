@@ -68,6 +68,11 @@ def cmd_pcb(args):
     for pid, e in pcb.parts.items():
         print(f"  {pid:<6} {e['fp'].id:<12} ({e['x']:.1f}, {e['y']:.1f})")
     print(f"  tracce: {len(pcb.traces)}  serigrafia: {len(pcb.silk)}")
+    print(f"  DRC: {len(pcb.violations)} violazioni")
+    if pcb.warnings:
+        print(f"  avvisi: {len(pcb.warnings)}")
+        for w in pcb.warnings[:5]:
+            print(f"    {w}")
     if args.output:
         Path(args.output).write_text(pcb.to_svg(), encoding="utf-8")
         print(f"SVG scritto: {args.output}")

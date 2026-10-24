@@ -369,6 +369,8 @@ class App:
         ttk.Button(pbar, text="Esporta SVG", command=self._export_pcb_svg).pack(side="left", pady=2)
         ttk.Label(pbar, text="anteprima PCB · footprint THT · serigrafia",
                   style="Muted.TLabel").pack(side="left", padx=8)
+        self.pcb_info = ttk.Label(pbar, text="", style="Muted.TLabel")
+        self.pcb_info.pack(side="left", padx=8)
         self.pcb_canvas = tk.Canvas(pcbf, bg=CARD, highlightthickness=0)
         self.pcb_canvas.pack(fill="both", expand=True)
         bbar = ttk.Frame(bbf, style="Card.TFrame")
@@ -771,8 +773,14 @@ class App:
     def _rebuild_pcb(self):
         try:
             self.pcb = Pcb(self.pcb_canvas, PcbLayout(self.doc))
+            w, h = self.pcb.layout.board
+            info = f"{w:.0f}×{h:.0f} mm · DRC {len(self.pcb.layout.violations)}"
+            if self.pcb.layout.warnings:
+                info += f" · non instradate {len(self.pcb.layout.warnings)}"
+            self.pcb_info.configure(text=info)
         except PcbError as e:
             self.pcb = Pcb(self.pcb_canvas, None, str(e))
+            self.pcb_info.configure(text=str(e))
 
     def _export_pcb_svg(self):
         if self.pcb is None or self.pcb.layout is None:

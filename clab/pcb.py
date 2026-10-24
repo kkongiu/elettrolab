@@ -1,4 +1,6 @@
+import heapq
 import json
+import math
 from pathlib import Path
 
 from .units import fmt
@@ -9,6 +11,8 @@ FP_DIR = ROOT / "data" / "footprints"
 MARGIN = 4.0
 GAP = 5.0
 TRACE_W = 0.6
+CELL = 0.5
+CLEARANCE = 0.3
 
 DEFAULT = {
     "R": "R_axial", "C": "C_radial", "L": "L_axial",
@@ -73,6 +77,31 @@ def footprint_id(part):
     return DEFAULT.get(part.kind)
 
 
+def _pt_seg_dist(px, py, a, b):
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    if L <= 1e-12:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def _seg_dist(a, b, c, d):
+    def cross(o, p, q):
+        return (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0])
+    d1 = cross(c, d, a)
+    d2 = cross(c, d, b)
+    d3 = cross(a, b, c)
+    d4 = cross(a, b, d)
+    if ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and \
+       ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)):
+        return 0.0
+    return min(_pt_seg_dist(a[0], a[1], c, d), _pt_seg_dist(b[0], b[1], c, d),
+               _pt_seg_dist(c[0], c[1], a, b), _pt_seg_dist(d[0], d[1], a, b))
+
+
 class PcbLayout:
     def __init__(self, doc):
         self.doc = doc
@@ -80,6 +109,8 @@ class PcbLayout:
         self.parts = {}
         self.traces = []
         self.silk = []
+        self.violations = []
+        self.warnings = []
         self._place()
         self._route()
         self._silk()
@@ -145,48 +176,212 @@ class PcbLayout:
         self.rows = rows
         self.board = (max(xs) - min(xs) + 2 * MARGIN, max(ys) - min(ys) + 2 * MARGIN)
 
+    def _free(self, owner, cell, nid):
+        j, i = cell[1], cell[0]
+        return all(x == nid for x in owner[j][i])
+
+    def _mark_circle(self, owner, x, y, r, nid, W, H):
+        x0 = max(0, int((x - r) / CELL))
+        x1 = min(W - 1, int((x + r) / CELL) + 1)
+        y0 = max(0, int((y - r) / CELL))
+        y1 = min(H - 1, int((y + r) / CELL) + 1)
+        for j in range(y0, y1 + 1):
+            for i in range(x0, x1 + 1):
+                cx, cy = (i + 0.5) * CELL, (j + 0.5) * CELL
+                if math.hypot(cx - x, cy - y) <= r:
+                    owner[j][i].add(nid)
+
+    def _mark_polyline(self, owner, pts, nid, W, H):
+        rad = TRACE_W + CLEARANCE + CELL / 2
+        for a, b in zip(pts, pts[1:]):
+            x0 = max(0, int((min(a[0], b[0]) - rad) / CELL))
+            x1 = min(W - 1, int((max(a[0], b[0]) + rad) / CELL) + 1)
+            y0 = max(0, int((min(a[1], b[1]) - rad) / CELL))
+            y1 = min(H - 1, int((max(a[1], b[1]) + rad) / CELL) + 1)
+            for j in range(y0, y1 + 1):
+                for i in range(x0, x1 + 1):
+                    cx, cy = (i + 0.5) * CELL, (j + 0.5) * CELL
+                    if _pt_seg_dist(cx, cy, a, b) <= rad:
+                        owner[j][i].add(nid)
+
+    def _astar(self, owner, x0, y0, x1, y1, nid, W, H):
+        start = (max(0, min(W - 1, int(x0 / CELL))), max(0, min(H - 1, int(y0 / CELL))))
+        goal = (max(0, min(W - 1, int(x1 / CELL))), max(0, min(H - 1, int(y1 / CELL))))
+        if not self._free(owner, start, nid) or not self._free(owner, goal, nid):
+            return None
+        open_ = [(0, start)]
+        g = {start: 0}
+        parent = {}
+        while open_:
+            _, cur = heapq.heappop(open_)
+            if cur == goal:
+                path = [cur]
+                while path[-1] in parent:
+                    path.append(parent[path[-1]])
+                path.reverse()
+                return [((i + 0.5) * CELL, (j + 0.5) * CELL) for i, j in path]
+            ci, cj = cur
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                           (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                ni, nj = ci + di, cj + dj
+                if not (0 <= ni < W and 0 <= nj < H):
+                    continue
+                if di and dj and (not self._free(owner, (ci + di, cj), nid)
+                                  or not self._free(owner, (ci, cj + dj), nid)):
+                    continue
+                nxt = (ni, nj)
+                if not self._free(owner, nxt, nid):
+                    continue
+                ng = g[cur] + 1
+                if ng < g.get(nxt, 1e18):
+                    g[nxt] = ng
+                    parent[nxt] = cur
+                    h = max(abs(ni - goal[0]), abs(nj - goal[1]))
+                    heapq.heappush(open_, (ng + h, nxt))
+        return None
+
+    @staticmethod
+    def _smooth(pts):
+        out = []
+        for p in pts:
+            if out and abs(p[0] - out[-1][0]) < 1e-9 and abs(p[1] - out[-1][1]) < 1e-9:
+                continue
+            while len(out) >= 2:
+                a, b = out[-2], out[-1]
+                h1 = abs(a[1] - b[1]) < 1e-9 and abs(b[1] - p[1]) < 1e-9
+                v1 = abs(a[0] - b[0]) < 1e-9 and abs(b[0] - p[0]) < 1e-9
+                if h1 or v1:
+                    out.pop()
+                else:
+                    break
+            out.append(p)
+        return out
+
     def _route(self):
-        ROW_GAP = 6.0
+        self.traces = []
+        self.violations = []
+        self.warnings = []
+        bw, bh = self.board
+        W = int(math.ceil(bw / CELL)) + 1
+        H = int(math.ceil(bh / CELL)) + 1
+        owner = [[set() for _ in range(W)] for _ in range(H)]
         gnd = self.doc.ground
-        bounds = {}
-        for e in self.parts.values():
-            r = e["row"]
-            x0, y0, x1, y1 = e["fp"].bbox()
-            top, bot = e["y"] + y0, e["y"] + y1
-            if r in bounds:
-                bounds[r][0] = min(bounds[r][0], top)
-                bounds[r][1] = max(bounds[r][1], bot)
-            else:
-                bounds[r] = [top, bot]
-        edge_x = self.board[0] - MARGIN / 2
-        bus_y = {r: v[1] + ROW_GAP / 2 for r, v in bounds.items()}
-        gnd_by_row = {}
-        for net, refs in self.doc.nets.items():
-            pts = []
-            for ref in refs:
-                pid, pin = ref.rsplit(".", 1)
-                e = self.parts.get(pid)
-                if e and pin in e["pads"]:
-                    pts.append((e["pads"][pin], e["row"]))
-            if net == gnd:
-                for (x, y), r in pts:
-                    gnd_by_row.setdefault(r, []).append((x, y))
-            elif len(pts) >= 2:
-                pts = sorted(pts, key=lambda t: t[0][0])
-                for (a, _), (b, _) in zip(pts, pts[1:]):
-                    if abs(a[1] - b[1]) < 1e-6:
-                        self.traces.append({"net": net, "points": [a, b]})
-                    else:
-                        self.traces.append({"net": net, "points": [a, (b[0], a[1]), b]})
-        for r, pads in gnd_by_row.items():
-            by = bus_y[r]
-            xs = [x for x, y in pads]
-            self.traces.append({"net": gnd, "points": [(min(xs), by), (edge_x, by)]})
-            for x, y in pads:
-                self.traces.append({"net": gnd, "points": [(x, y), (x, by)]})
-        if len(bus_y) > 1:
-            ys = sorted(bus_y.values())
-            self.traces.append({"net": gnd, "points": [(edge_x, ys[0]), (edge_x, ys[-1])]})
+        pads = []
+        by_net = {}
+        gnd_pads = []
+        uid = 0
+        for pid in self.doc.parts:
+            e = self.parts[pid]
+            for pin, (x, y) in e["pads"].items():
+                net = self.doc.net_of(pid, pin)
+                if net is None:
+                    net = f"~{uid}"
+                    uid += 1
+                pads.append((x, y, e["fp"].pad_d / 2, net))
+                if not net.startswith("~"):
+                    by_net.setdefault(net, []).append((x, y, e["fp"].pad_d / 2))
+                if net == gnd:
+                    gnd_pads.append((x, y, e["row"]))
+        ids = {}
+        for _, _, _, net in pads:
+            ids.setdefault(net, len(ids))
+        for x, y, r, net in pads:
+            self._mark_circle(owner, x, y, r + CLEARANCE + TRACE_W / 2 + CELL / 2, ids[net], W, H)
+        # ground: one horizontal bus per row + one vertical edge bus
+        if gnd_pads and gnd in ids:
+            bounds = {}
+            for e in self.parts.values():
+                r = e["row"]
+                x0, y0, x1, y1 = e["fp"].bbox()
+                t, b = e["y"] + y0, e["y"] + y1
+                if r in bounds:
+                    bounds[r] = (min(bounds[r][0], t), max(bounds[r][1], b))
+                else:
+                    bounds[r] = (t, b)
+            bus_y = {r: b + 2.0 for r, (t, b) in bounds.items()}
+            edge_x = MARGIN / 2
+            by_row = {}
+            for x, y, r in gnd_pads:
+                by_row.setdefault(r, []).append((x, y))
+            for r, ps in by_row.items():
+                yy = bus_y[r]
+                xs = [x for x, y in ps]
+                pts = [(edge_x, yy), (max(xs), yy)]
+                self.traces.append({"net": gnd, "points": pts})
+                self._mark_polyline(owner, pts, ids[gnd], W, H)
+                for x, y in ps:
+                    seg = [(x, y), (x, yy)]
+                    self.traces.append({"net": gnd, "points": seg})
+                    self._mark_polyline(owner, seg, ids[gnd], W, H)
+            if len(bus_y) > 1:
+                ys = sorted(bus_y.values())
+                seg = [(edge_x, ys[0]), (edge_x, ys[-1])]
+                self.traces.append({"net": gnd, "points": seg})
+                self._mark_polyline(owner, seg, ids[gnd], W, H)
+        for net in sorted([n for n in by_net if n != gnd], key=lambda n: (len(by_net[n]), n)):
+            lst = by_net[net]
+            if len(lst) < 2:
+                continue
+            hub = min(lst, key=lambda q: sum((q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2
+                                             for p in lst))
+            for target in [q for q in lst if q is not hub]:
+                path = self._astar(owner, hub[0], hub[1], target[0], target[1],
+                                   ids[net], W, H)
+                if path is None:
+                    pts = self._smooth([(hub[0], hub[1]), (target[0], hub[1]),
+                                        (target[0], target[1])])
+                    if not self._clear(pts, net, pads):
+                        self.warnings.append(f"rete {net}: non instradata (spazio insufficiente)")
+                        continue
+                else:
+                    pts = self._smooth([(hub[0], hub[1])] + path + [(target[0], target[1])])
+                self.traces.append({"net": net, "points": pts})
+                self._mark_polyline(owner, pts, ids[net], W, H)
+        self.pad_list = pads
+        self._drc()
+
+    def _clear(self, pts, net, pads):
+        for tr in self.traces:
+            if tr["net"] == net:
+                continue
+            for p, q in zip(pts, pts[1:]):
+                for r, s in zip(tr["points"], tr["points"][1:]):
+                    if _seg_dist(p, q, r, s) < TRACE_W + CLEARANCE - 0.01:
+                        return False
+        for x, y, r, pnet in pads:
+            if pnet == net:
+                continue
+            for p, q in zip(pts, pts[1:]):
+                if _pt_seg_dist(x, y, p, q) < r + CLEARANCE + TRACE_W / 2 - 0.01:
+                    return False
+        return True
+
+    def _drc(self):
+        self.violations = []
+        for i, a in enumerate(self.traces):
+            for b in self.traces[i + 1:]:
+                if a["net"] == b["net"]:
+                    continue
+                for p, q in zip(a["points"], a["points"][1:]):
+                    for r, s in zip(b["points"], b["points"][1:]):
+                        d = _seg_dist(p, q, r, s)
+                        if d < TRACE_W + CLEARANCE - 0.01:
+                            self.violations.append((a["net"], b["net"], "trace-trace", d))
+        for tr in self.traces:
+            for x, y, r, net in self.pad_list:
+                if net == tr["net"]:
+                    continue
+                for p, q in zip(tr["points"], tr["points"][1:]):
+                    d = _pt_seg_dist(x, y, p, q)
+                    if d < r + CLEARANCE + TRACE_W / 2 - 0.01:
+                        self.violations.append((tr["net"], net, "trace-pad", d))
+        for i, a in enumerate(self.pad_list):
+            for b in self.pad_list[i + 1:]:
+                if a[3] == b[3]:
+                    continue
+                d = math.hypot(a[0] - b[0], a[1] - b[1])
+                if d < a[2] + b[2] + CLEARANCE - 0.01:
+                    self.violations.append((a[3], b[3], "pad-pad", d))
 
     def _label(self, pid):
         p = self.doc.part(pid)
