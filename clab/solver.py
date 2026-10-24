@@ -113,7 +113,7 @@ def _switch_closed(p, t, mode):
     return closed
 
 
-def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
+def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on):
     n = circ.n
     N = n + circ.n_branches
     A = np.zeros((N, N))
@@ -245,6 +245,11 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on):
                     b[a] += g * von
                 if k >= 0:
                     b[k] -= g * von
+        elif kind == "MOS":
+            d, g, s = circ.node(pid, "D"), circ.node(pid, "G"), circ.node(pid, "S")
+            _stamp_g(A, g, s, 1e-9)
+            r = p.num("ron") if mos_on.get(pid) else p.num("roff")
+            _stamp_g(A, d, s, 1.0 / max(r, 1e-6))
         elif kind == "GND":
             continue
         else:
@@ -280,6 +285,23 @@ def _update_leds(circ, x, state):
                 out[pid] = True
         else:
             if v < vf - 1e-9:
+                out[pid] = False
+    return out
+
+
+def _update_mosfets(circ, x, state):
+    out = dict(state)
+    for pid, p in circ.parts.items():
+        if p.kind != "MOS":
+            continue
+        g, s = circ.node(pid, "G"), circ.node(pid, "S")
+        vgs = (x[g] if g >= 0 else 0.0) - (x[s] if s >= 0 else 0.0)
+        vth = p.num("vth")
+        if not state.get(pid):
+            if vgs > vth + 1e-6:
+                out[pid] = True
+        else:
+            if vgs < vth - 0.2:
                 out[pid] = False
     return out
 
@@ -350,7 +372,7 @@ def _pin_v(x, idx):
     return x[idx] if idx >= 0 else 0.0
 
 
-def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
+def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, t=0.0):
     v = _volts(circ, x)
     for i, name in enumerate(circ.node_names):
         res.nodes[name] = float(v[i])
@@ -417,6 +439,12 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, t=0.0):
             st = q_on.get(pid, 0)
             i = max(0.0, (vv - p.num("von")) / max(p.num("ron"), 1e-6)) if st else 0.0
             pw = i * vv
+        elif kind == "MOS":
+            d, g, s = circ.node(pid, "D"), circ.node(pid, "G"), circ.node(pid, "S")
+            vds = _pin_v(x, d) - _pin_v(x, s)
+            r = p.num("ron") if mos_on.get(pid) else p.num("roff")
+            i = vds / max(r, 1e-6)
+            pw = abs(vds * i)
         elif kind == "GND":
             i = 0.0
             pw = 0.0
@@ -479,6 +507,14 @@ def _violations(circ, res, x, led_on):
                     "message": f"{pid}: {abs(i) * 1e3:.0f} mA di anodo superano il massimo di "
                                f"{to_float(imax) * 1e3:.0f} mA, il PUT si brucia",
                     "value": abs(i), "limit": to_float(imax)})
+        elif kind == "MOS":
+            imax = p.get("imax")
+            if imax is not None and abs(i) > to_float(imax) * 1.02:
+                res.violations.append({
+                    "part": pid, "code": "overcurrent",
+                    "message": f"{pid}: {abs(i):.2f} A di drain superano il massimo di "
+                               f"{to_float(imax):.2f} A, il MOSFET si brucia",
+                    "value": abs(i), "limit": to_float(imax)})
         elif kind == "V":
             imax = p.get("imax")
             if imax is not None and abs(i) > to_float(imax) * 1.02:
@@ -493,27 +529,30 @@ def _dc(circ):
     led = {pid: False for pid, p in circ.parts.items() if p.kind in DIODES}
     relay = {pid: False for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")}
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
+    mos = {pid: False for pid, p in circ.parts.items() if p.kind == "MOS"}
     seen = set()
     x = None
     br = None
     for it in range(40):
-        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay, q)
+        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay, q, mos)
         x = _solve(A, b)
         nl = _update_leds(circ, x, led)
         nr = _update_relays(circ, x, relay)
         nq = _update_transistors(circ, x, q)
         nq = _update_puts(circ, x, nq)
-        if nl == led and nr == relay and nq == q:
+        nm = _update_mosfets(circ, x, mos)
+        if nl == led and nr == relay and nq == q and nm == mos:
             break
         key = (tuple(sorted((k, v) for k, v in nl.items())),
                tuple(sorted((k, v) for k, v in nr.items())),
-               tuple(sorted((k, v) for k, v in nq.items())))
+               tuple(sorted((k, v) for k, v in nq.items())),
+               tuple(sorted((k, v) for k, v in nm.items())))
         if key in seen:
             res.notes.append("nessun punto di riposo stabile: il circuito oscilla, usa analysis 'transient'")
             break
         seen.add(key)
-        led, relay, q = nl, nr, nq
-    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q)
+        led, relay, q, mos = nl, nr, nq, nm
+    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q, mos)
     res.relay_states = dict(relay)
     res.residual = float(np.max(np.abs(A @ x - b)))
     return res
@@ -579,6 +618,7 @@ def _tran(circ):
     relay = {pid: False for pid, _ in relays}
     relay_last = {pid: -1e9 for pid, _ in relays}
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
+    mos = {pid: False for pid, p in circ.parts.items() if p.kind == "MOS"}
     time = np.zeros(nsteps)
     relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
     viol_acc = {}
@@ -591,19 +631,20 @@ def _tran(circ):
         t = (step + 1) * dt
         for pid in relay_hist:
             relay_hist[pid][step] = 1.0 if relay[pid] else 0.0
-        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q)
+        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos)
         x = _solve(A, b)
         for _ in range(4):
             nl = _update_leds(circ, x, led)
             nq = _update_transistors(circ, x, q)
             nq = _update_puts(circ, x, nq)
-            if nl == led and nq == q:
+            nm = _update_mosfets(circ, x, mos)
+            if nl == led and nq == q and nm == mos:
                 break
-            led, q = nl, nq
-            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q)
+            led, q, mos = nl, nq, nm
+            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos)
             x = _solve(A, b)
         res.residual = max(res.residual, float(np.max(np.abs(A @ x - b))))
-        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, t)
+        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, mos, t)
         for viol in res.violations:
             key = (viol["part"], viol["code"])
             item = dict(viol)

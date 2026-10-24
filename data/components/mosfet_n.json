@@ -1,0 +1,9 @@
+{
+  "id": "mosfet_n",
+  "kind": "MOS",
+  "name": "MOSFET canale N",
+  "pins": ["D", "G", "S"],
+  "params": {"vth": 2.5, "ron": 0.1, "roff": 1000000000.0, "imax": 5},
+  "limits": {"imax": 5},
+  "learn": "MOSFET a canale N (enhancement): conduce tra drain (D) e source (S) quando la tensione gate-source supera la soglia vth. Il gate assorbe corrente quasi nulla: si pilota in tensione, non in corrente."
+}

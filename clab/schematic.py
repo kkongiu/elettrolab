@@ -131,6 +131,8 @@ class Schematic:
             return (x - 50, y - 50, x + 50, y + 50)
         if kind == "PUT":
             return (x - 50, y - 50, x + 50, y + 50)
+        if kind == "MOS":
+            return (x - 50, y - 50, x + 50, y + 50)
         if rot in (90, 270):
             w, h = 36, 58
         else:
@@ -215,6 +217,10 @@ class Schematic:
             return self._loc(x, y, rot, dx, dy)
         if p.kind == "PUT":
             offs = {"A": (0, -45), "G": (-45, 0), "K": (0, 45)}
+            dx, dy = offs[pin]
+            return self._loc(x, y, rot, dx, dy)
+        if p.kind == "MOS":
+            offs = {"D": (0, -45), "G": (-45, 0), "S": (0, 45)}
             dx, dy = offs[pin]
             return self._loc(x, y, rot, dx, dy)
         i = pins.index(pin)
@@ -412,7 +418,7 @@ class Schematic:
             return "acceso" if i > 1e-6 else "spento"
         if kind == "D":
             return "conduce" if i > 1e-6 else "interdetto"
-        if kind in ("NPN", "PUT"):
+        if kind in ("NPN", "PUT", "MOS"):
             return "on" if i > 1e-6 else "off"
         if kind in ("RELAY", "RELAY2"):
             return "eccitato" if self._relay_on(pid, t) else "riposo"
@@ -427,6 +433,10 @@ class Schematic:
         first = p.spec.pins[0]
         if p.kind == "V":
             return i if pin == first else -i
+        if p.kind == "MOS":
+            if pin == "G":
+                return 0.0
+            return -i if pin == "D" else i
         return -i if pin == first else i
 
     def draw(self, t=None, dreal=0.0, playing=True):
@@ -513,6 +523,8 @@ class Schematic:
             return f"{pid}  NPN"
         if k == "PUT":
             return f"{pid}  PUT"
+        if k == "MOS":
+            return f"{pid}  MOS"
         if k == "GND":
             return "GND"
         return pid
@@ -557,6 +569,8 @@ class Schematic:
             self._npn(x, y, rot)
         elif kind == "PUT":
             self._put(x, y, rot)
+        elif kind == "MOS":
+            self._mosfet(x, y, rot)
         elif kind == "SPK":
             self._speaker(x, y, rot)
         elif kind == "GND":
@@ -579,6 +593,12 @@ class Schematic:
             self.text(*self._loc(x, y, rot, 10, -45), "A", anchor="w", size=7, color=MUTED)
             self.text(*self._loc(x, y, rot, -48, 3), "G", anchor="e", size=7, color=MUTED)
             self.text(*self._loc(x, y, rot, 10, 45), "K", anchor="w", size=7, color=MUTED)
+        elif kind == "MOS":
+            self.text(x, y - 52, self._label(pid), anchor="s", size=9, color=INK)
+            self.text(x, y + 52, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)
+            self.text(*self._loc(x, y, rot, 8, -45), "D", anchor="w", size=7, color=MUTED)
+            self.text(*self._loc(x, y, rot, -48, 3), "G", anchor="e", size=7, color=MUTED)
+            self.text(*self._loc(x, y, rot, 8, 45), "S", anchor="w", size=7, color=MUTED)
         elif kind == "RELAY2":
             self.text(x, y + 100, f"{self._label(pid)}   I = {fmt(i, 'A')}{suffix}",
                       size=9, color=INK)
@@ -814,6 +834,21 @@ class Schematic:
         self.line([L(0, -45), L(0, 45)])
         self.line([L(-45, 0), L(-8, 0)])
         tri = [L(0, 12), L(-8, 0), L(8, 0)]
+        self.c.create_polygon(*self.flat(tri), outline=INK, fill=INK)
+
+    def _mosfet(self, x, y, rot):
+        def L(u, v):
+            return self._loc(x, y, rot, u, v)
+        self.line([L(0, -45), L(0, -18)])
+        self.line([L(0, 45), L(0, 18)])
+        self.line([L(-45, 0), L(-24, 0)])
+        self.line([L(-24, -18), L(-24, 18)], width=1.6)
+        for a, b in ((-18, -8), (-5, 5), (8, 18)):
+            self.line([L(-12, a), L(-12, b)], width=2.0)
+        self.line([L(0, -18), L(-12, -18)])
+        self.line([L(0, 18), L(-12, 18)])
+        self.line([L(0, 0), L(-12, 0)], width=1.3)
+        tri = [L(-10, 0), L(-4, -4), L(-4, 4)]
         self.c.create_polygon(*self.flat(tri), outline=INK, fill=INK)
 
     def _relay_on(self, pid, t):

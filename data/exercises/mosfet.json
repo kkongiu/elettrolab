@@ -1,0 +1,26 @@
+{
+  "id": "mosfet",
+  "title": "MOSFET come interruttore",
+  "notes": "MOSFET a canale N che pilota un carico da 100 ohm. L'interruttore SW1 chiude a t = 0,02 s e porta il gate a 12 V tramite Rg: finche' Vgs e' sotto la soglia (2,5 V) il MOSFET e' spento e il drain resta a 12 V (corrente nulla); superata la soglia conduce con Rds_on = 0,1 ohm, il drain scende a pochi mV e nel carico scorrono circa 120 mA. Il gate non assorbe corrente: si pilota in tensione, non in corrente.",
+  "analysis": "transient",
+  "tstop": 0.05,
+  "dt": 0.0001,
+  "parts": {
+    "V1": {"type": "supply_12v"},
+    "R1": {"type": "resistor", "r": "100"},
+    "Rg": {"type": "resistor", "r": "10k"},
+    "SW1": {"type": "switch_spst", "closed": false, "t_close": 0.02},
+    "Q1": {"type": "mosfet_n"}
+  },
+  "nets": {
+    "p": ["V1.+", "R1.1", "SW1.1"],
+    "gate": ["SW1.2", "Rg.1", "Q1.G"],
+    "d": ["R1.2", "Q1.D"],
+    "gnd": ["V1.-", "Q1.S", "Rg.2"]
+  },
+  "expect": {
+    "V(d)": {"at": 0.01, "approx": 12.0, "tol": 0.03},
+    "V(gate)": {"at": 0.04, "approx": 12.0, "tol": 0.03},
+    "I(R1)": {"at": 0.04, "approx": 0.12, "tol": 0.05, "max": 0.13, "peak_min": 0.1}
+  }
+}

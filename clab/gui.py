@@ -60,6 +60,7 @@ KIND_LABELS = {
     "GND": "Massa",
     "NPN": "Transistor",
     "PUT": "Transistor",
+    "MOS": "Transistor",
     "SPK": "Altoparlanti",
 }
 

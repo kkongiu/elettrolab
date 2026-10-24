@@ -28,6 +28,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `raddrizzatore` | Raddrizzatore a mezz'onda | Transitorio | picco 11,3 V sul carico, 113 mA | diodo + sorgente AC: l'alternata diventa unidirezionale |
 | `ponte` | Ponte a onda intera (4 diodi) | Transitorio | picco 10,2 V, ripple a 100 Hz | 4 diodi: usa entrambe le semionde |
 | `filtro` | Ponte + condensatore | Transitorio | ~9,7 V, ripple ~0,8 V | filtro capacitivo: tensione quasi continua |
+| `mosfet` | MOSFET come interruttore | Transitorio | Vd 12 V spento / 12 mV acceso, 120 mA | comando in tensione, soglia Vgs, Rds_on |
 
 ## Dettaglio
 
@@ -360,6 +361,18 @@ carico), minore e' il ripple.
 ./lab run filtro
 ```
 
+### mosfet - MOSFET come interruttore
+
+MOSFET a canale N con `Vth = 2,5 V` e `Rds_on = 0,1 Ω`. `SW1` chiude a
+`t = 0,02 s` e porta il gate a 12 V tramite `Rg = 10 kΩ`. Sotto soglia il
+MOSFET e' spento: drain a **12 V**, corrente nulla. Sopra soglia conduce: drain
+a **~12 mV** e **120 mA** nel carico. Il gate non assorbe corrente (si pilota in
+tensione), quindi `Rg` non introduce cadute.
+
+```bash
+./lab run mosfet
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -392,9 +405,9 @@ controllo su corrente o tensione.
 Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
-potenziometri, transistor NPN, PUT.
+potenziometri, transistor NPN, PUT, **MOSFET canale N**.
 
-Non ancora coperti: MOSFET, PWM/controllo switching, trasformatori (mutua
+Non ancora coperti: PWM/controllo switching, trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in
 frequenza, motori e tutto cio' che richiede modelli non lineari o subcircuiti.
 Questi richiedono nuovi `kind` o il fallback a ngspice descritto nella roadmap.
