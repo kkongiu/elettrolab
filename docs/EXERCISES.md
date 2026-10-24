@@ -29,6 +29,8 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `ponte` | Ponte a onda intera (4 diodi) | Transitorio | picco 10,2 V, ripple a 100 Hz | 4 diodi: usa entrambe le semionde |
 | `filtro` | Ponte + condensatore | Transitorio | ~9,7 V, ripple ~0,8 V | filtro capacitivo: tensione quasi continua |
 | `mosfet` | MOSFET come interruttore | Transitorio | Vd 12 V spento / 12 mV acceso, 120 mA | comando in tensione, soglia Vgs, Rds_on |
+| `pwm` | Interruttore PWM: tensione media | Transitorio | media 6 V con duty 50% | la media vale duty x Vin |
+| `buck` | Convertitore buck 24 V -> 12 V | Transitorio | 11,5 V, 0,8 A, ripple ~0,05 V | switching step-down: PWM + L + C + diodo |
 
 ## Dettaglio
 
@@ -373,6 +375,32 @@ tensione), quindi `Rg` non introduce cadute.
 ./lab run mosfet
 ```
 
+### pwm - Interruttore PWM: tensione media
+
+`switch_pwm` con periodo 1 ms e duty 50% su un carico resistivo da 100 Ω. La
+tensione sul carico vale 12 V quando l'interruttore e' chiuso e 0 V quando e'
+aperto; il **valor medio** e' `duty * Vin = 6 V` (corrente media 60 mA).
+Cambiando `duty` cambia linearmente la media: e' il modo in cui un
+convertitore switching regola l'uscita.
+
+```bash
+./lab run pwm --set SW1.duty=0.25
+```
+
+### buck - Convertitore buck 24 V -> 12 V
+
+Convertitore step-down con interruttore PWM a 50 kHz (duty 50%), diodo di
+ricircolo, induttore da 1 mH e condensatore da 100 µF. In equilibrio
+`Vout ~ duty * Vin` meno le perdite (soprattutto la caduta del diodo):
+**~11,5 V** invece di 12 V, con ripple di **~0,05 V** e corrente di carico
+**~0,8 A**. Il **soft-start** di 4 ms evita il sovraelongamento iniziale che si
+avrebbe chiudendo subito al 50% (senza soft-start l'uscita arriverebbe a
+~18,8 V).
+
+```bash
+./lab run buck
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -405,9 +433,10 @@ controllo su corrente o tensione.
 Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
-potenziometri, transistor NPN, PUT, **MOSFET canale N**.
+potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
+**convertitore buck**.
 
-Non ancora coperti: PWM/controllo switching, trasformatori (mutua
+Non ancora coperti: controllo/retroazione dello switching, trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in
 frequenza, motori e tutto cio' che richiede modelli non lineari o subcircuiti.
 Questi richiedono nuovi `kind` o il fallback a ngspice descritto nella roadmap.

@@ -1,0 +1,9 @@
+{
+  "id": "supply_24v",
+  "kind": "V",
+  "name": "Alimentatore 24 V",
+  "pins": ["+", "-"],
+  "params": {"v": 24},
+  "limits": {"imax": 2},
+  "learn": "Alimentazione da banco a 24 V. In un convertitore buck serve a ottenere un'uscita piu' bassa, per esempio 12 V con duty 50%."
+}

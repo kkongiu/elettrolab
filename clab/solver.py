@@ -106,6 +106,22 @@ def _switch_closed(p, t, mode):
     closed = bool(p.get("closed", True))
     if mode == "dc":
         return closed
+    period = None
+    if "freq" in p.params:
+        f = p.num("freq")
+        if f > 0:
+            period = 1.0 / f
+    elif "period" in p.params:
+        pv = p.num("period")
+        if pv > 0:
+            period = pv
+    if period is not None:
+        duty = p.num("duty") if "duty" in p.params else 0.5
+        duty = min(max(duty, 0.0), 1.0)
+        soft = p.num("t_soft") if "t_soft" in p.params else 0.0
+        if soft > 0 and t < soft:
+            duty *= t / soft
+        return (t % period) / period < duty
     if "t_close" in p.params and t >= p.num("t_close"):
         closed = True
     if "t_open" in p.params and t >= p.num("t_open"):
@@ -729,6 +745,13 @@ def check(circ, res):
             good = vmax <= float(hi)
             ok = ok and good
             details.append(f"max {vmax:.4g} <= {float(hi):.4g}")
+        mean = cond.get("mean")
+        if mean is not None:
+            vmean = float(np.mean(vals))
+            tol = float(cond.get("mean_tol", cond.get("tol", 0.05)))
+            good = abs(vmean - float(mean)) <= tol * max(abs(float(mean)), 1e-12)
+            ok = ok and good
+            details.append(f"media {vmean:.4g} ~ {float(mean):.4g} +/- {tol * 100:g}%")
         pk = cond.get("peak_min")
         if pk is not None:
             vmax = float(np.max(vals))

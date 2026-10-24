@@ -1,0 +1,22 @@
+{
+  "id": "pwm",
+  "title": "Interruttore PWM: tensione media",
+  "notes": "Un interruttore comandato a impulsi (PWM) resta chiuso per una frazione 'duty' di ogni periodo. Con alimentazione 12 V e duty 50%, sul carico arriva 12 V per meta' del tempo e 0 V per l'altra meta': la tensione media e' 6 V e la corrente media 60 mA. Il valore medio dipende solo dal duty: duty x Vin. E' il principio con cui un convertitore switching regola l'uscita.",
+  "analysis": "transient",
+  "tstop": 0.01,
+  "dt": 0.00001,
+  "parts": {
+    "V1": {"type": "supply_12v"},
+    "SW1": {"type": "switch_pwm", "period": 0.001, "duty": 0.5},
+    "R1": {"type": "resistor", "r": "100"}
+  },
+  "nets": {
+    "p": ["V1.+", "SW1.1"],
+    "out": ["SW1.2", "R1.1"],
+    "gnd": ["V1.-", "R1.2"]
+  },
+  "expect": {
+    "V(out)": {"mean": 6.0, "max": 12.2, "min": -0.05},
+    "I(R1)": {"mean": 0.06, "max": 0.13, "min": -0.001}
+  }
+}

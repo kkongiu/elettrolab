@@ -1,0 +1,26 @@
+{
+  "id": "buck",
+  "title": "Convertitore buck 24 V -> 12 V",
+  "notes": "Convertitore step-down: un interruttore PWM (50 kHz, duty 50%) collega l'ingresso da 24 V all'induttore; quando si apre, il diodo di ricircolo mantiene la corrente nell'induttore e il condensatore livella l'uscita. In equilibrio Vout ~ duty x Vin meno le perdite (principalmente la caduta del diodo), cioe' circa 11,5 V invece di 12 V. Il soft-start (4 ms) evita il grande sovraelongamento iniziale che si avrebbe chiudendo subito al 50%.",
+  "analysis": "transient",
+  "tstop": 0.012,
+  "dt": 0.0000005,
+  "parts": {
+    "V1": {"type": "supply_24v"},
+    "SW1": {"type": "switch_pwm", "period": 0.00005, "duty": 0.5, "t_soft": 0.004},
+    "D1": {"type": "diode_power"},
+    "L1": {"type": "inductor", "l": "1m", "imax": 5},
+    "C1": {"type": "capacitor", "c": "100u", "vmax": 25},
+    "R1": {"type": "resistor", "r": "12"}
+  },
+  "nets": {
+    "p": ["V1.+", "SW1.1"],
+    "sw": ["SW1.2", "D1.K", "L1.1"],
+    "out": ["L1.2", "C1.+", "R1.1"],
+    "gnd": ["V1.-", "D1.A", "C1.-", "R1.2"]
+  },
+  "expect": {
+    "V(out)": {"at": 0.0115, "approx": 11.5, "tol": 0.05, "max": 13, "min": -0.05},
+    "I(L1)": {"at": 0.0115, "approx": 0.8, "tol": 0.05, "min": -0.01, "peak_min": 0.5, "max": 2}
+  }
+}
