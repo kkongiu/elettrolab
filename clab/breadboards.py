@@ -2,15 +2,16 @@ import heapq
 import math
 import re
 
-COLS = 30
+COLS = 40
 ROWS = "ABCDEFGHIJ"
 COL_X = {c: 100 + (c - 1) * 24 for c in range(1, COLS + 1)}
 ROW_Y = {"A": 120, "B": 142, "C": 164, "D": 186, "E": 208,
          "F": 250, "G": 272, "H": 294, "I": 316, "J": 338}
 RAIL_Y = {"T+": 62, "T-": 84, "B+": 360, "B-": 382}
 RAIL_COLORS = {"T+": "#c92a2a", "T-": "#1864ab", "B+": "#c92a2a", "B-": "#1864ab"}
-BOARD = (40, 30, 860, 400)
-W, H = 900, 420
+BOARD = (40, 30, 1060, 400)
+W, H = 1100, 420
+MIN_SEP = 30.0
 
 HOLE_RE = re.compile(r"^(T\+|T-|B\+|B-|[A-J])(\d{1,2})$")
 
@@ -391,21 +392,29 @@ def generate(doc, spread=False):
     def place(p, targets):
         offs = _offsets(len(p.spec.pins))
         span = max(offs) + 1
-        best = None
-        for row in ROWS:
-            group = 0 if row in "ABCDE" else 1
-            for c0 in range(1, COLS - span + 2):
-                cols = [c0 + offs[i] for i in range(len(p.spec.pins))]
-                if any(col in used[group] for col in cols):
-                    continue
-                xs = [COL_X[c] for c in cols]
-                cx, cy = sum(xs) / len(xs), ROW_Y[row]
-                score = (min(math.hypot(cx - x, cy - y) for x, y in targets)
-                         if targets else 0.0)
-                key = ((score if spread else -score), -ROWS.index(row), -c0)
-                if best is None or key > best[0]:
-                    best = (key, row, c0, cols, cx, cy)
-        return best, offs
+        passes = (0.0,) if spread else (MIN_SEP, 0.0)
+        for min_sep in passes:
+            best = None
+            for row in ROWS:
+                group = 0 if row in "ABCDE" else 1
+                for c0 in range(1, COLS - span + 2):
+                    cols = [c0 + offs[i] for i in range(len(p.spec.pins))]
+                    if any(col in used[group] for col in cols):
+                        continue
+                    xs = [COL_X[c] for c in cols]
+                    cx, cy = sum(xs) / len(xs), ROW_Y[row]
+                    score = (min(math.hypot(cx - x, cy - y) for x, y in targets)
+                             if targets else 0.0)
+                    near = (min(math.hypot(cx - x, cy - y) for x, y in centers)
+                            if centers else 1e9)
+                    penalty = max(0.0, min_sep - near) * 10.0
+                    key = ((score + penalty) if spread else -(score + penalty),
+                           -ROWS.index(row), -c0)
+                    if best is None or key > best[0]:
+                        best = (key, row, c0, cols, cx, cy)
+            if best is not None:
+                return best, offs
+        return None, offs
 
     def commit(pid, p, best, offs):
         nonlocal vpos
@@ -587,9 +596,16 @@ def shift_part(doc, layout, pid, dcol, drow):
         return False, "componente assente"
     pins = layout["parts"][pid].get("pins", {})
     used = set()
+    used_cols = {0: set(), 1: set()}
     for other, entry in layout.get("parts", {}).items():
-        if other != pid:
-            used.update(entry.get("pins", {}).values())
+        if other == pid:
+            continue
+        for h in entry.get("pins", {}).values():
+            used.add(h)
+            kind, col = parse_hole(h)
+            if kind in RAIL_Y:
+                continue
+            used_cols[0 if kind in "ABCDE" else 1].add(col)
     new = {}
     for pin, hole in pins.items():
         kind, col = parse_hole(hole)
@@ -602,6 +618,9 @@ def shift_part(doc, layout, pid, dcol, drow):
         target = f"{ROWS[nr]}{nc}"
         if target in used or target in new.values():
             return False, "foro occupato"
+        group = 0 if ROWS[nr] in "ABCDE" else 1
+        if nc in used_cols[group]:
+            return False, "colonna occupata"
         new[pin] = target
     old = dict(pins)
     layout["parts"][pid]["pins"] = new

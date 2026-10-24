@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FP_DIR = ROOT / "data" / "footprints"
 
 MARGIN = 4.0
-GAP = 5.0
+GAP = 8.0
 TRACE_W = 0.6
 CELL = 0.5
 CLEARANCE = 0.3
@@ -116,8 +116,8 @@ class PcbLayout:
         self._silk()
 
     def _place(self):
-        MAX_W = 90.0
-        ROW_GAP = 6.0
+        MAX_W = 100.0
+        ROW_GAP = 9.0
         rows = {}
         self.parts = {}
         row_parts = []

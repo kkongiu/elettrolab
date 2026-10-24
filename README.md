@@ -25,8 +25,8 @@ database sono generici e non legati a un corso specifico.
 - suono: l'esercizio exp11b (step 2 del PUT) ha un altoparlante; `--play` o il
   pulsante Ascolta riproducono il segnale reale dell'altoparlante, con la
   fondamentale e le armoniche; il pulsante lo ripete in loop fino a Ferma
-- disposizione **compatta**: i componenti sono avvicinati alle loro
-  connessioni; **Ottimizza** rigenera il layout; zoom con rotella, pan col
+- disposizione **compatta** con **distanza minima** tra i componenti
+  (breadboard da 40 colonne): i componenti sono vicini alle connessioni; **Ottimizza** rigenera il layout; zoom con rotella, pan col
   tasto destro, **Adatta**; clic su un filo evidenzia la rete (le altre si
   attenuano); i fili sono instradati con **A\*** sui fori (evitano le colonne
   usate da altri componenti)

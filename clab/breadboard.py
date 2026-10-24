@@ -215,7 +215,7 @@ class Breadboard:
                 self.text(COL_X[col], 44, str(col), size=7)
         for rail, y in RAIL_Y.items():
             color = RAIL_COLORS[rail]
-            self.line([(82, y), (820, y)], color=color, width=2.2)
+            self.line([(82, y), (COL_X[COLS], y)], color=color, width=2.2)
             self.text(64, y, "+" if rail.endswith("+") else "-", color=color, size=9)
             for col in range(1, COLS + 1):
                 X, Y = self.T(COL_X[col], y)

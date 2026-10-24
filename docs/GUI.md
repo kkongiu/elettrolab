@@ -157,10 +157,10 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
 - instradamento **A\*** sui fori: il filo evita le colonne usate da altri
   componenti (niente corti), usa i rail per massa/alimentazione e preferisce
   poche curve; le reti con più pin sono collegate a stella
-- **Ottimizza** rigenera il layout **compatto**: parte dall'alimentazione e
+- **Ottimizza** rigenera il layout **compatto**: parte dall'alimentazione,
   avvicina i componenti alle loro connessioni (greedy nearest-point su
-  righe/colonne), riducendo la lunghezza dei fili; la massima distanza resta
-  disponibile via `generate(..., spread=True)`
+  righe/colonne) e mantiene una **distanza minima** (`MIN_SEP`); la massima
+  distanza resta disponibile via `generate(..., spread=True)`
 - **zoom/pan**: rotella = zoom (0,4×–6×), tasto destro = pan, **Adatta**
   ripristina la vista; le etichette scalano con lo zoom
 - **evidenzia rete**: clicca un filo per evidenziare quella rete, o un
