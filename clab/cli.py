@@ -7,6 +7,8 @@ from pathlib import Path
 from . import report
 from .circuit import CircuitError, from_dict
 from .db import DB, DBError
+from .document import Document
+from .pcb import PcbError, PcbLayout
 from .solver import SolveError, check, simulate
 from .units import fmt
 
@@ -50,6 +52,26 @@ def _build(args):
     for expr in getattr(args, "overrides", []) or []:
         apply_set(raw, expr)
     return from_dict(raw, _db())
+
+
+def cmd_pcb(args):
+    raw = load_raw(args.id)
+    for expr in getattr(args, "overrides", []) or []:
+        apply_set(raw, expr)
+    doc = Document(raw, _db())
+    try:
+        pcb = PcbLayout(doc)
+    except PcbError as e:
+        raise SystemExit(f"PCB: {e}")
+    w, h = pcb.board
+    print(f"PCB {args.id}: {w:.1f} x {h:.1f} mm")
+    for pid, e in pcb.parts.items():
+        print(f"  {pid:<6} {e['fp'].id:<12} ({e['x']:.1f}, {e['y']:.1f})")
+    print(f"  tracce: {len(pcb.traces)}  serigrafia: {len(pcb.silk)}")
+    if args.output:
+        Path(args.output).write_text(pcb.to_svg(), encoding="utf-8")
+        print(f"SVG scritto: {args.output}")
+    return 0
 
 
 def cmd_list(args):
@@ -397,6 +419,12 @@ def main(argv=None):
 
     s = sub.add_parser("selftest", help="verifica il motore di simulazione")
     s.set_defaults(fn=cmd_selftest)
+
+    s = sub.add_parser("pcb", help="anteprima PCB e export SVG")
+    s.add_argument("id")
+    s.add_argument("--set", dest="overrides", action="append", default=[])
+    s.add_argument("-o", "--output", help="scrive un SVG")
+    s.set_defaults(fn=cmd_pcb)
 
     s = sub.add_parser("test", help="esegue i test unitari del progetto")
     s.set_defaults(fn=cmd_test)

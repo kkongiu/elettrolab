@@ -11,7 +11,7 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 29 esercizi; 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
+- [x] 29 esercizi; 40 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio, 2 PCB) e 9 test MCP
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (fatta)
@@ -117,11 +117,21 @@ Regola: nessun testo, figura o materiale di terzi.
 - [ ] Condivisione dei progetti
 - [ ] Modalita' insegnante e classe
 
+## Fase 6 - PCB (in corso)
+
+- [x] Catalogo footprint THT (`data/footprints/`)
+- [x] Anteprima PCB: rame, pad/fori, serigrafia
+- [x] Export SVG (1:1)
+- [ ] Router a griglia con clearance e DRC
+- [ ] Export Gerber/Excellon (gerbonara, Apache-2.0)
+- [ ] Export KiCad
+- [ ] Due lati, vias, SMD, rotazione
+
 ## Non obiettivi attuali
 
 - Sostituire un EDA professionale (KiCad, Altium).
 - Simulare schede complete o microcontroller.
-- PCB, autorouting, gerber.
+- Autorouting completo e DRC avanzato (il PCB è in Fase 6).
 - Analisi termica, rumore, affidabilita'.
 
 ## Dipendenze tra le fasi

@@ -179,6 +179,19 @@ fori, rail di alimentazione, componenti e jumper colorati per rete.
 
 ![Breadboard RC](breadboard-rc.png)
 
+## PCB
+
+La scheda **PCB** mostra un'anteprima a un lato: footprint THT, piste in rame,
+pad e fori, serigrafia con contorni, riferimenti, valori e polarità. Il
+pulsante **Esporta SVG** salva il disegno in scala 1:1 (1 unità = 1 mm).
+
+È un'anteprima didattica, non un CAD: posizionamento in riga, router semplice
+senza clearance/DRC, niente Gerber. Vedi `docs/PCB.md`.
+
+```bash
+./lab pcb exp03 -o exp03.svg
+```
+
 ## Suono
 
 ![Pulsante Ascolta](gui-sound.png)

@@ -34,8 +34,10 @@ database sono generici e non legati a un corso specifico.
   retroazione e feedforward
 - progetto solare: pannello 12 V -> controller di carica -> batteria
   -> LM2596 5 V (giorno/notte)
+- anteprima PCB (footprint THT, rame, serigrafia) con export SVG:
+  `./lab pcb exp03 -o exp03.svg`
 - 29 esercizi verificati automaticamente
-- 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
+- 40 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio, 2 PCB) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
 ## Avvio rapido
@@ -76,6 +78,7 @@ per i test di confronto SPICE.
 | `run ID --csv file.csv` | esporta tutte le forme d'onda |
 | `sweep ID --sweep PID.param=v1,v2,...` | ripete la simulazione su piu' valori |
 | `show ID` | mostra componenti, reti, attese e note didattiche |
+| `pcb ID [-o file.svg]` | anteprima PCB e export SVG |
 | `check` | esegue tutti gli esercizi e confronta con le attese |
 | `selftest` | test numerici del solver |
 | `test` | test unitari di documento, reti e layout |
@@ -238,7 +241,7 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 38 test core (documento, fisica, audio, breadboard)
+./lab test                 # 40 test core (documento, fisica, audio, breadboard, PCB)
 .venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 29 esercizi contro le attese
@@ -249,7 +252,7 @@ la bruciatura in transitorio, il merge delle reti, il layout, la breadboard,
 il confronto con ngspice e il server MCP (tool, risorse, trasporto stdio,
 scrittura protetta).
 I test SPICE vengono saltati se `ngspice` non e' installato; i test MCP se
-`mcp` non e' nel Python usato. Totale: 47 test, 2 di trasporto MCP saltati nel
+`mcp` non e' nel Python usato. Totale: 49 test, 2 di trasporto MCP saltati nel
 Python di sistema.
 
 ## Documentazione

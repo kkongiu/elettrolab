@@ -5,7 +5,7 @@ import re
 import time
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -20,6 +20,7 @@ from .circuit import CircuitError
 from .db import DB
 from .document import Document, slugify
 from .layouts import LAYOUTS
+from .pcb import Pcb, PcbError, PcbLayout
 from .schematic import Schematic
 from .solver import SolveError, check, simulate
 from .units import fmt, to_float
@@ -146,6 +147,7 @@ class App:
         self._slide_after = None
         self._bb_drag = None
         self.bb = None
+        self.pcb = None
         self.bb_first = tk.BooleanVar(value=True)
         self.bb_tool = "select"
         self.bb_wire_from = None
@@ -351,13 +353,23 @@ class App:
         self.vpaned.add(self.nb, minsize=110, height=250, stretch="always")
         codef = ttk.Frame(self.nb, style="Card.TFrame")
         bbf = ttk.Frame(self.nb, style="Card.TFrame")
+        pcbf = ttk.Frame(self.nb, style="Card.TFrame")
         plotf = ttk.Frame(self.nb, style="Card.TFrame")
         dataf = ttk.Frame(self.nb, style="Card.TFrame")
         self.bb_frame = bbf
+        self.pcb_frame = pcbf
         self.nb.add(codef, text="Codice")
         self.nb.add(bbf, text="Breadboard")
+        self.nb.add(pcbf, text="PCB")
         self.nb.add(plotf, text="Grafico")
         self.nb.add(dataf, text="Dati")
+        pbar = ttk.Frame(pcbf, style="Card.TFrame")
+        pbar.pack(fill="x")
+        ttk.Button(pbar, text="Esporta SVG", command=self._export_pcb_svg).pack(side="left", pady=2)
+        ttk.Label(pbar, text="anteprima PCB · footprint THT · serigrafia",
+                  style="Muted.TLabel").pack(side="left", padx=8)
+        self.pcb_canvas = tk.Canvas(pcbf, bg=CARD, highlightthickness=0)
+        self.pcb_canvas.pack(fill="both", expand=True)
         bbar = ttk.Frame(bbf, style="Card.TFrame")
         bbar.pack(fill="x")
         ttk.Checkbutton(bbar, text="Breadboard-first", variable=self.bb_first,
@@ -464,8 +476,9 @@ class App:
         m.add_separator()
         m.add_command(label="Codice", command=lambda: self.nb.select(0))
         m.add_command(label="Breadboard", command=lambda: self.nb.select(1))
-        m.add_command(label="Grafico", command=lambda: self.nb.select(2))
-        m.add_command(label="Dati", command=lambda: self.nb.select(3))
+        m.add_command(label="PCB", command=lambda: self.nb.select(2))
+        m.add_command(label="Grafico", command=lambda: self.nb.select(3))
+        m.add_command(label="Dati", command=lambda: self.nb.select(4))
         menubar.add_cascade(label="Visualizza", menu=m)
 
         m = tk.Menu(menubar, tearoff=0)
@@ -730,6 +743,7 @@ class App:
                 self.problems_list.append({**err, "severity": "error"})
         self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
         self.bb.selected = self.selected
+        self._rebuild_pcb()
         self._update_sound_button()
         if self.selected not in self.doc.parts:
             self.selected = None
@@ -747,6 +761,24 @@ class App:
         self._fill()
         self._plot()
 
+    def _rebuild_pcb(self):
+        try:
+            self.pcb = Pcb(self.pcb_canvas, PcbLayout(self.doc))
+        except PcbError as e:
+            self.pcb = Pcb(self.pcb_canvas, None, str(e))
+
+    def _export_pcb_svg(self):
+        if self.pcb is None or self.pcb.layout is None:
+            self._hint("PCB non disponibile per questo circuito.")
+            return
+        path = filedialog.asksaveasfilename(defaultextension=".svg",
+                                            filetypes=[("SVG", "*.svg")],
+                                            initialfile="pcb.svg")
+        if not path:
+            return
+        Path(path).write_text(self.pcb.layout.to_svg(), encoding="utf-8")
+        self._hint(f"PCB esportato: {path}")
+
     def _after_board_change(self):
         if self.doc is None or self.doc.board is None:
             return
@@ -759,6 +791,7 @@ class App:
             self.problems_list.append({**err, "severity": "error"})
         self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
         self.bb.selected = self.selected
+        self._rebuild_pcb()
         self._update_sound_button()
         self.dirty = True
         self._update_header()
@@ -1742,6 +1775,8 @@ class App:
             self.schem.draw(t, d if self.playing else 0.0, self.playing)
             if self.bb is not None and self.nb.select() == str(self.bb_frame):
                 self.bb.draw(t, d if self.playing else 0.0, self.playing)
+            if self.pcb is not None and self.nb.select() == str(self.pcb_frame):
+                self.pcb.draw()
             self._draw_overlay()
             self.frame += 1
             if t is not None and self.vline is not None and self.frame % 4 == 0:

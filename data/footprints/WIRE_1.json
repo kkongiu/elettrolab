@@ -1,0 +1,17 @@
+{
+ "id": "WIRE_1",
+ "pads": {
+  "1": [
+   0,
+   0
+  ]
+ },
+ "pad": {
+  "diameter": 1.8,
+  "drill": 0.9
+ },
+ "body": {
+  "type": "circle",
+  "d": 3.0
+ }
+}

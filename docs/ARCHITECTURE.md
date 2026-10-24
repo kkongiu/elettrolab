@@ -34,8 +34,10 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 | `clab/gui.py` | finestra Tk, elenco esercizi, controlli, animazione |
 | `clab/schematic.py` | simboli, fili, puntini di corrente, LED |
 | `clab/layouts.py` | posizioni e rotazioni dei componenti per esercizio |
+| `clab/pcb.py` | anteprima PCB (footprint, piste, serigrafia) e SVG |
 | `data/components/*.json` | un file per tipo di componente |
 | `data/exercises/*.json` | un file per esercizio, con attese |
+| `data/footprints/*.json` | footprint THT: pad, foro, ingombro, serigrafia |
 
 ## Nodi e netlist
 
