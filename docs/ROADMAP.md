@@ -11,7 +11,7 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 12 esercizi; 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
+- [x] 28 esercizi; 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (fatta)
@@ -41,7 +41,7 @@ Obiettivo: l'esperienza da laboratorio, senza perdere il testo come sorgente.
 
 Fatto:
 
-- [x] Visualizzatore schematico con simboli per R, C, L, V, LED, SW, pot, rele'
+- [x] Visualizzatore schematico con simboli per R, C, L, V, LED, diodo, lampadina, trasformatore, MOSFET, SW, pot, rele'
 - [x] Corrente animata con verso e velocita' per ramo
 - [x] LED che si accendono e "bruciatura" visibile
 - [x] Grafico delle forme d'onda integrato con cursore temporale
@@ -86,7 +86,10 @@ Un frontend web resta possibile; il motore e il formato non cambiano.
 - [ ] PUT tarato su datasheet (η, I_H, V_ON)
 - [ ] Resistenza interna di batterie e alimentatori
 - [ ] Passo adattivo per i transitori rapidi
-- [ ] MOSFET come interruttore
+- [x] MOSFET come interruttore
+- [x] Trasformatore ideale (v2 = n v1, i1 = -n i2)
+- [x] Retroazione integrale e feedforward per alimentatori switching
+- [ ] Controllo in corrente, limitatore e protezioni attive
 - [ ] Timer 555 comportamentale
 - [ ] Porte logiche 74xx
 - [ ] Analisi AC e diagrammi di Bode

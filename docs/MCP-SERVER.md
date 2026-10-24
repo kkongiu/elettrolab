@@ -264,9 +264,9 @@ Configurazione tipica di un client MCP:
 {
   "mcpServers": {
     "elettrolab": {
-      "command": "/home/kongiu/elettrolab/.venv/bin/python",
+      "command": "/percorso/elettrolab/.venv/bin/python",
       "args": ["-m", "clab_mcp"],
-      "cwd": "/home/kongiu/elettrolab"
+      "cwd": "/percorso/elettrolab"
     }
   }
 }

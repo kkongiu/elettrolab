@@ -508,7 +508,7 @@ interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
 potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
 **convertitore buck**, **buck con retroazione**, **buck 5 A**, **trasformatore 230/24 V** e **alimentatore completo 230 V -> 12 V**.
 
-Non ancora coperti: trasformatori (mutua
-induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in
+Non ancora coperti: trasformatori reali (mutua induttanza, perdite,
+saturazione), timer 555, logica 74xx, amplificatori operazionali, analisi in
 frequenza, motori e tutto cio' che richiede modelli non lineari o subcircuiti.
 Questi richiedono nuovi `kind` o il fallback a ngspice descritto nella roadmap.

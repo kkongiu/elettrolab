@@ -98,9 +98,23 @@ completo senza geometria. Specifica in `docs/GUI.md`.
 | `min` | minimo ammesso della forma d'onda |
 | `max` | massimo ammesso della forma d'onda |
 | `peak_min` | il massimo della forma d'onda deve superare questa soglia |
+| `mean` | media della forma d'onda |
+| `mean_tol` | tolleranza relativa sulla media (default `tol`) |
 | `violations` | componenti che devono risultare guasti |
 
 Le unita' nei valori sono sempre SI: 15 mA si scrive `0.015`.
+
+Una chiave puo' contenere una **lista** di condizioni, tutte valutate sullo
+stesso segnale (utile per piu' istanti):
+
+```json
+"V(out)": [
+  {"at": 0.011, "approx": 12.0, "tol": 0.05},
+  {"at": 0.023, "approx": 12.0, "tol": 0.05},
+  {"max": 13.0}
+],
+"V(m)": {"mean": 6.0, "mean_tol": 0.05}
+```
 
 ## Valori con suffissi
 

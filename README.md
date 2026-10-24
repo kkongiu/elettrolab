@@ -1,6 +1,6 @@
 # elettrolab
 
-Laboratorio di elettronica didattico in Python per Linux: i circuiti sono dati
+Laboratorio di elettronica didattico in Python per Linux e macOS: i circuiti sono dati
 (JSON), non disegni. Un motore MNA risolve in corrente continua e nel tempo,
 un catalogo di componenti su file rende la libreria espandibile senza toccare
 il codice, e ogni esercizio dichiara i valori attesi per verificarsi da solo.
@@ -11,7 +11,7 @@ database sono generici e non legati a un corso specifico.
 ## Stato
 
 - Motore MNA: DC e transitorio (backward Euler)
-- Componenti primitivi: R, V, L, C, LED, interruttore, potenziometro, rele'
+- Componenti: R, C, L, V, LED, diodo, lampadina, trasformatore, interruttore/PWM, potenziometro, rele', NPN, PUT, MOSFET, altoparlante
 - Violazioni didattiche: LED bruciato, resistenza in sovrapotenza, condensatore
   in sovratensione, cortocircuito della sorgente
 - CLI con menu, grafico ASCII, CSV, sweep di parametri
@@ -30,6 +30,8 @@ database sono generici e non legati a un corso specifico.
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`
+- alimentatore switching 230 V -> 12 V: trasformatore, ponte, filtro, buck con
+  retroazione e feedforward
 - 28 esercizi verificati automaticamente
 - 38 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio) e 9 test MCP
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
@@ -37,7 +39,7 @@ database sono generici e non legati a un corso specifico.
 ## Avvio rapido
 
 ```bash
-cd /home/kongiu/elettrolab
+cd elettrolab
 ./lab gui                  # laboratorio grafico animato
 ./lab gui exp09            # apre direttamente un esercizio
 ./lab                      # menu interattivo da terminale
@@ -53,7 +55,7 @@ cd /home/kongiu/elettrolab
 Il launcher funziona da qualsiasi directory. In alternativa:
 
 ```bash
-cd /home/kongiu/elettrolab
+cd elettrolab
 python3 -m clab run exp03
 ```
 
@@ -219,9 +221,9 @@ Tool disponibili: `list_components`, `get_component`, `list_exercises`,
 {
   "mcpServers": {
     "elettrolab": {
-      "command": "/home/kongiu/elettrolab/.venv/bin/python",
+      "command": "/percorso/elettrolab/.venv/bin/python",
       "args": ["-m", "clab_mcp"],
-      "cwd": "/home/kongiu/elettrolab"
+      "cwd": "/percorso/elettrolab"
     }
   }
 }

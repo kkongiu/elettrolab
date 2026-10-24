@@ -39,7 +39,8 @@ Tolleranze usate:
 ## Risultati attuali
 
 Tutti i test passano: 38 test core e 9 MCP (2 di trasporto MCP vengono
-saltati se si usa il Python di sistema senza SDK). I numeri principali sono in
+saltati se si usa il Python di sistema senza SDK; i 3 test SPICE se manca
+`ngspice`). I numeri principali sono in
 `docs/MODELS.md`.
 
 ## Aggiungere una verifica

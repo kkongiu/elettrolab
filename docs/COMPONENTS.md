@@ -45,6 +45,7 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `XFMR` | trasformatori | `P+`, `P-`, `S+`, `S-` | `n`, `imax`, `imax2` | `imax`, `imax2` |
 | `V` | sorgenti di tensione | `+`, `-` | `v` | `imax` |
 | `LED` | LED | `A`, `K` | `vf`, `rd`, `imax` | `imax` |
+| `D` | diodi | `A`, `K` | `vf`, `rd`, `imax` | `imax` |
 | `SW` | interruttori | `1`, `2` (+ `FB`, `FF` per il PWM) | `closed`, `ron`, `roff`, `t_close`, `t_open`, `period`, `duty`, `t_soft`, `vref`, `ki` | - |
 | `C` | condensatori | `+`, `-` | `c` | `vmax` |
 | `L` | induttori | `1`, `2` | `l` | `imax` |
@@ -52,6 +53,7 @@ I parametri di istanza nel circuito sovrascrivono i default:
 | `RELAY` | rele' a un polo | `COIL+`, `COIL-`, `COM`, `NC`, `NO` | `rcoil`, `vpull`, `vdrop`, `ron`, `roff`, `td` | - |
 | `RELAY2` | rele' a due poli | `COIL+`, `COIL-`, `COM1`, `NC1`, `NO1`, `COM2`, `NC2`, `NO2` | come `RELAY` | - |
 | `NPN` | transistore NPN | `C`, `B`, `E` | `vbe`, `beta`, `vcesat`, `ron`, `rb`, `imax` | `imax` |
+| `MOS` | MOSFET canale N | `D`, `G`, `S` | `vth`, `ron`, `roff`, `imax` | `imax` |
 | `PUT` | PUT | `A`, `G`, `K` | `vf`, `ron`, `ihold`, `imax` | `imax` |
 | `SPK` | altoparlante | `+`, `-` | `r` | `pmax` |
 | `GND` | simbolo di massa | `1` | - | - |
@@ -86,9 +88,11 @@ perdite e saturazione.
 
 ### V
 
-- `v`: tensione in volt.
+- `v`: tensione in volt (sorgente DC).
 - `imax`: corrente massima erogabile; oltre scatta `short`.
 - La sorgente e' ideale: non ha resistenza interna.
+- `wave: "sin"`: sorgente sinusoidale; `amp` e' il picco (V), `freq` in Hz,
+  `offset` in V. Se `amp` manca si puo' usare `vrms`.
 
 ### LED
 
@@ -96,6 +100,12 @@ perdite e saturazione.
 - `rd`: resistenza dinamica, usata nel modello a tratti `V = vf + rd*I`.
 - `imax`: corrente massima; oltre scatta `burned`.
 - Il LED spento e' modellato con una conduttanza trascurabile.
+
+### D
+
+Diodo a giunzione o di potenza: stesso modello a tratti del LED
+(`V = vf + rd*I`), senza emissione luminosa. `vf = 0,7 V` per il diodo
+piccolo, `0,9 V` per quello di potenza; `imax` provoca `burned`.
 
 ### SW
 
@@ -154,6 +164,12 @@ Parametri tipici: `vbe=0.7 V`, `beta=240`, `vcesat=0.2 V`, `ron=0.05 Ω`,
 `rb=10 Ω`. `rb` e' un parametro di modello, non una resistenza di base da
 datasheet. Non ci sono capacita' di giunzione, effetto Early, breakdown o
 temperatura. Adatto allo switching, non agli amplificatori lineari.
+
+### MOS
+
+MOSFET a canale N come interruttore: conduce tra `D` e `S` quando
+`Vgs > vth`; usa `ron` da acceso e `roff` da spento. Modello comportamentale
+senza capacita' di gate, body diode o transcaratteristica.
 
 ### PUT
 

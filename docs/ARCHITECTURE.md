@@ -43,8 +43,9 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 - Le reti `gnd`, `0`, `GND`, `ground`, `GROUND` sono la massa (nodo 0).
 - Ogni voce e' un riferimento `PID.pin`, per esempio `R1.2` o `D1.A`.
 - `circuit.py` verifica che ogni pin compaia in esattamente una rete; i pin
-  mancanti sono un errore `floating_pin`, salvo il pin 2 del potenziometro in
-  modalita' `rheostat`.
+  mancanti sono un errore `floating_pin`, salvo i pin dichiarati `optional` nel
+  catalogo (per esempio il pin 2 del potenziometro in `rheostat`, i contatti NO
+  del rele', `FB`/`FF` del PWM).
 - I nodi non di massa ricevono un indice 0..n-1 nell'ordine di dichiarazione.
 
 Il formato non contiene coordinate: la disposizione grafica, quando servira',
@@ -53,7 +54,8 @@ sara' un file separato prodotto dall'editor e mai dal modello linguistico.
 ## Sistema MNA
 
 Incognite: `x = [tensioni di nodo, correnti di ramo]`, con una corrente di ramo
-per ogni sorgente di tensione e per ogni induttore. La matrice e' densa; per i
+per ogni sorgente di tensione e per ogni induttore, e un ramo per ogni
+trasformatore (VCVS + CCCS). La matrice e' densa; per i
 circuiti didattici (meno di 100 nodi) la soluzione e' nell'ordine dei
 microsecondi.
 
@@ -68,8 +70,11 @@ Stampe:
 | L (transitorio) | ramo con `v_a - v_b - (L/dt) i = -(L/dt) i_prev` |
 | C (DC) | aperto |
 | C (transitorio) | conduttanza `C/dt` piu' sorgente di storia `(C/dt) v_prev` |
-| LED | acceso: `Vf + Rd i`; spento: conduttanza trascurabile |
-| SW | `Ron` o `Roff` secondo lo stato |
+| LED / D | acceso: `Vf + Rd i`; spento: conduttanza trascurabile |
+| LAMP | come R (resistenza del filamento) |
+| MOS | `Ron` o `Roff` secondo `Vgs` |
+| SW | `Ron` o `Roff`; il PWM aggiunge duty, soft-start, retroazione e feedforward |
+| XFMR | VCVS `v2 = n v1` e CCCS `i1 = -n i2` |
 | POT | due resistenze `rtotal*pos` e `rtotal*(1-pos)` |
 | RELAY | bobina resistiva, contatti COM-NC e COM-NO come resistenze di stato |
 
