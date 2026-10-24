@@ -34,7 +34,7 @@ OK = "#137a3f"
 FAIL = "#b42318"
 WARN = "#b45309"
 ACCENT = "#0a5bd3"
-SLOW_EXERCISES = {"exp11", "exp11b", "exp11c", "exp11d", "buck", "buck_reg"}
+SLOW_EXERCISES = {"exp11", "exp11b", "exp11c", "exp11d", "buck", "buck_reg", "buck_5a"}
 SLIDERS = {
     "v": ("lin", 0.0, 24.0),
     "pos": ("lin", 0.0, 1.0),

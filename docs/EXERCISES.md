@@ -32,6 +32,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `pwm` | Interruttore PWM: tensione media | Transitorio | media 6 V con duty 50% | la media vale duty x Vin |
 | `buck` | Convertitore buck 24 V -> 12 V | Transitorio | 11,5 V, 0,8 A, ripple ~0,05 V | switching step-down: PWM + L + C + diodo |
 | `buck_reg` | Buck 24 V -> 12 V con retroazione | Transitorio | 12 V prima e dopo il raddoppio del carico | retroazione integrale: il duty si corregge da solo |
+| `buck_5a` | Buck 24 V -> 12 V 5 A | Transitorio | 12 V, 5 A, ripple ~0,05 V; gradino 5->6 A | potenza: L/C e limiti scalati, dt fine per il PWM |
 
 ## Dettaglio
 
@@ -424,6 +425,23 @@ Con `ki` troppo alto il loop diventa instabile: gia' a `ki = 30` l'uscita
 sovraelonga oltre 13 V e a `ki = 50` oscilla. E' un assaggio di stabilita' dei
 sistemi retroazionati.
 
+### buck_5a - Buck 24 V -> 12 V 5 A
+
+Versione di potenza: carico **2,4 Ω** (lampadina 60 W, 5 A a 12 V), switching
+20 kHz, `L = 330 µH`, `C = 220 µF`, diodo e alimentatore con limiti piu' alti.
+La retroazione porta l'uscita a **12 V** con ripple di ~0,05 V; a `t = 15 ms`
+un secondo carico da 12 Ω (1 A) entra in parallelo (`SW2`): la corrente sale a
+~6 A e l'uscita torna a 12 V dopo un calo a ~11,1 V.
+
+Il passo `dt = 0,5 µs` (100 passi per periodo PWM) e' necessario: con 1 µs il
+duty quantizzato (2% ~ 0,5 V) provoca un limit-cycle di ~1 V. E' un esempio
+concreto di come la risoluzione temporale influenzi la stabilita' di un
+controllo PWM.
+
+```bash
+./lab run buck_5a
+```
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -457,7 +475,7 @@ Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
 potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
-**convertitore buck** e **buck con retroazione**.
+**convertitore buck**, **buck con retroazione** e **buck 5 A**.
 
 Non ancora coperti: trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in
