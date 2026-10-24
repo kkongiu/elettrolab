@@ -31,6 +31,7 @@ attese. `./lab run <id>` lo simula, `./lab check` li esegue tutti.
 | `mosfet` | MOSFET come interruttore | Transitorio | Vd 12 V spento / 12 mV acceso, 120 mA | comando in tensione, soglia Vgs, Rds_on |
 | `pwm` | Interruttore PWM: tensione media | Transitorio | media 6 V con duty 50% | la media vale duty x Vin |
 | `buck` | Convertitore buck 24 V -> 12 V | Transitorio | 11,5 V, 0,8 A, ripple ~0,05 V | switching step-down: PWM + L + C + diodo |
+| `buck_reg` | Buck 24 V -> 12 V con retroazione | Transitorio | 12 V prima e dopo il raddoppio del carico | retroazione integrale: il duty si corregge da solo |
 
 ## Dettaglio
 
@@ -401,6 +402,27 @@ avrebbe chiudendo subito al 50% (senza soft-start l'uscita arriverebbe a
 ./lab run buck
 ```
 
+### buck_reg - Buck 24 V -> 12 V con retroazione
+
+Lo stesso convertitore, ma il pin **FB** dell'interruttore PWM e' collegato
+all'uscita e `vref = 12 V`: un controllore integrale misura `V(out)`, calcola
+l'errore rispetto a 12 V e corregge il ciclo di lavoro. A duty fisso 0,5
+l'uscita resterebbe a ~11,5 V per la caduta del diodo; la retroazione alza il
+duty a ~0,52 e porta l'uscita a **12 V**.
+
+A `t = 0,012 s` un secondo carico da 24 Ω entra in parallelo (`SW2`): la
+corrente raddoppia, l'uscita cala per un istante e il controllore la riporta a
+12 V. E' la differenza tra un alimentatore "aperto" e uno regolato.
+
+```bash
+./lab run buck_reg
+./lab run buck_reg --set SW1.ki=50
+```
+
+Con `ki` troppo alto il loop diventa instabile: gia' a `ki = 30` l'uscita
+sovraelonga oltre 13 V e a `ki = 50` oscilla. E' un assaggio di stabilita' dei
+sistemi retroazionati.
+
 ## Come funziona la verifica
 
 Il blocco `expect` confronta i risultati con i valori attesi. Per esempio:
@@ -434,9 +456,9 @@ Coperti dal motore attuale: partitori, LED, **diodo** e **diodo di potenza**,
 **sorgente AC**, raddrizzatori a mezz'onda e **a ponte**, **filtro capacitivo**,
 interruttori, carica e scarica RC, risonanza RLC, rele' con isteresi,
 potenziometri, transistor NPN, PUT, **MOSFET canale N**, **PWM** e
-**convertitore buck**.
+**convertitore buck** e **buck con retroazione**.
 
-Non ancora coperti: controllo/retroazione dello switching, trasformatori (mutua
+Non ancora coperti: trasformatori (mutua
 induttanza), timer 555, logica 74xx, amplificatori operazionali, analisi in
 frequenza, motori e tutto cio' che richiede modelli non lineari o subcircuiti.
 Questi richiedono nuovi `kind` o il fallback a ngspice descritto nella roadmap.

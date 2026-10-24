@@ -2,7 +2,9 @@
   "id": "switch_pwm",
   "kind": "SW",
   "name": "Interruttore PWM",
-  "pins": ["1", "2"],
-  "params": {"period": 0.001, "duty": 0.5, "ron": 0.05, "roff": 1000000000.0, "closed": true},
-  "learn": "Interruttore comandato a impulsi: resta chiuso per una frazione 'duty' di ogni periodo. La tensione media su un carico vale duty x Vin. E' il cuore di un convertitore switching (buck, boost)."
+  "pins": ["1", "2", "FB"],
+  "optional": ["FB"],
+  "params": {"period": 0.001, "duty": 0.5, "t_soft": 0, "ron": 0.05, "roff": 1000000000.0,
+             "closed": true, "vref": 0, "ki": 0},
+  "learn": "Interruttore comandato a impulsi: resta chiuso per una frazione 'duty' di ogni periodo. La tensione media su un carico vale duty x Vin. Se colleghi il pin FB all'uscita e imposti vref, un controllore integrale regola il duty da solo per mantenere V(FB) = vref."
 }

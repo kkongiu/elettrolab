@@ -102,7 +102,7 @@ def _source_v(p, t, mode):
     return p.num("v")
 
 
-def _switch_closed(p, t, mode):
+def _switch_closed(p, t, mode, duty=None):
     closed = bool(p.get("closed", True))
     if mode == "dc":
         return closed
@@ -116,7 +116,8 @@ def _switch_closed(p, t, mode):
         if pv > 0:
             period = pv
     if period is not None:
-        duty = p.num("duty") if "duty" in p.params else 0.5
+        if duty is None:
+            duty = p.num("duty") if "duty" in p.params else 0.5
         duty = min(max(duty, 0.0), 1.0)
         soft = p.num("t_soft") if "t_soft" in p.params else 0.0
         if soft > 0 and t < soft:
@@ -129,7 +130,7 @@ def _switch_closed(p, t, mode):
     return closed
 
 
-def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on):
+def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on, ctrl):
     n = circ.n
     N = n + circ.n_branches
     A = np.zeros((N, N))
@@ -186,7 +187,8 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on):
                 _stamp_g(A, a, k, 1e-9)
         elif kind == "SW":
             a, c = circ.node(pid, "1"), circ.node(pid, "2")
-            r = p.num("ron") if _switch_closed(p, t, mode) else p.num("roff")
+            duty = ctrl.get(pid) if ctrl else None
+            r = p.num("ron") if _switch_closed(p, t, mode, duty) else p.num("roff")
             _stamp_g(A, a, c, 1.0 / max(r, 1e-6))
         elif kind == "POT":
             r1, r2, w = circ.node(pid, "1"), circ.node(pid, "2"), circ.node(pid, "W")
@@ -388,7 +390,7 @@ def _pin_v(x, idx):
     return x[idx] if idx >= 0 else 0.0
 
 
-def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, t=0.0):
+def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, ctrl, t=0.0):
     v = _volts(circ, x)
     for i, name in enumerate(circ.node_names):
         res.nodes[name] = float(v[i])
@@ -424,7 +426,8 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, 
             pw = vv * i
         elif kind == "SW":
             a, c = circ.node(pid, "1"), circ.node(pid, "2")
-            r = p.num("ron") if _switch_closed(p, t, mode) else p.num("roff")
+            duty = ctrl.get(pid) if ctrl else None
+            r = p.num("ron") if _switch_closed(p, t, mode, duty) else p.num("roff")
             i = (_pin_v(x, a) - _pin_v(x, c)) / max(r, 1e-6)
             pw = i * i * max(r, 1e-6)
         elif kind == "POT":
@@ -550,7 +553,7 @@ def _dc(circ):
     x = None
     br = None
     for it in range(40):
-        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay, q, mos)
+        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay, q, mos, {})
         x = _solve(A, b)
         nl = _update_leds(circ, x, led)
         nr = _update_relays(circ, x, relay)
@@ -568,7 +571,7 @@ def _dc(circ):
             break
         seen.add(key)
         led, relay, q, mos = nl, nr, nq, nm
-    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q, mos)
+    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q, mos, {})
     res.relay_states = dict(relay)
     res.residual = float(np.max(np.abs(A @ x - b)))
     return res
@@ -635,6 +638,9 @@ def _tran(circ):
     relay_last = {pid: -1e9 for pid, _ in relays}
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     mos = {pid: False for pid, p in circ.parts.items() if p.kind == "MOS"}
+    ctrl = {pid: (p.num("duty") if "duty" in p.params else 0.5)
+            for pid, p in circ.parts.items()
+            if p.kind == "SW" and p.get("vref", 0) > 0 and circ.connected(pid, "FB")}
     time = np.zeros(nsteps)
     relay_hist = {pid: np.zeros(nsteps) for pid, _ in relays}
     viol_acc = {}
@@ -647,7 +653,7 @@ def _tran(circ):
         t = (step + 1) * dt
         for pid in relay_hist:
             relay_hist[pid][step] = 1.0 if relay[pid] else 0.0
-        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos)
+        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos, ctrl)
         x = _solve(A, b)
         for _ in range(4):
             nl = _update_leds(circ, x, led)
@@ -657,10 +663,20 @@ def _tran(circ):
             if nl == led and nq == q and nm == mos:
                 break
             led, q, mos = nl, nq, nm
-            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos)
+            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos, ctrl)
             x = _solve(A, b)
         res.residual = max(res.residual, float(np.max(np.abs(A @ x - b))))
-        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, mos, t)
+        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, mos, ctrl, t)
+        for pid in ctrl:
+            p = circ.part(pid)
+            soft = p.num("t_soft") if "t_soft" in p.params else 0.0
+            if t < soft:
+                continue
+            fb = circ.node(pid, "FB")
+            vfb = _pin_v(x, fb) if fb >= 0 else 0.0
+            err = p.num("vref") - vfb
+            ki = p.num("ki") if "ki" in p.params else 0.0
+            ctrl[pid] = min(max(ctrl[pid] + ki * err * dt, 0.0), 1.0)
         for viol in res.violations:
             key = (viol["part"], viol["code"])
             item = dict(viol)
@@ -712,52 +728,54 @@ def check(circ, res):
         if vals is None:
             out.append({"signal": sig, "ok": False, "detail": "segnale non trovato"})
             continue
+        conds = cond if isinstance(cond, list) else [cond]
         ok = True
         details = []
-        if "at" in cond:
-            if res.time is None:
-                ok = False
-                details.append("'at' richiede analisi transient")
-            else:
-                tq = float(cond["at"])
-                val = float(np.interp(tq, res.time, vals))
-                tol = float(cond.get("tol", 0.05))
-                exp = float(cond["approx"])
+        for c in conds:
+            if "at" in c:
+                if res.time is None:
+                    ok = False
+                    details.append("'at' richiede analisi transient")
+                else:
+                    tq = float(c["at"])
+                    val = float(np.interp(tq, res.time, vals))
+                    tol = float(c.get("tol", 0.05))
+                    exp = float(c["approx"])
+                    good = abs(val - exp) <= tol * max(abs(exp), 1e-12)
+                    ok = ok and good
+                    details.append(f"a {tq:g}s: {val:.4g} (atteso {exp:.4g} +/- {tol * 100:g}%)")
+            elif "approx" in c:
+                val = float(vals[-1])
+                tol = float(c.get("tol", 0.05))
+                exp = float(c["approx"])
                 good = abs(val - exp) <= tol * max(abs(exp), 1e-12)
                 ok = ok and good
-                details.append(f"a {tq:g}s: {val:.4g} (atteso {exp:.4g} +/- {tol * 100:g}%)")
-        elif "approx" in cond:
-            val = float(vals[-1])
-            tol = float(cond.get("tol", 0.05))
-            exp = float(cond["approx"])
-            good = abs(val - exp) <= tol * max(abs(exp), 1e-12)
-            ok = ok and good
-            details.append(f"{val:.4g} (atteso {exp:.4g} +/- {tol * 100:g}%)")
-        lo = cond.get("min")
-        hi = cond.get("max")
-        if lo is not None:
-            vmin = float(np.min(vals))
-            good = vmin >= float(lo)
-            ok = ok and good
-            details.append(f"min {vmin:.4g} >= {float(lo):.4g}")
-        if hi is not None:
-            vmax = float(np.max(vals))
-            good = vmax <= float(hi)
-            ok = ok and good
-            details.append(f"max {vmax:.4g} <= {float(hi):.4g}")
-        mean = cond.get("mean")
-        if mean is not None:
-            vmean = float(np.mean(vals))
-            tol = float(cond.get("mean_tol", cond.get("tol", 0.05)))
-            good = abs(vmean - float(mean)) <= tol * max(abs(float(mean)), 1e-12)
-            ok = ok and good
-            details.append(f"media {vmean:.4g} ~ {float(mean):.4g} +/- {tol * 100:g}%")
-        pk = cond.get("peak_min")
-        if pk is not None:
-            vmax = float(np.max(vals))
-            good = vmax >= float(pk)
-            ok = ok and good
-            details.append(f"picco {vmax:.4g} >= {float(pk):.4g}")
+                details.append(f"{val:.4g} (atteso {exp:.4g} +/- {tol * 100:g}%)")
+            lo = c.get("min")
+            hi = c.get("max")
+            if lo is not None:
+                vmin = float(np.min(vals))
+                good = vmin >= float(lo)
+                ok = ok and good
+                details.append(f"min {vmin:.4g} >= {float(lo):.4g}")
+            if hi is not None:
+                vmax = float(np.max(vals))
+                good = vmax <= float(hi)
+                ok = ok and good
+                details.append(f"max {vmax:.4g} <= {float(hi):.4g}")
+            mean = c.get("mean")
+            if mean is not None:
+                vmean = float(np.mean(vals))
+                tol = float(c.get("mean_tol", c.get("tol", 0.05)))
+                good = abs(vmean - float(mean)) <= tol * max(abs(float(mean)), 1e-12)
+                ok = ok and good
+                details.append(f"media {vmean:.4g} ~ {float(mean):.4g} +/- {tol * 100:g}%")
+            pk = c.get("peak_min")
+            if pk is not None:
+                vmax = float(np.max(vals))
+                good = vmax >= float(pk)
+                ok = ok and good
+                details.append(f"picco {vmax:.4g} >= {float(pk):.4g}")
         out.append({"signal": sig, "ok": ok, "detail": "; ".join(details)})
     res.checks = out
     res.ok = all(c["ok"] for c in out)

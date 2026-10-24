@@ -223,6 +223,8 @@ class Schematic:
             offs = {"D": (0, -45), "G": (-45, 0), "S": (0, 45)}
             dx, dy = offs[pin]
             return self._loc(x, y, rot, dx, dy)
+        if p.kind == "SW" and pin == "FB":
+            return self._loc(x, y, rot, 0, -45)
         i = pins.index(pin)
         return self._loc(x, y, rot, -45 if i == 0 else 45, 0)
 
