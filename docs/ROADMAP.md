@@ -60,7 +60,8 @@ Fatto:
 - [x] Generatore breadboard 2D per tutti i circuiti
 - [x] Editing breadboard: drag/rotate/delete, undo, validazione, sidecar
 - [x] I jumper seguono i componenti quando vengono spostati o ruotati
-- [x] Disposizione spaziosa (massima distanza) e pulsante di ottimizzazione
+- [x] Disposizione compatta/topologica e pulsante di ottimizzazione
+- [x] Zoom/pan della breadboard
 - [x] Jumper manuali, gomma, breadboard-first e derivazione reti/sync schema
 - [x] Aggiunta di componenti direttamente dalla breadboard
 - [x] Step 2 dell'esercizio 11: oscillatore audio e altoparlante
@@ -71,7 +72,6 @@ Da fare:
 
 - [ ] Trascinamento dei punti di piega dei fili
 - [ ] Rinomina delle reti dall'interfaccia
-- [ ] Zoom/pan della breadboard
 - [ ] Creazione di un nuovo tipo di componente dall'editor
 - [ ] "Fissa i valori attuali come attesi" per generare `expect`
 

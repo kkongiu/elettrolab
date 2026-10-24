@@ -25,8 +25,9 @@ database sono generici e non legati a un corso specifico.
 - suono: l'esercizio exp11b (step 2 del PUT) ha un altoparlante; `--play` o il
   pulsante Ascolta riproducono il segnale reale dell'altoparlante, con la
   fondamentale e le armoniche; il pulsante lo ripete in loop fino a Ferma
-- assemblaggio "spazioso": i componenti sono distribuiti massimizzando la
-  distanza, con pulsante **Ottimizza disposizione**
+- disposizione **compatta**: i componenti sono avvicinati alle loro
+  connessioni; **Ottimizza** rigenera il layout; zoom con rotella, pan col
+  tasto destro, **Adatta** per ripristinare
 - Editor grafico: palette, spostamento, rotazione, collegamento pin-to-pin
 - Pannello "Codice": JSON del circuito e del layout, modificabile e applicabile
 - Progetti utente salvati in `data/projects/`

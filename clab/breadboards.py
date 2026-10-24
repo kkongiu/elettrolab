@@ -337,7 +337,7 @@ def place_part(doc, layout, pid, hole):
     return False, "spazio occupato: libera i fori o sposta il componente"
 
 
-def generate(doc, spread=True):
+def generate(doc, spread=False):
     layout = {"parts": {}, "wires": []}
     gnd = doc.ground
     sources = sorted(pid for pid in doc.parts if doc.part(pid) is not None and doc.part(pid).kind == "V")
@@ -375,8 +375,19 @@ def generate(doc, spread=True):
 
     used = {0: set(), 1: set()}
     centers = []
+    centers_of = {}
+    if primary in layout:
+        pts = [hole_xy(h) for h in layout[primary]["pins"].values()]
+        centers_of[primary] = pts
+        centers.extend(pts)
 
-    def place(p):
+    adj = {pid: set() for pid in doc.parts}
+    for refs in doc.nets.values():
+        pids = {ref.rsplit(".", 1)[0] for ref in refs}
+        for a in pids:
+            adj[a] |= (pids - {a})
+
+    def place(p, targets):
         offs = _offsets(len(p.spec.pins))
         span = max(offs) + 1
         best = None
@@ -388,19 +399,15 @@ def generate(doc, spread=True):
                     continue
                 xs = [COL_X[c] for c in cols]
                 cx, cy = sum(xs) / len(xs), ROW_Y[row]
-                score = (min(math.hypot(cx - x, cy - y) for x, y in centers)
-                         if centers else 0.0)
-                key = (score, -ROWS.index(row), -c0)
+                score = (min(math.hypot(cx - x, cy - y) for x, y in targets)
+                         if targets else 0.0)
+                key = ((score if spread else -score), -ROWS.index(row), -c0)
                 if best is None or key > best[0]:
                     best = (key, row, c0, cols, cx, cy)
         return best, offs
 
-    pending.sort(key=lambda pid: (-(max(_offsets(len(doc.part(pid).spec.pins))) + 1), pid))
-    for pid in pending:
-        p = doc.part(pid)
-        best, offs = place(p)
-        if best is None:
-            raise LayoutError(f"breadboard piena: {pid}")
+    def commit(pid, p, best, offs):
+        nonlocal vpos
         _, row, c0, cols, cx, cy = best
         pins = {pin: f"{row}{c0 + offs[i]}" for i, pin in enumerate(p.spec.pins)}
         entry = {"pins": pins}
@@ -412,6 +419,30 @@ def generate(doc, spread=True):
         for col in cols:
             used[group].add(col)
         centers.append((cx, cy))
+        centers_of[pid] = [(cx, cy)]
+
+    if spread:
+        pending.sort(key=lambda pid: (-(max(_offsets(len(doc.part(pid).spec.pins))) + 1), pid))
+        for pid in pending:
+            p = doc.part(pid)
+            best, offs = place(p, centers)
+            if best is None:
+                raise LayoutError(f"breadboard piena: {pid}")
+            commit(pid, p, best, offs)
+    else:
+        left = list(pending)
+        while left:
+            def placed_nbrs(q):
+                return adj[q] & set(centers_of)
+            pid = max(left, key=lambda q: (len(placed_nbrs(q)),
+                                           max(_offsets(len(doc.part(q).spec.pins))) + 1, q))
+            left.remove(pid)
+            p = doc.part(pid)
+            pts = [c for n in placed_nbrs(pid) for c in centers_of.get(n, [])]
+            best, offs = place(p, pts or centers)
+            if best is None:
+                raise LayoutError(f"breadboard piena: {pid}")
+            commit(pid, p, best, offs)
 
     route_wires(doc, layout, pos_net=pos_net, gnd=gnd)
     return layout

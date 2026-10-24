@@ -151,6 +151,7 @@ class App:
         self.bb_first = tk.BooleanVar(value=True)
         self.bb_tool = "select"
         self.bb_wire_from = None
+        self._bb_pan = None
         self.vline = None
         self.t_anim = 0.0
         self.playing = True
@@ -382,6 +383,7 @@ class App:
                    command=lambda: self._set_bb_tool("erase")).pack(side="left", padx=1)
         ttk.Button(bbar, text="Ottimizza", command=self._optimize_board).pack(
             side="left", padx=(8, 0))
+        ttk.Button(bbar, text="Adatta", command=self._bb_fit).pack(side="left", padx=(4, 0))
         ttk.Label(bbar, text="trascina · R ruota · Canc elimina",
                   style="Muted.TLabel").pack(side="left", padx=8)
         self.bb_canvas = tk.Canvas(bbf, bg=CARD, highlightthickness=0)
@@ -389,6 +391,12 @@ class App:
         self.bb_canvas.bind("<Button-1>", self._bb_on_press)
         self.bb_canvas.bind("<B1-Motion>", self._bb_on_motion)
         self.bb_canvas.bind("<ButtonRelease-1>", self._bb_on_release)
+        self.bb_canvas.bind("<MouseWheel>", self._bb_zoom)
+        self.bb_canvas.bind("<Button-4>", lambda e: self._bb_zoom(e, 1.1))
+        self.bb_canvas.bind("<Button-5>", lambda e: self._bb_zoom(e, 1 / 1.1))
+        self.bb_canvas.bind("<Button-3>", self._bb_pan_press)
+        self.bb_canvas.bind("<B3-Motion>", self._bb_pan_motion)
+        self.bb_canvas.bind("<ButtonRelease-3>", self._bb_pan_release)
 
         cbar = ttk.Frame(codef, style="Card.TFrame")
         cbar.pack(fill="x")
@@ -741,8 +749,7 @@ class App:
         if self.doc.board is not None:
             for err in validate_layout(self.doc, self.doc.board):
                 self.problems_list.append({**err, "severity": "error"})
-        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
-        self.bb.selected = self.selected
+        self.bb = self._make_bb(self.doc.board)
         self._rebuild_pcb()
         self._update_sound_button()
         if self.selected not in self.doc.parts:
@@ -789,8 +796,7 @@ class App:
         self.problems_list = self.doc.problems()
         for err in validate_layout(self.doc, self.doc.board):
             self.problems_list.append({**err, "severity": "error"})
-        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, self.doc.board)
-        self.bb.selected = self.selected
+        self.bb = self._make_bb(self.doc.board)
         self._rebuild_pcb()
         self._update_sound_button()
         self.dirty = True
@@ -888,7 +894,42 @@ class App:
         self.selected = None
         self.dirty = True
         self._after_board_change()
-        self._hint("Disposizione ottimizzata: massima distanza tra i componenti")
+        self._hint("Disposizione ottimizzata: componenti vicini alle connessioni")
+
+    def _make_bb(self, board):
+        old = getattr(self, "bb", None)
+        bb = Breadboard(self.bb_canvas, self.doc, self.res, board)
+        if old is not None:
+            bb.zoom, bb.pan_x, bb.pan_y = old.zoom, old.pan_x, old.pan_y
+        bb.selected = self.selected
+        return bb
+
+    def _bb_zoom(self, event, factor=None):
+        if self.bb is None or self.doc is None:
+            return
+        if factor is None:
+            factor = 1.1 if event.delta > 0 else 1 / 1.1
+        self.bb.zoom_at(event.x, event.y, factor)
+        self._hint(f"Zoom {self.bb.zoom * 100:.0f}%")
+
+    def _bb_pan_press(self, event):
+        self._bb_pan = (event.x, event.y)
+        self.bb_canvas.focus_set()
+
+    def _bb_pan_motion(self, event):
+        if not self._bb_pan or self.bb is None:
+            return
+        x0, y0 = self._bb_pan
+        self._bb_pan = (event.x, event.y)
+        self.bb.pan_by(event.x - x0, event.y - y0)
+
+    def _bb_pan_release(self, event):
+        self._bb_pan = None
+
+    def _bb_fit(self):
+        if self.bb is not None:
+            self.bb.reset_view()
+            self._hint("Vista adattata")
 
     def _breadboard_active(self):
         return self.nb.select() == str(self.bb_frame)
@@ -1002,7 +1043,7 @@ class App:
             return
         if self.bb_first.get():
             self.doc.board = candidate
-            self.bb = Breadboard(self.bb_canvas, self.doc, self.res, candidate)
+            self.bb = self._make_bb(candidate)
             self.bb.selected = self._bb_drag["pid"]
             self._hint(f"{self._bb_drag['pid']} spostato; reti ricalcolate al rilascio")
             return
@@ -1012,7 +1053,7 @@ class App:
             self._hint(errors[0]["message"])
             return
         self.doc.board = candidate
-        self.bb = Breadboard(self.bb_canvas, self.doc, self.res, candidate)
+        self.bb = self._make_bb(candidate)
         self.bb.selected = self._bb_drag["pid"]
         self._hint(f"{self._bb_drag['pid']} spostato")
 

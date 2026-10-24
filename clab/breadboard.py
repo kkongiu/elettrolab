@@ -31,6 +31,10 @@ class Breadboard:
         self.s = 1.0
         self.ox = 0.0
         self.oy = 0.0
+        self.zoom = 1.0
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self.fit_s = 0.0
         self.selected = None
 
     def virtual(self, x, y):
@@ -75,8 +79,34 @@ class Breadboard:
                                   capstyle="round")
 
     def text(self, x, y, txt, anchor="center", color=TEXT, size=8):
+        fs = max(5, int(round(size * self.zoom)))
         return self.c.create_text(*self.T(x, y), text=txt, anchor=anchor,
-                                  fill=color, font=(FONT, size))
+                                  fill=color, font=(FONT, fs))
+
+    def zoom_at(self, sx, sy, factor):
+        if not self.layout:
+            return
+        vx, vy = self.virtual(sx, sy)
+        self.zoom = min(6.0, max(0.4, self.zoom * factor))
+        w, h = self.c.winfo_width(), self.c.winfo_height()
+        if w < 200 or h < 150:
+            w, h = 860, 340
+        fit = self.fit_s or min(w / W, h / H)
+        s = fit * self.zoom
+        self.pan_x = (sx - vx * s) - (w - W * s) / 2
+        self.pan_y = (sy - vy * s) - (h - H * s) / 2
+        self.draw()
+
+    def pan_by(self, dx, dy):
+        self.pan_x += dx
+        self.pan_y += dy
+        self.draw()
+
+    def reset_view(self):
+        self.zoom = 1.0
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self.draw()
 
     def _cur(self, pid, t):
         if self.res is None:
@@ -114,12 +144,26 @@ class Breadboard:
             if c < 1e-6:
                 return f"{pid} {c * 1e9:g} nF"
             return f"{pid} {c * 1e6:g} µF" if c <= 1e-3 else f"{pid} {c:g} F"
-        if k == "SW":
-            return pid
         if k == "L":
             return f"{pid} {fmt(p.num('l'), 'H')}"
         if k == "SPK":
             return f"{pid} {fmt(p.num('r'), 'Ω')}"
+        if k == "LAMP":
+            return f"{pid} {p.num('vn'):g} V {p.num('p'):g} W"
+        if k == "D":
+            return f"{pid} D"
+        if k == "XFMR":
+            return f"{pid} n={p.num('n'):.3g}"
+        if k == "SW":
+            if p.type == "lm2596":
+                return f"{pid} LM2596 5V"
+            if p.type == "solar_charger":
+                return f"{pid} CHG 14.4V"
+            return f"{pid} {p.get('kind', 'SW')}"
+        if k == "POT":
+            return f"{pid} {fmt(p.num('rtotal'), 'Ω')}"
+        if k in ("NPN", "PUT", "MOS"):
+            return f"{pid} {k}"
         return pid
 
     def draw(self, t=None, dreal=0.0, playing=True):
@@ -133,9 +177,10 @@ class Breadboard:
         h = c.winfo_height()
         if w < 200 or h < 150:
             w, h = 860, 340
-        self.s = min(w / W, h / H)
-        self.ox = (w - W * self.s) / 2
-        self.oy = (h - H * self.s) / 2
+        self.fit_s = min(w / W, h / H)
+        self.s = self.fit_s * self.zoom
+        self.ox = (w - W * self.s) / 2 + self.pan_x
+        self.oy = (h - H * self.s) / 2 + self.pan_y
         self._board()
         self._wires()
         for pid in self.layout.get("parts", {}):
@@ -230,6 +275,10 @@ class Breadboard:
             self._switch(pid, p, a, b)
         elif kind == "SPK":
             self._speaker(pid, p, a, b, t)
+        elif kind == "D":
+            self._diode(pid, p, a, b)
+        elif kind == "LAMP":
+            self._lamp(pid, p, a, b, t)
         else:
             self._module(pid, p, points)
 
@@ -283,6 +332,38 @@ class Breadboard:
             self.c.create_line(X - r, Y + r, X + r, Y - r, fill="#fca5a5", width=2)
         self.text(mx - nx * 24, my - ny * 24, self._label(pid), size=8)
         self.text(mx + nx * 22, my + ny * 22, f"I={fmt(i, 'A')}", size=7, color="#b45309")
+
+    def _diode(self, pid, p, a, b):
+        mx, my, L, ux, uy, nx, ny = self._geometry(a, b)
+        self.line([a, (mx - ux * L * 0.18, my - uy * L * 0.18)], color=INK, width=2)
+        self.line([(mx + ux * L * 0.18, my + uy * L * 0.18), b], color=INK, width=2)
+        tri = [(-0.18, -8), (-0.18, 8), (0.16, 0)]
+        poly = [(mx + ux * L * u + nx * v, my + uy * L * u + ny * v) for u, v in tri]
+        self.c.create_polygon(*[c for q in poly for c in self.T(*q)],
+                              outline=INK, fill="", width=max(1.0, 1.5 * self.s))
+        self.line([(mx + ux * L * 0.16 + nx * -8, my + uy * L * 0.16 + ny * -8),
+                   (mx + ux * L * 0.16 + nx * 8, my + uy * L * 0.16 + ny * 8)],
+                  color=INK, width=2)
+        self.text(mx - nx * 22, my - ny * 22, self._label(pid), size=8)
+
+    def _lamp(self, pid, p, a, b, t):
+        mx, my, L, ux, uy, nx, ny = self._geometry(a, b)
+        i = abs(self._cur(pid, t))
+        if i > 1e-6:
+            X, Y = self.T(mx, my)
+            for rad, f in ((16, 0.35), (11, 0.55)):
+                rr = rad * self.s
+                self.c.create_oval(X - rr, Y - rr, X + rr, Y + rr,
+                                   fill=_blend(BG, "#f59e0b", min(1.0, f + i)), outline="")
+        self.line([a, (mx - ux * L * 0.16, my - uy * L * 0.16)], color=INK, width=2)
+        self.line([(mx + ux * L * 0.16, my + uy * L * 0.16), b], color=INK, width=2)
+        X, Y = self.T(mx, my)
+        rr = 9 * self.s
+        self.c.create_oval(X - rr, Y - rr, X + rr, Y + rr,
+                           outline=INK, fill="", width=max(1.0, 1.5 * self.s))
+        self.line([(mx - 5, my - 5), (mx + 5, my + 5)], color=INK, width=1.5)
+        self.line([(mx - 5, my + 5), (mx + 5, my - 5)], color=INK, width=1.5)
+        self.text(mx - nx * 24, my - ny * 24, self._label(pid), size=8)
 
     def _capacitor(self, pid, p, a, b):
         mx, my, L, ux, uy, nx, ny = self._geometry(a, b)
@@ -360,7 +441,7 @@ class Breadboard:
             r = max(1.2, 1.8 * self.s)
             self.c.create_oval(X - r, Y - r, X + r, Y + r, fill=INK, outline="")
             self.text(pt[0], pt[1] + 12, pin, size=6)
-        self.text(cx, y0 - 6, pid, size=8, color=INK)
+        self.text(cx, y0 - 6, self._label(pid), size=8, color=INK)
 
     def _battery(self, pid, p):
         pos = self.layout["parts"][pid].get("pos", (60, 200))
