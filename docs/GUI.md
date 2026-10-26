@@ -14,8 +14,8 @@ non ne hanno bisogno.
 
 ## Struttura della finestra
 
-- **Sinistra**: esercizi con `PASS`/`FAIL`, progetti utente, pulsanti
-  `Nuovo`/`Salva`/`Salva copia`, palette dei componenti.
+- **Sinistra**: riepilogo test, pulsanti `Nuovo`/`Salva`/`Copia`, palette dei
+  componenti. Esercizi e progetti si caricano dal menu **Esempi**.
 - **Centro**: schema del circuito. Sopra ci sono modalità, undo/redo, stato,
   segnale, orologio e pausa.
 - **Destra**: proprietà del componente selezionato e problemi del circuito.
@@ -97,8 +97,9 @@ aperto e il motivo compare nel messaggio in basso a sinistra.
 
 - `Nuovo`: documento vuoto.
 - `Salva`: salva il progetto corrente.
-- `Salva copia`: chiede un nome e scrive in `data/projects/`.
-- Selezionare un progetto dalla lista lo apre.
+- `Copia`: chiede un nome e scrive in `data/projects/`.
+- **Esempi → Progetti**: scegliere un progetto lo apre.
+- **Esempi → Esercizi**: carica un esercizio integrato (con `PASS`/`FAIL`).
 
 Ogni progetto ha due file:
 

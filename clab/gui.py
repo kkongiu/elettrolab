@@ -125,6 +125,13 @@ class App:
         self.db = DB(DATA / "components")
         PROJECTS.mkdir(parents=True, exist_ok=True)
         self.ids = sorted(p.stem for p in (DATA / "exercises").glob("*.json"))
+        self.titles = {}
+        for eid in self.ids:
+            try:
+                raw = json.loads((DATA / "exercises" / f"{eid}.json").read_text(encoding="utf-8"))
+                self.titles[eid] = raw.get("title", eid)
+            except Exception:
+                self.titles[eid] = eid
         self.results = {}
         self.doc = None
         self.res = None
@@ -227,31 +234,27 @@ class App:
         self.hpaned.add(main, minsize=420, stretch="always")
         self.left = left
 
-        ttk.Label(left, text="Esercizi", style="TLabel",
-                  font=("DejaVu Sans", 11, "bold")).pack(anchor="w")
         self.ex_list = tk.Listbox(left, bg=CARD, fg=TEXT, bd=0, highlightthickness=0,
                                   activestyle="none", selectbackground="#dbe8ff",
                                   selectforeground=TEXT, font=("DejaVu Sans", 10),
                                   height=8, exportselection=False)
-        self.ex_list.pack(fill="x")
         self.ex_list.bind("<<ListboxSelect>>", lambda e: self._select_exercise())
-        self.summary = ttk.Label(left, text="", style="TLabel", foreground=MUTED)
-        self.summary.pack(anchor="w", pady=(2, 6))
-
-        ttk.Label(left, text="Progetti", style="TLabel",
-                  font=("DejaVu Sans", 11, "bold")).pack(anchor="w")
         self.proj_list = tk.Listbox(left, bg=CARD, fg=TEXT, bd=0, highlightthickness=0,
                                     activestyle="none", selectbackground="#dbe8ff",
                                     selectforeground=TEXT, font=("DejaVu Sans", 10),
                                     height=4, exportselection=False)
-        self.proj_list.pack(fill="x")
         self.proj_list.bind("<<ListboxSelect>>", lambda e: self._open_project())
+
+        self.summary = ttk.Label(left, text="", style="TLabel", foreground=MUTED)
+        self.summary.pack(anchor="w", pady=(0, 6))
 
         row = ttk.Frame(left)
         row.pack(fill="x", pady=(6, 8))
-        ttk.Button(row, text="Nuovo", command=self._new, width=7).pack(side="left")
-        ttk.Button(row, text="Salva", command=self._save, width=7).pack(side="left", padx=3)
-        ttk.Button(row, text="Salva copia", command=self._save_as, width=10).pack(side="left")
+        ttk.Button(row, text="Nuovo", command=self._new, width=6).pack(side="left")
+        ttk.Button(row, text="Salva", command=self._save, width=6).pack(side="left", padx=3)
+        b = ttk.Button(row, text="Copia", command=self._save_as, width=6)
+        b.pack(side="left")
+        Tooltip(b, "Salva copia del circuito in un nuovo progetto")
 
         ttk.Label(left, text="Componenti", style="TLabel",
                   font=("DejaVu Sans", 11, "bold")).pack(anchor="w", pady=(0, 2))
@@ -460,6 +463,22 @@ class App:
         menubar.add_cascade(label="File", menu=m)
 
         m = tk.Menu(menubar, tearoff=0)
+        ex = tk.Menu(m, tearoff=0)
+        for i, eid in enumerate(self.ids):
+            ex.add_command(label=self._exercise_label(eid),
+                           command=lambda i=i: self._choose_exercise(i))
+        m.add_cascade(label="Esercizi", menu=ex)
+        pr = tk.Menu(m, tearoff=0)
+        names = self._project_names()
+        if names:
+            for name in names:
+                pr.add_command(label=name, command=lambda n=name: self._open_project(n))
+        else:
+            pr.add_command(label="(nessun progetto)", state="disabled")
+        m.add_cascade(label="Progetti", menu=pr)
+        menubar.add_cascade(label="Esempi", menu=m)
+
+        m = tk.Menu(menubar, tearoff=0)
         m.add_command(label="Annulla", accelerator="Ctrl+Z", command=self._undo)
         m.add_command(label="Ripeti", accelerator="Ctrl+Y", command=self._redo)
         m.add_separator()
@@ -532,7 +551,8 @@ class App:
             "  trascina componenti, R ruota, Canc elimina\n\n"
             "Finestra:\n"
             "  trascina i divisori per ridimensionare sinistra / destra / basso\n"
-            "  menu Visualizza per mostrare o nascondere le sezioni\n\n"
+            "  menu Visualizza per mostrare o nascondere le sezioni\n"
+            "  menu Esempi per caricare esercizi e progetti\n\n"
             "Scorciatoie: Ctrl+N nuovo, Ctrl+S salva, Ctrl+Z/Ctrl+Y annulla/ripeti",
             parent=self.root)
 
@@ -1655,25 +1675,44 @@ class App:
         self._update_header()
         self._hint(f"Salvato in {path}")
 
+    def _exercise_label(self, eid):
+        state = self.results.get(eid)
+        mark = "" if state is None else ("PASS  " if state else "FAIL  ")
+        title = self.titles.get(eid, "")
+        return f"{mark}{eid}  {title}" if title else f"{mark}{eid}"
+
+    def _project_names(self):
+        return sorted(p.stem for p in PROJECTS.glob("*.json")
+                      if not p.name.endswith((".layout.json", ".board.json")))
+
+    def _choose_exercise(self, index):
+        if not 0 <= index < len(self.ids):
+            return
+        self.ex_list.selection_clear(0, "end")
+        self.ex_list.selection_set(index)
+        self.ex_list.activate(index)
+        self._select_exercise()
+
     def _refresh_projects(self, select=None):
         self.proj_list.delete(0, "end")
-        names = sorted(p.stem for p in PROJECTS.glob("*.json")
-                       if not p.name.endswith((".layout.json", ".board.json")))
+        names = self._project_names()
         for name in names:
             self.proj_list.insert("end", name)
         if select in names:
             i = names.index(select)
             self.proj_list.selection_set(i)
             self.proj_list.activate(i)
+        self._build_menu()
 
-    def _open_project(self):
-        sel = self.proj_list.curselection()
-        if not sel:
-            return
+    def _open_project(self, name=None):
+        if name is None:
+            sel = self.proj_list.curselection()
+            if not sel:
+                return
+            name = self.proj_list.get(sel[0])
         if not self._confirm_discard():
             self.proj_list.selection_clear(0, "end")
             return
-        name = self.proj_list.get(sel[0])
         path = PROJECTS / f"{name}.json"
         layout = PROJECTS / f"{name}.layout.json"
         board = PROJECTS / f"{name}.board.json"
