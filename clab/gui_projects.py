@@ -167,25 +167,7 @@ class ProjectMixin:
         self._hint(f"Esercizio {eid} caricato. Salva una copia per modificarlo.")
 
     def _load_doc(self, doc, res=None):
-        self.doc = doc
-        self.schem = None
-        self.selected = None
-        self.selected_wire = None
-        self.wire_from = None
-        self.bb_wire_from = None
-        self.armed = None
-        self.drag = None
-        self.mode = "select"
-        self.history = []
-        self.future = []
-        self.dirty = False
-        self.t_anim = 0.0
-        self.code_editing = False
-        self.code_btn.configure(text="Modifica")
-        self.code_text.configure(state="disabled")
-        self.code_view.configure(state="readonly")
-        self.res = res
-        self._after_change(simulate=res is None)
+        self._start_document_load(doc, res=res)
 
     def _new(self):
         if not self._confirm_discard():

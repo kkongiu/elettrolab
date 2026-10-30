@@ -216,6 +216,9 @@ class App(SimulationMixin, ProjectMixin):
                                            self._play_sound)
         self.status = ttk.Label(bar, text="", style="Status.TLabel")
         self.status.pack(side="left", padx=(14, 0))
+        self.load_progress = ttk.Progressbar(bar, mode="indeterminate", length=92)
+        self.load_progress.pack(side="left", padx=(8, 0))
+        self.load_progress.pack_forget()
         self.viol = ttk.Label(bar, text="", style="Card.TLabel", foreground=FAIL)
         self.viol.pack(side="left", padx=(10, 0))
         self.play = self._tool_button(bar, "\u23f8", "Pausa / riprendi",
@@ -586,6 +589,8 @@ class App(SimulationMixin, ProjectMixin):
     def _after_change(self, reset_anim=False, simulate=True, props=True):
         if self.doc is None:
             return
+        if getattr(self, "_document_loading", False):
+            return
         self._ac_generation += 1
         self.ac_result = None
         self.doc.ensure_layout()
@@ -640,6 +645,117 @@ class App(SimulationMixin, ProjectMixin):
         except PcbError as e:
             self.pcb = Pcb(self.pcb_canvas, None, str(e))
             self.pcb_info.configure(text=str(e))
+
+    def _start_document_load(self, doc, res=None):
+        """Prepare expensive board layouts off the Tk event thread."""
+        self._load_generation = getattr(self, "_load_generation", 0) + 1
+        generation = self._load_generation
+        self._document_loading = True
+        self.doc = doc
+        self.schem = None
+        self.bb = None
+        self.selected = None
+        self.selected_wire = None
+        self.wire_from = None
+        self.bb_wire_from = None
+        self.armed = None
+        self.drag = None
+        self.mode = "select"
+        self.history = []
+        self.future = []
+        self.dirty = False
+        self.t_anim = 0.0
+        self.code_editing = False
+        self.code_btn.configure(text="Modifica")
+        self.code_text.configure(state="disabled")
+        self.code_view.configure(state="readonly")
+        self.res = res
+        self.problems_list = []
+        self.scv.delete("all")
+        self.bb_canvas.delete("all")
+        self.pcb_canvas.delete("all")
+        self.status.configure(text="CARICAMENTO PROGETTO…", foreground=MUTED)
+        self.load_progress.pack(side="left", padx=(8, 0))
+        self.load_progress.start(12)
+        self.root.update_idletasks()
+        prepare_bb_first = bool(self.bb_first.get())
+        worker = threading.Thread(
+            target=self._prepare_document_worker,
+            args=(generation, doc.clone(), prepare_bb_first), daemon=True)
+        worker.start()
+
+    def _prepare_document_worker(self, generation, doc, bb_first):
+        board_problems = []
+        try:
+            doc.ensure_layout()
+            if doc.meta.get("analysis") == "schematic":
+                doc.board = None
+            elif doc.board is None or set(doc.board.get("parts", {})) != set(doc.parts):
+                try:
+                    doc.board = generate(doc)
+                except LayoutError as e:
+                    doc.board = None
+                    board_problems.append({"severity": "warning", "code": "layout",
+                                           "message": str(e)})
+            elif bb_first:
+                doc.nets = derive_nets(doc, doc.board)
+            else:
+                reroute(doc, doc.board)
+            if doc.board is not None:
+                board_problems.extend({**err, "severity": "error"}
+                                      for err in validate_layout(doc, doc.board))
+            try:
+                pcb_layout = PcbLayout(doc)
+                pcb_error = None
+            except PcbError as e:
+                pcb_layout = None
+                pcb_error = str(e)
+            result = (doc.board, doc.nets, board_problems, pcb_layout, pcb_error, None)
+        except Exception as e:
+            result = (None, doc.nets, board_problems, None,
+                      "Layout PCB non disponibile", str(e))
+        self._async_queue.put(("load", generation, *result))
+
+    def _finish_document_load(self, generation, board, nets, board_problems,
+                              pcb_layout, pcb_error, error):
+        if generation != getattr(self, "_load_generation", 0):
+            return
+        self._document_loading = False
+        self.load_progress.stop()
+        self.load_progress.pack_forget()
+        self.doc.board = board
+        self.doc.nets = nets
+        if error:
+            self._hint(f"Errore preparazione layout: {error}")
+        elif board_problems:
+            self._hint(board_problems[0]["message"])
+        self._ac_generation += 1
+        self.ac_result = None
+        if self.res is None:
+            self._schedule_simulation()
+        else:
+            self.problems_list = self.doc.problems()
+        self.problems_list.extend(board_problems)
+        self.schem = self._new_schem()
+        self.bb = self._make_bb(self.doc.board)
+        if pcb_layout is not None:
+            self.pcb = Pcb(self.pcb_canvas, pcb_layout)
+            w, h = pcb_layout.board
+            info = f"{w:.0f}×{h:.0f} mm · DRC {len(pcb_layout.violations)}"
+            if pcb_layout.warnings:
+                info += f" · non instradate {len(pcb_layout.warnings)}"
+            self.pcb_info.configure(text=info)
+        else:
+            message = pcb_error or "Layout PCB non disponibile"
+            self.pcb = Pcb(self.pcb_canvas, None, message)
+            self.pcb_info.configure(text=message)
+        self._update_sound_button()
+        self._update_header()
+        self._update_problems()
+        self._update_code()
+        self._update_props()
+        self._fill()
+        self._plot()
 
     def _export_pcb_svg(self):
         if self.pcb is None or self.pcb.layout is None:

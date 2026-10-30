@@ -117,6 +117,11 @@ class SimulationMixin:
                 item = self._async_queue.get_nowait()
             except queue.Empty:
                 break
+            if item[0] == "load":
+                _, generation, board, nets, board_problems, pcb_layout, pcb_error, error = item
+                self._finish_document_load(generation, board, nets, board_problems,
+                                           pcb_layout, pcb_error, error)
+                continue
             if item[0] == "ac":
                 _, generation, result, error = item
                 if generation != self._ac_generation:
