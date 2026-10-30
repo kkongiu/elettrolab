@@ -119,6 +119,10 @@ class App(SimulationMixin, ProjectMixin):
                         font=("DejaVu Sans", 10, "bold"))
         style.configure("Section.TLabel", background=BG, foreground=MUTED,
                         font=("DejaVu Sans", 9, "bold"))
+        style.configure("SidebarTitle.TLabel", background=BG, foreground="#17365d",
+                        font=("DejaVu Sans", 17, "bold"))
+        style.configure("SidebarSub.TLabel", background=BG, foreground=MUTED,
+                        font=("DejaVu Sans", 9))
         style.configure("Treeview", background=CARD, fieldbackground=CARD, rowheight=24,
                         foreground=TEXT, borderwidth=0)
         style.configure("Treeview.Heading", font=("DejaVu Sans", 9, "bold"))
@@ -151,31 +155,64 @@ class App(SimulationMixin, ProjectMixin):
         self.hpaned.add(main, minsize=420, stretch="always")
         self.left = left
 
-        self.ex_list = tk.Listbox(left, bg=CARD, fg=TEXT, bd=0, highlightthickness=0,
-                                  activestyle="none", selectbackground="#dbe8ff",
-                                  selectforeground=TEXT, font=("DejaVu Sans", 10),
-                                  height=8, exportselection=False)
-        self.ex_list.bind("<<ListboxSelect>>", lambda e: self._select_exercise())
-        self.proj_list = tk.Listbox(left, bg=CARD, fg=TEXT, bd=0, highlightthickness=0,
-                                    activestyle="none", selectbackground="#dbe8ff",
-                                    selectforeground=TEXT, font=("DejaVu Sans", 10),
-                                    height=4, exportselection=False)
+        brand = ttk.Frame(left, padding=(12, 14, 10, 10))
+        brand.pack(fill="x")
+        ttk.Label(brand, text="elettrolab", style="SidebarTitle.TLabel").pack(anchor="w")
+        ttk.Label(brand, text="Laboratorio di elettronica",
+                  style="SidebarSub.TLabel").pack(anchor="w", pady=(1, 0))
+
+        actions = ttk.Frame(left, padding=(10, 0, 10, 10))
+        actions.pack(fill="x")
+        ttk.Button(actions, text="＋ Nuovo", command=self._new,
+                   style="Accent.TButton").pack(side="left", fill="x", expand=True)
+        ttk.Button(actions, text="Salva", command=self._save).pack(
+            side="left", padx=(6, 0), fill="x", expand=True)
+
+        ttk.Label(left, text="PROGETTI", style="Section.TLabel").pack(
+            anchor="w", padx=12, pady=(2, 4))
+        project_frame = ttk.Frame(left, padding=(10, 0, 10, 2))
+        project_frame.pack(fill="x")
+        self.proj_list = tk.Listbox(project_frame, bg=CARD, fg=TEXT, bd=0,
+                                    highlightthickness=1, highlightbackground="#d8dee9",
+                                    activestyle="none", selectbackground="#dbeafe",
+                                    selectforeground=TEXT, font=("DejaVu Sans", 9),
+                                    height=3, exportselection=False)
+        self.proj_list.pack(side="left", fill="both", expand=True)
+        project_scroll = ttk.Scrollbar(project_frame, orient="vertical",
+                                       command=self.proj_list.yview)
+        project_scroll.pack(side="right", fill="y")
+        self.proj_list.configure(yscrollcommand=project_scroll.set)
         self.proj_list.bind("<<ListboxSelect>>", lambda e: self._open_project())
 
-        self.summary = ttk.Label(left, text="", style="TLabel", foreground=MUTED)
-        self.summary.pack(anchor="w", pady=(0, 6))
+        ex_heading = ttk.Frame(left, padding=(10, 8, 10, 3))
+        ex_heading.pack(fill="x")
+        ttk.Label(ex_heading, text="ESERCIZI", style="Section.TLabel").pack(side="left")
+        self.summary = ttk.Label(ex_heading, text="", style="SidebarSub.TLabel")
+        self.summary.pack(side="right")
+        exercise_frame = ttk.Frame(left, padding=(10, 0, 10, 3))
+        exercise_frame.pack(fill="x")
+        self.ex_list = tk.Listbox(exercise_frame, bg=CARD, fg=TEXT, bd=0,
+                                  highlightthickness=1, highlightbackground="#d8dee9",
+                                  activestyle="none", selectbackground="#dbeafe",
+                                  selectforeground=TEXT, font=("DejaVu Sans", 9),
+                                  height=5, exportselection=False)
+        self.ex_list.bind("<<ListboxSelect>>", lambda e: self._select_exercise())
+        self.ex_list.pack(side="left", fill="both", expand=True)
+        exercise_scroll = ttk.Scrollbar(exercise_frame, orient="vertical",
+                                        command=self.ex_list.yview)
+        exercise_scroll.pack(side="right", fill="y")
+        self.ex_list.configure(yscrollcommand=exercise_scroll.set)
 
-        row = ttk.Frame(left)
-        row.pack(fill="x", pady=(6, 8))
-        ttk.Button(row, text="Nuovo", command=self._new, width=6).pack(side="left")
-        ttk.Button(row, text="Salva", command=self._save, width=6).pack(side="left", padx=3)
-        b = ttk.Button(row, text="Copia", command=self._save_as, width=6)
-        b.pack(side="left")
-        Tooltip(b, "Salva copia del circuito in un nuovo progetto")
+        ttk.Separator(left).pack(fill="x", padx=10, pady=(5, 7))
+        palette_heading = ttk.Frame(left, padding=(10, 0, 10, 4))
+        palette_heading.pack(fill="x")
+        ttk.Label(palette_heading, text="COMPONENTI",
+                  style="Section.TLabel").pack(side="left")
+        b = ttk.Button(palette_heading, text="Copia…", command=self._save_as)
+        b.pack(side="right")
+        Tooltip(b, "Salva una copia del circuito come nuovo progetto")
 
-        ttk.Label(left, text="Componenti", style="TLabel",
-                  font=("DejaVu Sans", 11, "bold")).pack(anchor="w", pady=(0, 2))
-        pal = ttk.Frame(left)
+        pal = ttk.Frame(left, padding=(10, 0, 10, 0))
         pal.pack(fill="both", expand=True)
         self.pal = ttk.Treeview(pal, show="tree", selectmode="browse", height=12)
         self.pal.pack(side="left", fill="both", expand=True)
@@ -184,9 +221,9 @@ class App(SimulationMixin, ProjectMixin):
         self.pal.configure(yscrollcommand=sb.set)
         self._fill_palette()
         self.pal.bind("<<TreeviewSelect>>", self._on_palette_select)
-        self.hint = ttk.Label(left, text="", style="TLabel", foreground=MUTED,
+        self.hint = ttk.Label(left, text="", style="SidebarSub.TLabel",
                               wraplength=220, justify="left")
-        self.hint.pack(anchor="w", pady=(8, 0))
+        self.hint.pack(anchor="w", padx=12, pady=(8, 10))
 
         head = ttk.Frame(main, style="Card.TFrame")
         head.pack(fill="x")
