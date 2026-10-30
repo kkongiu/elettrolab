@@ -4,4 +4,8 @@ cd "$here" || exit 1
 if [ $# -eq 0 ]; then
   set -- menu
 fi
+# Usa il venv del progetto se presente (altrimenti il python3 di sistema)
+if [ -x "$here/.venv/bin/python" ]; then
+  exec "$here/.venv/bin/python" -m clab "$@"
+fi
 exec python3 -m clab "$@"
