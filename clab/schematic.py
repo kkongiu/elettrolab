@@ -8,6 +8,7 @@ from .units import fmt
 INK = "#1f2937"
 WIRE = "#64748b"
 SEL = "#e11d48"
+HANDLE = "#0a5bd3"
 MUTED = "#6b7280"
 DOT = "#f59e0b"
 RED = "#ef4444"
@@ -45,6 +46,30 @@ class Path:
                 f = 0.0 if seg <= 0 else (d - self.cum[i - 1]) / seg
                 return (a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)
         return self.poly[-1]
+
+
+def move_bend(poly, index, x, y):
+    """Move an internal orthogonal bend, adding doglegs to keep the route orthogonal."""
+    points = [(float(px), float(py)) for px, py in poly]
+    if not 0 < index < len(points) - 1:
+        raise ValueError("il punto di piega deve essere interno al percorso")
+    before, after = points[index - 1], points[index + 1]
+    replacement = [before, (float(x), before[1]), (float(x), float(y)),
+                   (after[0], float(y)), after]
+    out = points[:index - 1] + replacement + points[index + 2:]
+    compact = []
+    for point in out:
+        if compact and point == compact[-1]:
+            continue
+        compact.append(point)
+        while len(compact) >= 3:
+            a, b, c = compact[-3:]
+            if (abs((b[0] - a[0]) * (c[1] - b[1]) -
+                    (b[1] - a[1]) * (c[0] - b[0])) < 1e-9):
+                compact.pop(-2)
+            else:
+                break
+    return compact
 
 
 class Schematic:
@@ -127,6 +152,12 @@ class Schematic:
             return (x - 55, y - 58, x + 55, y + 22)
         if kind == "GND":
             return (x - 30, y - 32, x + 32, y + 22)
+        if kind in ("IC", "PORT"):
+            half_w, half_h = self._block_half_size(self.doc.part(pid))
+            if rot in (90, 270):
+                half_w, half_h = half_h, half_w
+            return (x - half_w - 16, y - half_h - 16,
+                    x + half_w + 16, y + half_h + 16)
         if kind == "NPN":
             return (x - 50, y - 50, x + 50, y + 50)
         if kind == "PUT":
@@ -179,6 +210,22 @@ class Schematic:
                     best, best_d = path.net, d
         return best
 
+    def bend_at(self, vx, vy, radius=12):
+        best, best_d = None, radius
+        for path in self.paths:
+            if path.net == self.doc.ground:
+                continue
+            try:
+                route_index = int(path.key.rsplit("|", 1)[1])
+            except (IndexError, ValueError):
+                continue
+            for index, (x, y) in enumerate(path.poly[1:-1], start=1):
+                distance = math.hypot(vx - x, vy - y)
+                if distance < best_d:
+                    best = (path.net, route_index, index)
+                    best_d = distance
+        return best
+
     def _loc(self, x, y, rot, u, v):
         if rot == 90:
             return (x - v, y + u)
@@ -194,6 +241,19 @@ class Schematic:
         if p is None:
             return (x, y)
         pins = p.spec.pins
+        if p.kind in ("IC", "PORT"):
+            side = self._block_pin_side(p, pin)
+            left, right, top, bottom = self._block_sides(p)
+            half_w, half_h = self._block_half_size(p)
+            side_pins = {"left": left, "right": right, "top": top, "bottom": bottom}[side]
+            i = side_pins.index(pin)
+            if side in ("left", "right"):
+                yy = (i - (len(side_pins) - 1) / 2) * 19
+                xx = -half_w - 14 if side == "left" else half_w + 14
+                return self._loc(x, y, rot, xx, yy)
+            xx = (i - (len(side_pins) - 1) / 2) * 19
+            yy = -half_h - 14 if side == "top" else half_h + 14
+            return self._loc(x, y, rot, xx, yy)
         if p.kind == "GND":
             return (x, y - 24)
         if p.kind == "RELAY2":
@@ -236,6 +296,76 @@ class Schematic:
             return self._loc(x, y, rot, dx, dy)
         i = pins.index(pin)
         return self._loc(x, y, rot, -45 if i == 0 else 45, 0)
+
+    @staticmethod
+    def _block_sides(p):
+        sides = p.spec.pin_sides
+        left = list(sides.get("left", []))
+        right = list(sides.get("right", []))
+        top = list(sides.get("top", []))
+        bottom = list(sides.get("bottom", []))
+        assigned = set(left + right + top + bottom)
+        missing = [pin for pin in p.spec.pins if pin not in assigned]
+        split = (len(missing) + 1) // 2
+        left.extend(missing[:split])
+        right.extend(missing[split:])
+        return left, right, top, bottom
+
+    @classmethod
+    def _block_pin_side(cls, p, pin):
+        for side, pins in zip(("left", "right", "top", "bottom"), cls._block_sides(p)):
+            if pin in pins:
+                return side
+        return "left"
+
+    @classmethod
+    def _block_half_size(cls, p):
+        left, right, top, bottom = cls._block_sides(p)
+        half_w = max(58, ((max(len(top), len(bottom)) - 1) * 19 + 36) / 2)
+        half_h = max(38, ((max(len(left), len(right)) - 1) * 19 + 36) / 2)
+        return half_w, half_h
+
+    def _block(self, pid, x, y, rot):
+        p = self.doc.part(pid)
+        left, right, top, bottom = self._block_sides(p)
+        half_w, half_h = self._block_half_size(p)
+        corners = [self._loc(x, y, rot, -half_w, -half_h),
+                   self._loc(x, y, rot, half_w, -half_h),
+                   self._loc(x, y, rot, half_w, half_h),
+                   self._loc(x, y, rot, -half_w, half_h)]
+        points = [self.T(*point) for point in corners]
+        if p.spec.symbol == "connector":
+            fill = "#eff6ff"
+        elif p.spec.symbol == "protection":
+            fill = "#fff7ed"
+        else:
+            fill = "#f8fafc"
+        self.c.create_polygon(*[coord for point in points for coord in point],
+                              fill=fill,
+                              outline=INK, width=max(1.0, 1.6 * self.s))
+        self.text(x, y, p.name, size=8, color=INK)
+
+        for side, pins in (("left", left), ("right", right),
+                           ("top", top), ("bottom", bottom)):
+            for i, pin in enumerate(pins):
+                ex, ey = self._pin(pid, pin)
+                if side in ("left", "right"):
+                    yy = (i - (len(pins) - 1) / 2) * 19
+                    xx = -half_w if side == "left" else half_w
+                    start = self._loc(x, y, rot, xx, yy)
+                    anchor = "e" if side == "left" else "w"
+                    tx, ty = (ex - 4, ey) if side == "left" else (ex + 4, ey)
+                else:
+                    xx = (i - (len(pins) - 1) / 2) * 19
+                    yy = -half_h if side == "top" else half_h
+                    start = self._loc(x, y, rot, xx, yy)
+                    anchor = "s" if side == "top" else "n"
+                    tx, ty = (ex, ey - 3) if side == "top" else (ex, ey + 3)
+                x1, y1 = self.T(*start)
+                x2, y2 = self.T(ex, ey)
+                self.c.create_line(x1, y1, x2, y2, fill=INK,
+                                   width=max(1.0, 1.1 * self.s))
+                self.text(tx, ty, pin, anchor=anchor, size=6, color=MUTED)
 
     def _refs(self, net):
         out = []
@@ -499,12 +629,22 @@ class Schematic:
             c.create_line(a[0], a[1], b[0], b[1], fill=BG,
                           width=max(2.8, 3.4 * self.s))
             self.line([h1, h2], color=WIRE, width=1.9)
+        for path in self.paths:
+            if path.net == self.doc.ground:
+                continue
+            for x, y in path.poly[1:-1]:
+                X, Y = self.T(x, y)
+                radius = max(2.5, 4.0 * self.s)
+                c.create_oval(X - radius, Y - radius, X + radius, Y + radius,
+                              fill=BG, outline=HANDLE, width=max(1, self.s))
 
     def _label(self, pid):
         p = self.doc.part(pid)
         if p is None:
             return pid
         k = p.kind
+        if k in ("IC", "PORT"):
+            return p.name
         if k == "R":
             return f"{pid}  {fmt(p.num('r'), '\u03a9')}"
         if k == "V":
@@ -606,12 +746,17 @@ class Schematic:
             self._speaker(x, y, rot)
         elif kind == "GND":
             self._ground(x, y)
+        elif kind in ("IC", "PORT"):
+            self._block(pid, x, y, rot)
 
         i = self._cur(pid, t)
         state = self._state(pid, t)
         suffix = f"  \u00b7  {state}" if state else ""
         if kind == "GND":
             self.text(x + 16, y + 2, "GND", anchor="w", size=8, color=MUTED)
+        elif kind in ("IC", "PORT"):
+            half_w, half_h = self._block_half_size(self.doc.part(pid))
+            self.text(x, y - half_h - 25, pid, anchor="s", size=8, color=INK)
         elif kind == "NPN":
             self.text(x, y - 52, self._label(pid), anchor="s", size=9, color=INK)
             self.text(x, y + 52, f"I = {fmt(i, 'A')}{suffix}", anchor="n", size=8, color=DOT)

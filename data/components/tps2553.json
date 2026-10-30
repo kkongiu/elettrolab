@@ -1,0 +1,13 @@
+{
+  "id": "tps2553",
+  "kind": "IC",
+  "symbol": "ic",
+  "name": "TPS2553 limitatore USB",
+  "pins": ["IN", "OUT", "EN", "ILIM", "FAULT", "GND"],
+  "pin_sides": {
+    "left": ["IN", "EN", "GND"],
+    "right": ["OUT", "ILIM", "FAULT"]
+  },
+  "optional": ["FAULT"],
+  "learn": "Modello didattico: interruttore controllato da EN con corrente limite nominale calcolata da RILIM. Non simula FAULT, ritardi, soft-start, protezione termica, corrente inversa o tolleranze del componente."
+}

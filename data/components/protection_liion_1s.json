@@ -1,0 +1,12 @@
+{
+  "id": "protection_liion_1s",
+  "kind": "IC",
+  "symbol": "protection",
+  "name": "Protezione PCM Li-ion 1S",
+  "pins": ["B+", "B-", "P+", "P-"],
+  "pin_sides": {
+    "left": ["B+", "B-"],
+    "right": ["P+", "P-"]
+  },
+  "learn": "Modello semplificato: collega B+/B- a P+/P- quando la cella è tra 2,5 V e 4,3 V. Non simula sovracorrente, ritardi, MOSFET reali o reset della protezione; il circuito reale va scelto in base a cella e corrente."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "usb_vbus_tvs",
+  "kind": "IC",
+  "symbol": "protection",
+  "name": "TVS ingresso USB 5 V",
+  "pins": ["VBUS", "GND"],
+  "pin_sides": {
+    "left": ["VBUS"],
+    "right": ["GND"]
+  },
+  "learn": "TVS aperto nel modello nominale DC; non simula clamp, corrente di surge o dinamica dei transitori. Scegli stand-off e package secondo la sorgente e la tensione massima del caricatore."
+}

@@ -25,7 +25,7 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 | `clab/db.py` | caricamento del catalogo, merge dei parametri di istanza |
 | `clab/document.py` | documento modificabile, reti, layout, undo, serializzazione |
 | `clab/circuit.py` | indicizzazione dei nodi, validazione, mappa pin -> nodo |
-| `clab/solver.py` | matrici MNA, DC e transitorio, stati, violazioni, controlli |
+| `clab/solver.py` | matrici MNA, DC, transitorio e sweep AC lineare, stati, controlli |
 | `clab/spice.py` | export in netlist SPICE per la validazione |
 | `clab_mcp/service.py` | adapter MCP: catalogo, validazione, simulazione, scrittura |
 | `clab_mcp/server.py` | registrazione tool, risorse e prompt MCP |
@@ -104,6 +104,15 @@ alla didattica. Ogni passo:
 
 Le condizioni iniziali sono zero: condensatori scarichi, induttori senza
 corrente. Un interruttore chiuso a `t = 0` produce quindi un gradino.
+
+### Sweep AC
+
+`ac_sweep()` costruisce una matrice MNA complessa per ogni frequenza. La
+sorgente selezionata vale 1 V AC e le altre sono messe a massa AC; il risultato
+e' il guadagno complesso tra la sorgente e una rete di uscita, espresso come
+modulo in dB e fase. Sono supportati RLC, potenziometri, switch statici e
+trasformatori ideali; semiconduttori e controller non hanno ancora un modello
+di piccolo segnale e vengono rifiutati esplicitamente.
 
 ### Scelta automatica di dt e durata
 
@@ -228,7 +237,8 @@ comportamentali: vedere `docs/MODELS.md`.
 - Solo componenti primitivi elencati sopra: niente transistori, 555, logica,
   amplificatori operazionali o subcircuiti.
 - Sorgenti ideali (nessuna resistenza interna modellata).
-- Nessuna analisi AC, rumore, temperatura o deriva.
+- Analisi AC limitata a reti lineari supportate; non modella il piccolo segnale
+  dei semiconduttori. Rumore, temperatura e deriva non sono simulati.
 - Contatti del rele' modellati come resistenze: nessun rimbalzo meccanico reale.
 - Un solo nodo di massa.
 - Matrice densa: adatta a circuiti didattici, non a netlist grandi.

@@ -1,0 +1,8 @@
+{
+  "id": "ntc_10k",
+  "kind": "R",
+  "name": "NTC 10 kΩ (valore nominale)",
+  "pins": ["1", "2"],
+  "params": {"r": 10000},
+  "learn": "Valore nominale a 25 °C per un termistore NTC. In Elettrolab è una resistenza fissa: non varia con la temperatura e non sostituisce il modello termico della batteria."
+}

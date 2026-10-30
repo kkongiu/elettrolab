@@ -1,0 +1,1 @@
+{"id":"SOD323_2","pads":{"VBUS":[-1.05,0],"GND":[1.05,0]},"pad_shapes":{"VBUS":{"shape":"rect","w":0.9,"h":0.65},"GND":{"shape":"rect","w":0.9,"h":0.65}},"body":{"type":"rect","w":1.8,"h":1.25}}

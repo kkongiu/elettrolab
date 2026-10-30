@@ -1,0 +1,8 @@
+{
+  "id": "supply_5v",
+  "kind": "V",
+  "name": "Alimentatore USB 5 V (prova)",
+  "pins": ["+", "-"],
+  "params": {"v": 5.0},
+  "learn": "Sorgente ideale da 5 V per il test del circuito. In un progetto reale rappresenta l'alimentatore esterno collegato alla porta USB-C."
+}

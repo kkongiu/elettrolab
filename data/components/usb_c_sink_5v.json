@@ -1,0 +1,13 @@
+{
+  "id": "usb_c_sink_5v",
+  "kind": "PORT",
+  "symbol": "connector",
+  "name": "USB-C ingresso 5 V",
+  "pins": ["VBUS", "GND", "CC1", "CC2", "D+", "D-", "SHIELD"],
+  "footprint": "USB_C_GENERIC",
+  "pin_sides": {
+    "left": ["VBUS", "CC1", "CC2", "D+", "D-"],
+    "right": ["GND", "SHIELD"]
+  },
+  "learn": "Connettore passivo USB-C sink. La sorgente esterna da 5 V si rappresenta con un alimentatore collegato a VBUS e GND; CC1/CC2 non negoziano USB-PD nel modello."
+}

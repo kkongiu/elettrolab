@@ -11,7 +11,7 @@ attese. Non contiene coordinate, misure in pixel o informazioni di disegno.
 | `title` | string | no | titolo leggibile |
 | `ref` | string | no | fonte o riferimento didattico |
 | `notes` | string | no | spiegazione mostrata prima dei risultati |
-| `analysis` | `"dc"` o `"transient"` | no (default `dc`) | tipo di analisi |
+| `analysis` | `"dc"`, `"transient"` o `"schematic"` | no (default `dc`) | analisi elettrica o progetto schematico |
 | `tstop` | numero | no | durata del transitorio in secondi |
 | `dt` | numero | no | passo di integrazione in secondi |
 | `parts` | oggetto | si | componenti, chiave = identificatore |
@@ -20,6 +20,15 @@ attese. Non contiene coordinate, misure in pixel o informazioni di disegno.
 
 `dt` e `tstop`, se presenti, devono essere finiti e maggiori di zero. In
 transitorio `tstop / dt` non può superare 300.000 passi.
+
+`schematic` è riservato ai progetti che contengono blocchi `IC` o connettori
+`PORT` senza modello elettrico. La GUI li apre e li mostra, ma non esegue una
+simulazione.
+
+L'analisi AC non cambia il campo `analysis`: si avvia dal menu GUI o dal tool
+MCP `ac_sweep`, indicando sorgente, rete di uscita e intervallo di frequenza.
+Questo evita di confondere la risposta in frequenza con una simulazione
+temporale salvata nel circuito.
 
 ## Parti
 
@@ -35,7 +44,9 @@ transitorio `tstop / dt` non può superare 300.000 passi.
   risultati.
 - `type` deve esistere in `data/components/`.
 - Ogni altra chiave deve essere dichiarata in `params`, `limits` o
-  `instance_params` nel catalogo del componente. I valori numerici devono
+  `instance_params` nel catalogo del componente. `unit_cost` e `currency` sono
+  metadati facoltativi per la distinta base; `simulation_only` esclude la parte
+  da BOM e PCB. I valori numerici devono
   rispettare gli intervalli descritti in `docs/COMPONENTS.md`.
 
 Gli identificatori devono essere stabili: un LLM che rigenera un circuito deve

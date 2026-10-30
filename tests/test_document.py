@@ -50,6 +50,22 @@ class DocumentTests(unittest.TestCase):
         doc.disconnect(r1, "2")
         self.assertIsNone(doc.net_of(r1, "2"))
 
+    def test_rename_net_updates_routes_and_board_labels(self):
+        doc = new_doc()
+        doc.nets = {"input": ["V1.+", "R1.1"], "gnd": ["V1.-"]}
+        doc.layout["routes"] = {"input": [[(0, 0), (10, 0)]]}
+        doc.board = {"wires": [{"net": "input", "points": ["A1", "A2"]},
+                               {"net": "fisico", "points": ["A3", "A4"]}]}
+
+        self.assertTrue(doc.rename_net("input", "sense_in"))
+        self.assertIn("sense_in", doc.nets)
+        self.assertNotIn("input", doc.layout["routes"])
+        self.assertIn("sense_in", doc.layout["routes"])
+        self.assertEqual(doc.board["wires"][0]["net"], "sense_in")
+        self.assertEqual(doc.board["wires"][1]["net"], "fisico")
+        self.assertFalse(doc.rename_net("gnd", "ground_signal"))
+        self.assertFalse(doc.rename_net("sense_in", "bad name"))
+
     def test_ground_symbol(self):
         doc = new_doc()
         g = doc.add_part("ground", 400, 300)

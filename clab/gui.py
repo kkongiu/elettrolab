@@ -2,10 +2,12 @@ import copy
 import json
 import math
 import re
+import threading
 import time
 import tkinter as tk
+import webbrowser
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -17,14 +19,15 @@ from .breadboards import (LayoutError, RAIL_Y, ROWS, derive_nets, generate, hole
                           parse_hole, place_part, reroute, rotate_part, shift_part,
                           validate_layout, wire_at)
 from .circuit import CircuitError
+from .bom import build_bom, money, to_csv, to_html
 from .db import DB
 from .document import Document
 from .gui_common import (ACCENT, AMBER, BG, CARD, DATA, FAIL, KIND_LABELS, MUTED,
                          OK, PROJECTS, SLIDERS, TEXT, UNIT, WARN, Tooltip)
 from .gui_projects import ProjectMixin
-from .gui_simulation import SimulationMixin
+from .gui_simulation import SimulationMixin, expectations_from_result
 from .pcb import Pcb, PcbError, PcbLayout
-from .schematic import Schematic
+from .schematic import Schematic, move_bend
 from .units import fmt, to_float
 
 
@@ -55,6 +58,7 @@ class App(SimulationMixin, ProjectMixin):
         self.drag = None
         self.drag_snap = None
         self.dragging = False
+        self.route_drag = None
         self.pan_last = None
         self.history = []
         self.future = []
@@ -62,6 +66,8 @@ class App(SimulationMixin, ProjectMixin):
         self._loading = False
         self._closing = False
         self.sim_cache = {}
+        self.ac_result = None
+        self._ac_generation = 0
         self._slide_after = None
         self._bb_drag = None
         self.bb = None
@@ -342,6 +348,8 @@ class App(SimulationMixin, ProjectMixin):
 
         self.fig = Figure(figsize=(7.2, 2.3), dpi=100, facecolor=CARD)
         self.ax = self.fig.add_subplot(111)
+        self.ac_ax = self.ax.twinx()
+        self.ac_ax.set_visible(False)
         self.plot_canvas = FigureCanvasTkAgg(self.fig, master=plotf)
         self.plot_canvas.get_tk_widget().pack(fill="both", expand=True)
         self.table = ttk.Treeview(dataf, show="headings", height=6)
@@ -369,6 +377,8 @@ class App(SimulationMixin, ProjectMixin):
         m.add_command(label="Nuovo circuito", accelerator="Ctrl+N", command=self._new)
         m.add_command(label="Salva", accelerator="Ctrl+S", command=self._save)
         m.add_command(label="Salva copia\u2026", command=self._save_as)
+        m.add_separator()
+        m.add_command(label="Lista della spesa\u2026", command=self._show_bom)
         m.add_separator()
         m.add_command(label="Esci", command=self._on_close)
         menubar.add_cascade(label="File", menu=m)
@@ -423,6 +433,9 @@ class App(SimulationMixin, ProjectMixin):
 
         m = tk.Menu(menubar, tearoff=0)
         m.add_command(label="Simula", command=self._after_change)
+        m.add_command(label="Analisi AC / Bode…", command=self._show_ac_dialog)
+        m.add_command(label="Fissa i valori attuali come attesi",
+                      command=self._fix_values_as_expectations)
         m.add_command(label="Pausa / Riprendi", command=self._toggle)
         m.add_command(label="Ascolta", command=self._play_sound)
         menubar.add_cascade(label="Simulazione", menu=m)
@@ -563,11 +576,18 @@ class App(SimulationMixin, ProjectMixin):
             s.zoom = old.zoom
             s.pan_x = old.pan_x
             s.pan_y = old.pan_y
+            s.s = old.s
+            s.ox = old.ox
+            s.oy = old.oy
+            s.view_w = old.view_w
+            s.view_h = old.view_h
         return s
 
     def _after_change(self, reset_anim=False, simulate=True, props=True):
         if self.doc is None:
             return
+        self._ac_generation += 1
+        self.ac_result = None
         self.doc.ensure_layout()
         if simulate:
             self._schedule_simulation()
@@ -575,7 +595,9 @@ class App(SimulationMixin, ProjectMixin):
             self._invalidate_simulation()
             self.problems_list = self.doc.problems()
         self.schem = self._new_schem()
-        if self.doc.board is None or set(self.doc.board.get("parts", {})) != set(self.doc.parts):
+        if self.doc.meta.get("analysis") == "schematic":
+            self.doc.board = None
+        elif self.doc.board is None or set(self.doc.board.get("parts", {})) != set(self.doc.parts):
             try:
                 self.doc.board = generate(self.doc)
             except LayoutError as e:
@@ -630,6 +652,75 @@ class App(SimulationMixin, ProjectMixin):
             return
         Path(path).write_text(self.pcb.layout.to_svg(), encoding="utf-8")
         self._hint(f"PCB esportato: {path}")
+
+    def _show_bom(self):
+        if self.doc is None:
+            return
+        rows, totals, unpriced_qty = build_bom(self.doc)
+        window = tk.Toplevel(self.root)
+        window.title("Lista della spesa")
+        window.transient(self.root)
+        window.geometry("940x480")
+        frame = ttk.Frame(window, padding=14)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Lista della spesa",
+                  font=("DejaVu Sans", 15, "bold")).pack(anchor="w")
+        ttk.Label(frame, text=self.doc.meta.get("title", self.doc.meta.get("id", "")),
+                  style="Muted.TLabel").pack(anchor="w", pady=(2, 10))
+        columns = ("quantity", "name", "value", "references", "footprint", "unit_cost", "subtotal")
+        tree = ttk.Treeview(frame, columns=columns, show="headings", height=13)
+        headings = {"quantity": "Qtà", "name": "Componente", "value": "Valore",
+                    "references": "Riferimenti", "footprint": "Footprint",
+                    "unit_cost": "Prezzo unit.", "subtotal": "Subtotale"}
+        widths = {"quantity": 48, "name": 220, "value": 105, "references": 160,
+                  "footprint": 135, "unit_cost": 105, "subtotal": 105}
+        for column in columns:
+            tree.heading(column, text=headings[column])
+            tree.column(column, width=widths[column], anchor="e" if column in
+                        ("quantity", "unit_cost", "subtotal") else "w")
+        tree.pack(fill="both", expand=True)
+        for i, row in enumerate(rows):
+            tree.insert("", "end", iid=str(i), values=(
+                row["quantity"], row["name"], row["value"], row["references"],
+                row["footprint"], money(row["unit_cost"], row["currency"]),
+                money(row["subtotal"], row["currency"])))
+        summary = ["Totali dei prezzi disponibili: " +
+                   (" · ".join(money(amount, currency)
+                              for currency, amount in sorted(totals.items()))
+                    if totals else "nessun prezzo inserito")]
+        if unpriced_qty:
+            summary.append(f"{unpriced_qty} componenti senza prezzo; totale parziale")
+        ttk.Label(frame, text="  •  ".join(summary), style="Muted.TLabel").pack(
+            anchor="w", pady=(10, 8))
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill="x")
+
+        def export_html():
+            path = filedialog.asksaveasfilename(
+                parent=window, title="Salva lista stampabile", defaultextension=".html",
+                initialfile="lista_componenti.html",
+                filetypes=[("Pagina stampabile HTML", "*.html")])
+            if not path:
+                return
+            target = Path(path)
+            target.write_text(to_html(self.doc, rows, totals, unpriced_qty), encoding="utf-8")
+            webbrowser.open(target.resolve().as_uri())
+            self._hint(f"Lista componenti salvata: {target}")
+
+        def export_csv():
+            path = filedialog.asksaveasfilename(
+                parent=window, title="Esporta lista componenti", defaultextension=".csv",
+                initialfile="lista_componenti.csv",
+                filetypes=[("CSV", "*.csv")])
+            if not path:
+                return
+            Path(path).write_text(to_csv(rows), encoding="utf-8-sig")
+            self._hint(f"Lista componenti CSV salvata: {path}")
+
+        ttk.Button(buttons, text="Salva HTML e stampa…", command=export_html,
+                   style="Accent.TButton").pack(side="left")
+        ttk.Button(buttons, text="Esporta CSV…", command=export_csv).pack(side="left", padx=6)
+        ttk.Button(buttons, text="Chiudi", command=window.destroy).pack(side="right")
 
     def _after_board_change(self):
         if self.doc is None or self.doc.board is None:
@@ -725,6 +816,23 @@ class App(SimulationMixin, ProjectMixin):
         if self.sound_proc is not None and self.sound_proc.poll() is None:
             self.sound_proc.terminate()
         self.root.destroy()
+
+    def _fix_values_as_expectations(self):
+        if self.doc is None or self.res is None:
+            self._hint("Simula prima il circuito per fissare i valori attesi.")
+            return
+        expected = expectations_from_result(self.doc, self.res)
+        if len(expected) == 1 and not expected["violations"]:
+            self._hint("La simulazione non contiene valori da salvare come attesi.")
+            return
+        self._push_undo()
+        merged = dict(self.doc.meta.get("expect", {}))
+        merged.update(expected)
+        self.doc.meta["expect"] = merged
+        self.dirty = True
+        self._update_code()
+        self._after_change()
+        self._hint(f"Salvate {len(expected) - 1} attese dal risultato corrente.")
 
     def _optimize_board(self):
         if self.doc is None:
@@ -1041,6 +1149,9 @@ class App(SimulationMixin, ProjectMixin):
                       style="Muted.TLabel", wraplength=210).pack(anchor="w", pady=(2, 0))
             btns = ttk.Frame(self.prop_box, style="Card.TFrame")
             btns.pack(fill="x", pady=(6, 2))
+            ttk.Button(btns, text="Rinomina", width=9,
+                       state="disabled" if name == self.doc.ground else "normal",
+                       command=self._rename_selected_net).pack(side="left")
             ttk.Button(btns, text="Elimina", width=8,
                        command=self._delete_selected).pack(side="left")
             return
@@ -1094,6 +1205,27 @@ class App(SimulationMixin, ProjectMixin):
         nets = {pin: (self.doc.net_of(pid, pin) or "-") for pin in p.spec.pins}
         ttk.Label(self.prop_box, text="Pin: " + ", ".join(f"{k}={v}" for k, v in nets.items()),
                   style="Muted.TLabel", wraplength=210).pack(anchor="w", pady=(3, 0))
+
+    def _rename_selected_net(self):
+        old = self.selected_wire
+        if self.doc is None or not old:
+            return
+        new = simpledialog.askstring("Rinomina rete", "Nuovo nome:", initialvalue=old,
+                                     parent=self.root)
+        if new is None:
+            return
+        snapshot = self.doc.snapshot()
+        if not self.doc.rename_net(old, new):
+            self._hint("Nome non valido, già usato o rete di massa non rinominabile.")
+            return
+        self.history.append(snapshot)
+        if len(self.history) > 100:
+            self.history.pop(0)
+        self.future.clear()
+        self.selected_wire = new.strip()
+        self.dirty = True
+        self._after_change()
+        self._hint(f"Rete rinominata: {old} → {self.selected_wire}")
 
     def _slider_actual(self, key, u):
         mode, lo, hi = SLIDERS[key]
@@ -1205,6 +1337,8 @@ class App(SimulationMixin, ProjectMixin):
             return
         vx, vy = self.schem.virtual(event.x, event.y)
         self.scv.focus_set()
+        self.drag = None
+        self.route_drag = None
         if self.armed:
             self._push_undo()
             pid = self.doc.add_part(self.armed, self._snap(vx), self._snap(vy))
@@ -1254,6 +1388,17 @@ class App(SimulationMixin, ProjectMixin):
             return
         pid = self.schem.part_at(vx, vy)
         if pid is None:
+            bend = self.schem.bend_at(vx, vy)
+            if bend is not None:
+                net, route_index, point_index = bend
+                self.selected = None
+                self.selected_wire = net
+                self.schem.sel_net = net
+                self.route_drag = {"net": net, "route": route_index,
+                                   "point": point_index, "moved": False}
+                self._update_props()
+                self._hint(f"Trascina il punto di piega della rete {net}")
+                return
             net = self.schem.wire_at(vx, vy)
             if net:
                 self.selected = None
@@ -1283,6 +1428,20 @@ class App(SimulationMixin, ProjectMixin):
         self.cursor_v = (vx, vy)
         if self.mode != "wire":
             self.wire_from = None
+        if self.route_drag is not None:
+            drag = self.route_drag
+            routes = self.doc.layout.setdefault("routes", {})
+            if not drag["moved"]:
+                self._push_undo()
+                if drag["net"] not in routes:
+                    routes[drag["net"]] = [list(path.poly) for path in self.schem.paths
+                                            if path.net == drag["net"]]
+                drag["base"] = list(routes[drag["net"]][drag["route"]])
+                drag["moved"] = True
+            routes[drag["net"]][drag["route"]] = move_bend(
+                drag["base"], drag["point"], vx, vy)
+            self.schem = self._new_schem()
+            return
         if not self.drag:
             return
         pid, ox, oy = self.drag
@@ -1296,6 +1455,13 @@ class App(SimulationMixin, ProjectMixin):
         self._update_code()
 
     def _on_release(self, event):
+        if self.route_drag is not None:
+            moved = self.route_drag["moved"]
+            self.route_drag = None
+            if moved:
+                self.dirty = True
+                self._after_change()
+            return
         if self.drag and self.dragging:
             self.history.append(self.drag_snap)
             self.future.clear()
@@ -1467,6 +1633,9 @@ class App(SimulationMixin, ProjectMixin):
     def _plot(self):
         ax = self.ax
         ax.clear()
+        phase_ax = self.ac_ax
+        phase_ax.clear()
+        phase_ax.set_visible(self.ac_result is not None)
         ax.set_facecolor(CARD)
         for spine in ax.spines.values():
             spine.set_color("#d9dee8")
@@ -1474,6 +1643,22 @@ class App(SimulationMixin, ProjectMixin):
         ax.grid(True, color="#e6e9f0", linewidth=0.8)
         ax.set_axisbelow(True)
         self.vline = None
+        if self.ac_result is not None:
+            result = self.ac_result
+            frequency = result["frequency"]
+            ax.set_xscale("log")
+            ax.plot(frequency, result["magnitude_db"], color=ACCENT, linewidth=1.5)
+            phase_ax.plot(frequency, result["phase_deg"], color=AMBER, linewidth=1.3)
+            ax.set_xlabel("frequenza (Hz)", color=MUTED)
+            ax.set_ylabel("guadagno (dB)", color=ACCENT)
+            phase_ax.set_ylabel("fase (°)", color=AMBER)
+            phase_ax.tick_params(colors=AMBER, labelsize=8)
+            phase_ax.spines["right"].set_color("#d9dee8")
+            ax.set_title(f"Bode: V({result['probe']}) / {result['source']}",
+                         color=TEXT, fontsize=10, loc="left")
+            self.fig.tight_layout()
+            self.plot_canvas.draw_idle()
+            return
         r = self.res
         if r is None:
             ax.set_title("Nessun risultato: completa o correggi il circuito",
@@ -1515,6 +1700,86 @@ class App(SimulationMixin, ProjectMixin):
                                         linewidth=0.9, linestyle=":")
         self.fig.tight_layout()
         self.plot_canvas.draw_idle()
+
+    def _show_ac_dialog(self):
+        if self.doc is None:
+            self._hint("Apri o crea un circuito prima dell'analisi AC.")
+            return
+        try:
+            circ = self.doc.to_circuit()
+        except CircuitError as e:
+            self._hint(str(e))
+            return
+        sources = [pid for pid, part in circ.parts.items() if part.kind == "V"]
+        probes = [net for net in circ.nets if net != circ.ground]
+        if not sources or not probes:
+            self._hint("Servono una sorgente di tensione e una rete di uscita.")
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Analisi AC / Bode")
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        frame = ttk.Frame(dialog, padding=16)
+        frame.pack(fill="both", expand=True)
+        source_var = tk.StringVar(value=sources[0])
+        probe_var = tk.StringVar(value=probes[0])
+        start_var = tk.StringVar(value="1")
+        stop_var = tk.StringVar(value="1000000")
+        points_var = tk.StringVar(value="101")
+        fields = (("Sorgente (1 V AC)", source_var, sources),
+                  ("Rete di uscita", probe_var, probes),
+                  ("Frequenza iniziale (Hz)", start_var, None),
+                  ("Frequenza finale (Hz)", stop_var, None),
+                  ("Punti (2–301)", points_var, None))
+        for label, variable, values in fields:
+            row = ttk.Frame(frame)
+            row.pack(fill="x", pady=3)
+            ttk.Label(row, text=label, width=25).pack(side="left")
+            if values is None:
+                ttk.Entry(row, textvariable=variable, width=18).pack(side="left")
+            else:
+                ttk.Combobox(row, textvariable=variable, values=values,
+                             state="readonly", width=15).pack(side="left")
+
+        def calculate():
+            try:
+                args = (source_var.get(), probe_var.get(), float(start_var.get()),
+                        float(stop_var.get()), int(points_var.get()))
+                current_circuit = self.doc.to_circuit()
+            except (ValueError, CircuitError) as e:
+                messagebox.showerror("Analisi AC", str(e), parent=dialog)
+                return
+            dialog.destroy()
+            self._ac_generation += 1
+            generation = self._ac_generation
+            self.status.configure(text="ANALISI AC…", foreground=MUTED)
+            threading.Thread(target=self._ac_worker,
+                             args=(generation, current_circuit, *args),
+                             daemon=True).start()
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill="x", pady=(12, 0))
+        ttk.Button(buttons, text="Annulla", command=dialog.destroy).pack(side="left")
+        ttk.Button(buttons, text="Calcola Bode", command=calculate,
+                   style="Accent.TButton").pack(side="right")
+        dialog.bind("<Return>", lambda _event: calculate())
+        dialog.wait_window()
+
+    def _show_ac_table(self, result):
+        for item in self.table.get_children():
+            self.table.delete(item)
+        self.table["columns"] = ("frequency", "gain", "phase")
+        for column, label, width in (("frequency", "Frequenza (Hz)", 140),
+                                     ("gain", "Guadagno (dB)", 130),
+                                     ("phase", "Fase (°)", 110)):
+            self.table.heading(column, text=label)
+            self.table.column(column, width=width, anchor="center")
+        for frequency, gain, phase in zip(result["frequency"], result["magnitude_db"],
+                                          result["phase_deg"]):
+            self.table.insert("", "end", values=(f"{frequency:.5g}",
+                                                   f"{gain:.4g}", f"{phase:.4g}"))
+        self.signal.configure(values=[], state="disabled")
+        self.signal.set("")
 
     def _toggle(self):
         self.playing = not self.playing

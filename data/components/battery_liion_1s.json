@@ -1,0 +1,9 @@
+{
+  "id": "battery_liion_1s",
+  "kind": "V",
+  "name": "Cella Li-ion 1S (modello ideale)",
+  "pins": ["+", "-"],
+  "params": {"v": 3.7, "imax": 2.0},
+  "limits": {"imax": 2.0},
+  "learn": "Modello elettrico ideale a tensione fissa. La tensione nominale e il limite di corrente sono parametri; non simula la carica, la scarica, la capacità residua, la protezione PCM o la curva reale della cella."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "tps61023",
+  "kind": "IC",
+  "symbol": "ic",
+  "name": "TPS61023 boost 5 V",
+  "pins": ["VIN", "SW", "VOUT", "FB", "EN", "GND"],
+  "pin_sides": {
+    "left": ["VIN", "EN", "GND"],
+    "right": ["SW", "VOUT", "FB"]
+  },
+  "learn": "Modello medio didattico: regola VOUT dal partitore FB con sorgente equivalente e rendimento fisso del 90%; EN e VIN controllano l'attivazione. Non simula PWM, ripple, limite di corrente, startup, PFM, thermal shutdown o protezioni reali."
+}

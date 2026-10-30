@@ -2,6 +2,9 @@ __pycache__/
 *.py[cod]
 *.csv
 .venv/
-data/projects/
+!data/projects/
+data/projects/*
+!data/projects/powerbank_usb_1s.json
+!data/projects/powerbank_usb_1s.layout.json
 *.egg-info/
 .DS_Store

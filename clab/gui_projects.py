@@ -34,10 +34,17 @@ class ProjectMixin:
             dialog.geometry(f"{max(520, dialog.winfo_reqwidth())}x{max(420, dialog.winfo_reqheight())}")
             exercise_list.focus_set()
 
+        def show_projects():
+            dialog.destroy()
+            self._show_project_dialog()
+
         ttk.Button(welcome, text="Nuovo progetto", command=begin_new,
                    style="Accent.TButton").pack(fill="x", pady=4)
         ttk.Button(welcome, text="Apri esercizio…", command=show_exercises).pack(
             fill="x", pady=4)
+        ttk.Button(welcome, text="Apri progetto…", command=show_projects,
+                   state="normal" if self._project_names() else "disabled").pack(
+                       fill="x", pady=4)
 
         chooser = ttk.Frame(dialog, padding=16)
         ttk.Label(chooser, text="Scegli un esercizio",
@@ -77,6 +84,43 @@ class ProjectMixin:
         dialog.bind("<Return>", open_selected)
         dialog.update_idletasks()
         dialog.geometry(f"{max(420, dialog.winfo_reqwidth())}x{max(230, dialog.winfo_reqheight())}")
+        dialog.wait_window()
+
+    def _show_project_dialog(self):
+        names = self._project_names()
+        if not names:
+            messagebox.showinfo("Progetti", "Non ci sono progetti salvati.", parent=self.root)
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Apri progetto")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        frame = ttk.Frame(dialog, padding=16)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Scegli un progetto",
+                  font=("DejaVu Sans", 13, "bold")).pack(anchor="w", pady=(0, 8))
+        listing = tk.Listbox(frame, width=48, height=min(16, max(5, len(names))),
+                             exportselection=False)
+        listing.pack(fill="both", expand=True)
+        for name in names:
+            listing.insert("end", name)
+
+        def open_selected(_event=None):
+            selection = listing.curselection()
+            if selection:
+                name = names[selection[0]]
+                dialog.destroy()
+                self._open_project(name)
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill="x", pady=(10, 0))
+        ttk.Button(buttons, text="Annulla", command=dialog.destroy).pack(side="left")
+        ttk.Button(buttons, text="Apri", command=open_selected,
+                   style="Accent.TButton").pack(side="right")
+        listing.bind("<Double-Button-1>", open_selected)
+        dialog.bind("<Return>", open_selected)
+        listing.selection_set(0)
+        listing.focus_set()
         dialog.wait_window()
 
     def _confirm_discard(self):

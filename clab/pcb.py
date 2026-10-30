@@ -10,9 +10,9 @@ FP_DIR = ROOT / "data" / "footprints"
 
 MARGIN = 4.0
 GAP = 8.0
-TRACE_W = 0.6
+TRACE_W = 0.3
 CELL = 0.5
-CLEARANCE = 0.3
+CLEARANCE = 0.15
 
 DEFAULT = {
     "R": "R_axial", "C": "C_radial", "L": "L_axial",
@@ -26,6 +26,12 @@ COMPONENT = {
     "lm2596": "TO220_3",
     "solar_charger": "TO220_3",
     "switch_pwm": "TO220_4",
+    "bq24074": "BQ24074_VQFN16",
+    "tps61023": "TPS61023_SOT563",
+    "tps2553": "TPS2553_SOT23_6",
+    "usb_vbus_tvs": "SOD323_2",
+    "usb_esd_array": "USB_ESD_4P_GENERIC",
+    "protection_liion_1s": "PCM_4PAD_GENERIC",
 }
 
 
@@ -40,15 +46,18 @@ class Footprint:
         pad = data.get("pad", {})
         self.pad_d = float(pad.get("diameter", 2.0))
         self.drill = float(pad.get("drill", 0.9))
+        self.pad_shapes = data.get("pad_shapes", {})
+        self.pad_map = {str(k): str(v) for k, v in data.get("pad_map", {}).items()}
         self.body = data.get("body", {"type": "rect", "w": 8.0, "h": 4.0})
         self.silk = data.get("silk", [])
 
     def bbox(self):
-        xs = [p[0] for p in self.pads.values()]
-        ys = [p[1] for p in self.pads.values()]
-        r = self.pad_d / 2
-        x0, x1 = min(xs) - r, max(xs) + r
-        y0, y1 = min(ys) - r, max(ys) + r
+        bounds = []
+        for pin, (x, y) in self.pads.items():
+            w, h = self.pad_size(pin)
+            bounds.append((x - w / 2, y - h / 2, x + w / 2, y + h / 2))
+        x0, y0 = min(b[0] for b in bounds), min(b[1] for b in bounds)
+        x1, y1 = max(b[2] for b in bounds), max(b[3] for b in bounds)
         b = self.body
         if b.get("type") == "rect":
             x0, x1 = min(x0, -b["w"] / 2), max(x1, b["w"] / 2)
@@ -57,6 +66,28 @@ class Footprint:
             x0, x1 = min(x0, -b["d"] / 2), max(x1, b["d"] / 2)
             y0, y1 = min(y0, -b["d"] / 2), max(y1, b["d"] / 2)
         return (x0, y0, x1, y1)
+
+    def pad_size(self, pin):
+        shape = self.pad_shapes.get(pin, {})
+        if shape.get("shape") == "rect":
+            return float(shape["w"]), float(shape["h"])
+        d = float(shape.get("diameter", self.pad_d))
+        return d, d
+
+    def pad_drill(self, pin):
+        shape = self.pad_shapes.get(pin, {})
+        if shape.get("shape") == "rect" or shape.get("drill") == 0:
+            return 0.0
+        return float(shape.get("drill", self.drill))
+
+    def pad_radius(self, pin):
+        if self.pad_shapes.get(pin, {}).get("shape") != "rect":
+            return self.pad_size(pin)[0] / 2
+        w, h = self.pad_size(pin)
+        return math.hypot(w, h) / 2
+
+    def net_pin(self, footprint_pad):
+        return self.pad_map.get(str(footprint_pad), str(footprint_pad))
 
 
 def load_footprints():
@@ -72,6 +103,8 @@ def load_footprints():
 def footprint_id(part):
     if part.get("footprint"):
         return part.get("footprint")
+    if part.spec.footprint:
+        return part.spec.footprint
     if part.type in COMPONENT:
         return COMPONENT[part.type]
     return DEFAULT.get(part.kind)
@@ -100,6 +133,28 @@ def _seg_dist(a, b, c, d):
         return 0.0
     return min(_pt_seg_dist(a[0], a[1], c, d), _pt_seg_dist(b[0], b[1], c, d),
                _pt_seg_dist(c[0], c[1], a, b), _pt_seg_dist(d[0], d[1], a, b))
+
+
+def _seg_rect_dist(a, b, x0, y0, x1, y1):
+    if (min(a[0], b[0]) <= x1 and max(a[0], b[0]) >= x0 and
+            min(a[1], b[1]) <= y1 and max(a[1], b[1]) >= y0):
+        edges = [((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)),
+                 ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))]
+        if x0 <= a[0] <= x1 and y0 <= a[1] <= y1:
+            return 0.0
+        if x0 <= b[0] <= x1 and y0 <= b[1] <= y1:
+            return 0.0
+        d = min(_seg_dist(a, b, c, d) for c, d in edges)
+        if d == 0.0:
+            return 0.0
+        return d
+    corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    endpoint_dist = []
+    for x, y in (a, b):
+        dx = max(x0 - x, 0.0, x - x1)
+        dy = max(y0 - y, 0.0, y - y1)
+        endpoint_dist.append(math.hypot(dx, dy))
+    return min(min(_pt_seg_dist(x, y, a, b) for x, y in corners), *endpoint_dist)
 
 
 class PcbLayout:
@@ -142,11 +197,14 @@ class PcbLayout:
 
         for pid in self.doc.parts:
             p = self.doc.part(pid)
+            if p.get("simulation_only", False):
+                continue
             fid = footprint_id(p)
             fp = self.fps.get(fid) if fid else None
             if fp is None:
                 raise PcbError(f"{pid}: footprint non disponibile ({p.kind})")
-            missing = [pin for pin in p.spec.pins if pin not in fp.pads]
+            mapped = {fp.net_pin(pin) for pin in fp.pads}
+            missing = [pin for pin in p.spec.pins if pin not in mapped]
             if missing:
                 raise PcbError(f"{pid}: pin senza pad in {fid}: {', '.join(missing)}")
             x0, y0, x1, y1 = fp.bbox()
@@ -191,22 +249,39 @@ class PcbLayout:
                 if math.hypot(cx - x, cy - y) <= r:
                     owner[j][i].add(nid)
 
+    def _mark_pad(self, owner, x, y, hw, hh, nid, W, H):
+        cell = self.cell
+        extra = CLEARANCE + TRACE_W / 2 + cell / 2
+        x0 = max(0, int((x - hw - extra) / cell))
+        x1 = min(W - 1, int((x + hw + extra) / cell) + 1)
+        y0 = max(0, int((y - hh - extra) / cell))
+        y1 = min(H - 1, int((y + hh + extra) / cell) + 1)
+        for j in range(y0, y1 + 1):
+            for i in range(x0, x1 + 1):
+                cx, cy = (i + 0.5) * cell, (j + 0.5) * cell
+                dx = max(0.0, abs(cx - x) - hw)
+                dy = max(0.0, abs(cy - y) - hh)
+                if math.hypot(dx, dy) <= extra:
+                    owner[j][i].add(nid)
+
     def _mark_polyline(self, owner, pts, nid, W, H):
-        rad = TRACE_W + CLEARANCE + CELL / 2
+        cell = self.cell
+        rad = TRACE_W / 2 + CLEARANCE + cell / 2
         for a, b in zip(pts, pts[1:]):
-            x0 = max(0, int((min(a[0], b[0]) - rad) / CELL))
-            x1 = min(W - 1, int((max(a[0], b[0]) + rad) / CELL) + 1)
-            y0 = max(0, int((min(a[1], b[1]) - rad) / CELL))
-            y1 = min(H - 1, int((max(a[1], b[1]) + rad) / CELL) + 1)
+            x0 = max(0, int((min(a[0], b[0]) - rad) / cell))
+            x1 = min(W - 1, int((max(a[0], b[0]) + rad) / cell) + 1)
+            y0 = max(0, int((min(a[1], b[1]) - rad) / cell))
+            y1 = min(H - 1, int((max(a[1], b[1]) + rad) / cell) + 1)
             for j in range(y0, y1 + 1):
                 for i in range(x0, x1 + 1):
-                    cx, cy = (i + 0.5) * CELL, (j + 0.5) * CELL
+                    cx, cy = (i + 0.5) * cell, (j + 0.5) * cell
                     if _pt_seg_dist(cx, cy, a, b) <= rad:
                         owner[j][i].add(nid)
 
     def _astar(self, owner, x0, y0, x1, y1, nid, W, H):
-        start = (max(0, min(W - 1, int(x0 / CELL))), max(0, min(H - 1, int(y0 / CELL))))
-        goal = (max(0, min(W - 1, int(x1 / CELL))), max(0, min(H - 1, int(y1 / CELL))))
+        cell = self.cell
+        start = (max(0, min(W - 1, int(x0 / cell))), max(0, min(H - 1, int(y0 / cell))))
+        goal = (max(0, min(W - 1, int(x1 / cell))), max(0, min(H - 1, int(y1 / cell))))
         if not self._free(owner, start, nid) or not self._free(owner, goal, nid):
             return None
         open_ = [(0, start)]
@@ -219,7 +294,7 @@ class PcbLayout:
                 while path[-1] in parent:
                     path.append(parent[path[-1]])
                 path.reverse()
-                return [((i + 0.5) * CELL, (j + 0.5) * CELL) for i, j in path]
+                return [((i + 0.5) * cell, (j + 0.5) * cell) for i, j in path]
             ci, cj = cur
             for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1),
                            (1, 1), (1, -1), (-1, 1), (-1, -1)):
@@ -261,64 +336,66 @@ class PcbLayout:
         self.traces = []
         self.violations = []
         self.warnings = []
+        has_smd = any(e["fp"].pad_shapes for e in self.parts.values())
+        self.cell = 0.25 if has_smd else CELL
         bw, bh = self.board
-        W = int(math.ceil(bw / CELL)) + 1
-        H = int(math.ceil(bh / CELL)) + 1
+        W = int(math.ceil(bw / self.cell)) + 1
+        H = int(math.ceil(bh / self.cell)) + 1
         owner = [[set() for _ in range(W)] for _ in range(H)]
         gnd = self.doc.ground
         pads = []
         by_net = {}
         gnd_pads = []
         uid = 0
-        for pid in self.doc.parts:
+        for pid in self.parts:
             e = self.parts[pid]
             for pin, (x, y) in e["pads"].items():
-                net = self.doc.net_of(pid, pin)
+                logical_pin = e["fp"].net_pin(pin)
+                net = self.doc.net_of(pid, logical_pin)
                 if net is None:
                     net = f"~{uid}"
                     uid += 1
-                pads.append((x, y, e["fp"].pad_d / 2, net))
+                pad_w, pad_h = e["fp"].pad_size(pin)
+                hw, hh = pad_w / 2, pad_h / 2
+                pads.append((x, y, hw, hh, net))
                 if not net.startswith("~"):
-                    by_net.setdefault(net, []).append((x, y, e["fp"].pad_d / 2))
+                    by_net.setdefault(net, []).append((x, y, hw, hh))
                 if net == gnd:
                     gnd_pads.append((x, y, e["row"]))
         ids = {}
-        for _, _, _, net in pads:
+        for _, _, _, _, net in pads:
             ids.setdefault(net, len(ids))
-        for x, y, r, net in pads:
-            self._mark_circle(owner, x, y, r + CLEARANCE + TRACE_W / 2 + CELL / 2, ids[net], W, H)
-        # ground: one horizontal bus per row + one vertical edge bus
-        if gnd_pads and gnd in ids:
+        for x, y, hw, hh, net in pads:
+            self._mark_pad(owner, x, y, hw, hh, ids[net], W, H)
+        if gnd_pads and gnd in ids and not has_smd:
             bounds = {}
             for e in self.parts.values():
-                r = e["row"]
+                row = e["row"]
                 x0, y0, x1, y1 = e["fp"].bbox()
-                t, b = e["y"] + y0, e["y"] + y1
-                if r in bounds:
-                    bounds[r] = (min(bounds[r][0], t), max(bounds[r][1], b))
-                else:
-                    bounds[r] = (t, b)
-            bus_y = {r: b + 2.0 for r, (t, b) in bounds.items()}
+                top, bottom = e["y"] + y0, e["y"] + y1
+                bounds[row] = (min(bounds.get(row, (top, bottom))[0], top),
+                               max(bounds.get(row, (top, bottom))[1], bottom))
+            bus_y = {row: bottom + 2.0 for row, (top, bottom) in bounds.items()}
             edge_x = MARGIN / 2
             by_row = {}
-            for x, y, r in gnd_pads:
-                by_row.setdefault(r, []).append((x, y))
-            for r, ps in by_row.items():
-                yy = bus_y[r]
-                xs = [x for x, y in ps]
-                pts = [(edge_x, yy), (max(xs), yy)]
-                self.traces.append({"net": gnd, "points": pts})
-                self._mark_polyline(owner, pts, ids[gnd], W, H)
-                for x, y in ps:
-                    seg = [(x, y), (x, yy)]
-                    self.traces.append({"net": gnd, "points": seg})
-                    self._mark_polyline(owner, seg, ids[gnd], W, H)
+            for x, y, row in gnd_pads:
+                by_row.setdefault(row, []).append((x, y))
+            for row, row_pads in by_row.items():
+                yy = bus_y[row]
+                points = [(edge_x, yy), (max(x for x, _ in row_pads), yy)]
+                self.traces.append({"net": gnd, "points": points})
+                self._mark_polyline(owner, points, ids[gnd], W, H)
+                for x, y in row_pads:
+                    points = [(x, y), (x, yy)]
+                    self.traces.append({"net": gnd, "points": points})
+                    self._mark_polyline(owner, points, ids[gnd], W, H)
             if len(bus_y) > 1:
                 ys = sorted(bus_y.values())
-                seg = [(edge_x, ys[0]), (edge_x, ys[-1])]
-                self.traces.append({"net": gnd, "points": seg})
-                self._mark_polyline(owner, seg, ids[gnd], W, H)
-        for net in sorted([n for n in by_net if n != gnd], key=lambda n: (len(by_net[n]), n)):
+                points = [(edge_x, ys[0]), (edge_x, ys[-1])]
+                self.traces.append({"net": gnd, "points": points})
+                self._mark_polyline(owner, points, ids[gnd], W, H)
+        nets = by_net if has_smd else {net: pins for net, pins in by_net.items() if net != gnd}
+        for net in sorted(nets, key=lambda n: (n != gnd, len(by_net[n]), n)):
             lst = by_net[net]
             if len(lst) < 2:
                 continue
@@ -348,11 +425,11 @@ class PcbLayout:
                 for r, s in zip(tr["points"], tr["points"][1:]):
                     if _seg_dist(p, q, r, s) < TRACE_W + CLEARANCE - 0.01:
                         return False
-        for x, y, r, pnet in pads:
+        for x, y, hw, hh, pnet in pads:
             if pnet == net:
                 continue
             for p, q in zip(pts, pts[1:]):
-                if _pt_seg_dist(x, y, p, q) < r + CLEARANCE + TRACE_W / 2 - 0.01:
+                if _seg_rect_dist(p, q, x-hw, y-hh, x+hw, y+hh) < CLEARANCE + TRACE_W / 2 - 0.01:
                     return False
         return True
 
@@ -368,20 +445,22 @@ class PcbLayout:
                         if d < TRACE_W + CLEARANCE - 0.01:
                             self.violations.append((a["net"], b["net"], "trace-trace", d))
         for tr in self.traces:
-            for x, y, r, net in self.pad_list:
+            for x, y, hw, hh, net in self.pad_list:
                 if net == tr["net"]:
                     continue
                 for p, q in zip(tr["points"], tr["points"][1:]):
-                    d = _pt_seg_dist(x, y, p, q)
-                    if d < r + CLEARANCE + TRACE_W / 2 - 0.01:
+                    d = _seg_rect_dist(p, q, x-hw, y-hh, x+hw, y+hh)
+                    if d < CLEARANCE + TRACE_W / 2 - 0.01:
                         self.violations.append((tr["net"], net, "trace-pad", d))
         for i, a in enumerate(self.pad_list):
             for b in self.pad_list[i + 1:]:
-                if a[3] == b[3]:
+                if a[4] == b[4]:
                     continue
-                d = math.hypot(a[0] - b[0], a[1] - b[1])
-                if d < a[2] + b[2] + CLEARANCE - 0.01:
-                    self.violations.append((a[3], b[3], "pad-pad", d))
+                dx = max(0.0, abs(a[0] - b[0]) - a[2] - b[2])
+                dy = max(0.0, abs(a[1] - b[1]) - a[3] - b[3])
+                d = math.hypot(dx, dy)
+                if d < CLEARANCE - 0.01:
+                    self.violations.append((a[4], b[4], "pad-pad", d))
 
     def _label(self, pid):
         p = self.doc.part(pid)
@@ -459,13 +538,21 @@ class PcbLayout:
         out.append('</g>')
         out.append('<g fill="#c92a2a">')
         for e in self.parts.values():
-            for x, y in e["pads"].values():
-                out.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{e["fp"].pad_d / 2:.2f}"/>')
+            fp = e["fp"]
+            for pin, (x, y) in e["pads"].items():
+                shape = fp.pad_shapes.get(pin, {})
+                if shape.get("shape") == "rect":
+                    pw, ph = fp.pad_size(pin)
+                    out.append(f'<rect x="{x-pw/2:.2f}" y="{y-ph/2:.2f}" width="{pw:.2f}" height="{ph:.2f}"/>')
+                else:
+                    out.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{fp.pad_size(pin)[0]/2:.2f}"/>')
         out.append('</g>')
         out.append('<g fill="#ffffff">')
         for e in self.parts.values():
-            for x, y in e["pads"].values():
-                out.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{e["fp"].drill / 2:.2f}"/>')
+            for pin, (x, y) in e["pads"].items():
+                drill = e["fp"].pad_drill(pin)
+                if drill:
+                    out.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{drill / 2:.2f}"/>')
         out.append('</g>')
         out.append('<g stroke="#111" fill="none" stroke-width="0.2">')
         for s in self.silk:
@@ -534,15 +621,22 @@ class Pcb:
         for tr in self.layout.traces:
             self.line(tr["points"], "#c92a2a", TRACE_W)
         for e in self.layout.parts.values():
-            for x, y in e["pads"].values():
-                r = e["fp"].pad_d / 2
-                c.create_oval(*self.T(x - r, y - r), *self.T(x + r, y + r),
-                              fill="#c92a2a", outline="")
+            for pin, (x, y) in e["pads"].items():
+                pw, ph = e["fp"].pad_size(pin)
+                if e["fp"].pad_shapes.get(pin, {}).get("shape") == "rect":
+                    c.create_rectangle(*self.T(x-pw/2, y-ph/2), *self.T(x+pw/2, y+ph/2),
+                                       fill="#c92a2a", outline="")
+                else:
+                    r = pw / 2
+                    c.create_oval(*self.T(x - r, y - r), *self.T(x + r, y + r),
+                                  fill="#c92a2a", outline="")
         for e in self.layout.parts.values():
-            for x, y in e["pads"].values():
-                r = e["fp"].drill / 2
-                c.create_oval(*self.T(x - r, y - r), *self.T(x + r, y + r),
-                              fill="#ffffff", outline="#333")
+            for pin, (x, y) in e["pads"].items():
+                drill = e["fp"].pad_drill(pin)
+                if drill:
+                    r = drill / 2
+                    c.create_oval(*self.T(x - r, y - r), *self.T(x + r, y + r),
+                                  fill="#ffffff", outline="#333")
         for s in self.layout.silk:
             if s["type"] == "rect":
                 c.create_rectangle(*self.T(s["x"], s["y"]),

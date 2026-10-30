@@ -30,6 +30,8 @@ indicizza per `id`.
 | `learn` | no | nota didattica mostrata da `show` |
 | `numeric` | no | parametri d'istanza numerici, anche senza default |
 | `optional` | no | pin che possono restare scollegati |
+| `unit_cost` | no | costo unitario facoltativo nella valuta indicata |
+| `currency` | no | codice valuta ISO del costo; default `EUR` |
 
 I parametri di istanza ammessi sono quelli in `params`, `limits` e
 `instance_params`. I valori in `params` forniscono i default; `instance_params`
@@ -44,6 +46,17 @@ commutazione di un interruttore:
   }
 }
 ```
+
+Il catalogo può dichiarare un prezzo unitario (`"unit_cost": 0.35`), oppure
+un progetto può specificarlo per una singola parte:
+
+```json
+{"R1": {"type": "resistor", "r": "470", "unit_cost": 0.08,
+        "currency": "EUR"}}
+```
+
+I costi mancanti non vengono stimati e sono esclusi dal totale, che viene
+segnalato come parziale.
 
 ## Tipi supportati
 
@@ -66,10 +79,21 @@ commutazione di un interruttore:
 | `PUT` | PUT | `A`, `G`, `K` | `vf`, `ron`, `ihold`, `imax` | `imax` |
 | `SPK` | altoparlante | `+`, `-` | `r` | `pmax` |
 | `GND` | simbolo di massa | `1` | - | - |
+| `IC` | blocchi integrati con modello comportamentale dichiarato | pin definiti dal componente | dipende dal modello | dipende dal modello |
+| `PORT` | connettori passivi; sorgenti e carichi sono parti separate | pin definiti dal componente | - | - |
 
-Un `kind` non presente in questa tabella produce l'errore `unsupported`. I
-componenti non primitivi saranno delegati a ngspice in una fase successiva
-(vedi `docs/ROADMAP.md`).
+I tipi `IC` e `PORT` disegnano blocchi con pin nominati. Un `IC` è simulabile
+solo se il solver implementa il suo `id`; in caso contrario restituisce
+`unsupported`. Le porte USB sono connettori passivi e non generano o assorbono
+energia. `pin_sides` assegna i pin ai lati `left`, `right`, `top` o `bottom`;
+`symbol` distingue visivamente integrati, connettori e protezioni.
+
+Il progetto `data/projects/powerbank_usb_1s.json` usa questi simboli per il
+caricabatteria BQ24074, il boost TPS61023, il limitatore USB TPS2553, il pack
+Li-ion protetto e i connettori USB. Per questi ID Elettrolab usa modelli
+comportamentali approssimati descritti nel campo `learn`; non sono macromodelli
+SPICE dei produttori. Le sorgenti/carichi marcati `simulation_only` servono
+alla prova e non entrano nella distinta base né nella PCB.
 
 ## Parametri
 

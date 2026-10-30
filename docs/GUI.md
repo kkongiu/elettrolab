@@ -5,7 +5,7 @@
 ## Avvio
 
 ```bash
-./lab gui              # apre il primo esercizio
+./lab gui              # propone nuovo progetto, esercizio o progetto salvato
 ./lab gui exp08b       # apre un esercizio specifico
 ```
 
@@ -28,6 +28,15 @@ non ne hanno bisogno.
 | `Seleziona` | clicca un componente per selezionarlo, trascinalo per spostarlo |
 | `Filo` | clicca il primo pin, poi il secondo; la rete viene creata o unita |
 | palette | clicca un componente, poi clicca sulla tela per posizionarlo |
+
+I punti di piega evidenziati sui fili si possono trascinare: il percorso resta
+ortogonale e viene salvato nel layout. Selezionando una rete nel pannello
+Proprietà si può rinominare; le reti di massa mantengono il nome riservato.
+Dal menu **Simulazione** si possono fissare i risultati correnti come valori
+attesi oppure aprire l'analisi AC/Bode per una sorgente e una rete di uscita.
+Dal menu **File → Lista della spesa** si apre la distinta raggruppata per tipo,
+valore e footprint. Si può esportare come HTML pronto per stampa/PDF o CSV;
+sono sommati soltanto i prezzi unitari presenti nel catalogo o nel progetto.
 
 Tasti:
 

@@ -10,7 +10,7 @@ from .units import to_float
 META_KEYS = ("id", "title", "notes", "ref", "analysis", "tstop", "dt", "expect")
 PREFIX = {"R": "R", "V": "V", "LED": "D", "SW": "SW", "C": "C", "L": "L",
           "POT": "POT", "RELAY": "RY", "RELAY2": "RY", "GND": "GND",
-          "NPN": "Q", "PUT": "Q"}
+          "NPN": "Q", "PUT": "Q", "IC": "U", "PORT": "J"}
 
 
 class Document:
@@ -293,17 +293,24 @@ class Document:
 
     def rename_net(self, old, new):
         new = new.strip()
-        if not new or new == old or new in self.nets:
-            return False
-        if old not in self.nets:
+        if (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]*", new)
+                or new == old or new in self.nets or old not in self.nets
+                or old in GROUND or new in GROUND):
             return False
         self.nets = {(new if k == old else k): v for k, v in self.nets.items()}
+        routes = self.layout.get("routes", {})
+        if old in routes:
+            routes[new] = routes.pop(old)
+        if self.board:
+            for wire in self.board.get("wires", []):
+                if wire.get("net") == old:
+                    wire["net"] = new
         return True
 
     def problems(self):
         out = []
         analysis = self.meta.get("analysis", "dc")
-        if analysis not in ("dc", "transient"):
+        if analysis not in ("dc", "transient", "schematic"):
             out.append({"severity": "error", "code": "bad_analysis",
                         "message": f"analisi non supportata: {analysis!r}"})
         timing = {}

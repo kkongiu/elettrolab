@@ -83,7 +83,7 @@ class Circuit:
                 self.pin_net[(pid, pin)] = net
 
     def _validate(self):
-        if self.analysis not in ("dc", "transient"):
+        if self.analysis not in ("dc", "transient", "schematic"):
             raise CircuitError("bad_analysis", f"analisi non supportata: {self.analysis!r}")
         for key in ("dt", "tstop"):
             value = getattr(self, key)

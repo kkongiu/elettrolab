@@ -44,9 +44,10 @@ tests/
 | `get_circuit` | no | JSON completo di un esercizio |
 | `validate_circuit` | no | validazione senza simulare |
 | `simulate_circuit` | no | simulazione DC o transitorio |
+| `ac_sweep` | no | risposta in frequenza e dati per Bode (reti lineari) |
 | `check_circuit` | no | confronto con le attese |
 | `sweep_parameter` | no | ripete la simulazione su piu' valori |
-| `render_schematic` | no | SVG dello schema (non ancora implementato) |
+| `render_schematic` | no | genera lo schema SVG da circuito o id |
 | `add_component` | si | crea un file nel catalogo |
 | `add_exercise` | si | crea un esercizio verificato |
 
@@ -168,10 +169,20 @@ Input:
 
 Output: tabella `{"rows": [{"value": 0, "signal": 0.015, "violations": []}]}`.
 
+### `ac_sweep`
+
+Input: `circuit`, `source` (id di una sorgente di tensione), `probe` (rete di
+uscita), `fstart`, `fstop`, `points`. La sorgente scelta e' normalizzata a 1 V
+AC; il risultato contiene frequenza, guadagno in dB e fase in gradi. Supporta
+reti lineari RLC, potenziometri, switch statici e trasformatori ideali; rifiuta
+componenti non lineari senza un modello di piccolo segnale. `points` ammette
+2..301 campioni logaritmici; il sistema AC ammette al massimo 80 incognite.
+
 ### `render_schematic`
 
-Fase 2. Input: circuito. Output: stringa SVG. Il layout e' deterministico e
-separato dal JSON del circuito.
+Input: circuito e layout opzionale, oppure `id` di un esercizio/progetto.
+Output: SVG deterministico con componenti, pin, reti e collegamenti; le
+coordinate restano separate dal JSON semantico.
 
 ### `add_component` e `add_exercise`
 
@@ -275,7 +286,6 @@ Configurazione tipica di un client MCP:
 
 ## Stato
 
-Implementato e verificato: 9 test MCP (catalogo, validazione, simulazione,
-check, sweep, scrittura disabilitata/abilitata, trasporto `stdio`).
+Implementato e verificato: test MCP per catalogo, validazione, simulazione,
+check, sweep, SVG, analisi AC, scrittura e trasporto `stdio`.
 Le forme d'onda sono campionate a `max_points` (default 200, massimo 2000).
-`render_schematic` resta da fare. Vedi `docs/ROADMAP.md`.

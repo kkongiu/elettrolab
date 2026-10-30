@@ -1,0 +1,12 @@
+{
+  "id": "usb_esd_array",
+  "kind": "IC",
+  "symbol": "protection",
+  "name": "Array ESD USB 2 linee",
+  "pins": ["VBUS", "D+", "D-", "GND"],
+  "pin_sides": {
+    "left": ["VBUS", "D+", "D-"],
+    "right": ["GND"]
+  },
+  "learn": "Protezione ESD lasciata aperta nel modello nominale DC. Non simula il clamp durante scariche o transitori."
+}

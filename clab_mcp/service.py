@@ -1,4 +1,5 @@
 import copy
+import html
 import json
 import math
 import os
@@ -10,7 +11,9 @@ from clab.circuit import CircuitError
 from clab.db import DB, PartType
 from clab.document import Document, slugify
 from clab.layouts import LAYOUTS
-from clab.solver import SolveError, check as check_result, simulate as simulate_circuit
+from clab.solver import (SolveError, ac_sweep as solve_ac_sweep,
+                         check as check_result, simulate as simulate_circuit)
+from clab.schematic import Schematic
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_NODES = 200
@@ -174,6 +177,104 @@ def validate(circuit: dict) -> dict:
     return {"ok": not errors, "errors": errors, "warnings": warnings}
 
 
+def render_schematic(circuit: Optional[dict] = None, cid: Optional[str] = None,
+                     layout: Optional[dict] = None) -> dict:
+    if circuit is None:
+        if not cid:
+            return {"ok": False, "errors": [_error("invalid", "serve circuit oppure id")]}
+        loaded = get_circuit(cid)
+        if not loaded.get("ok"):
+            return loaded
+        circuit = loaded["circuit"]
+        layout = layout if layout is not None else loaded.get("layout")
+    try:
+        doc = Document(circuit, db(), layout=layout)
+    except Exception as e:
+        return {"ok": False, "errors": [_error("invalid", str(e))]}
+    errors, warnings = _problems(doc)
+    if errors:
+        return {"ok": False, "errors": errors, "warnings": warnings}
+    if len(doc.parts) > MAX_NODES:
+        return {"ok": False, "errors": [_error("too_large", "troppi componenti per lo schema SVG")],
+                "warnings": warnings}
+    schematic = Schematic(None, doc)
+    extents = [schematic.part_bbox(pid) for pid in doc.parts]
+    extents.extend((x, y, x, y) for path in schematic.paths for x, y in path.poly)
+    min_x = min([0.0] + [box[0] for box in extents]) - 24
+    min_y = min([0.0] + [box[1] for box in extents]) - 24
+    max_x = max([1100.0] + [box[2] for box in extents]) + 24
+    max_y = max([420.0] + [box[3] for box in extents]) + 24
+    width, height = max_x - min_x, max_y - min_y
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'aria-label="Schema {html.escape(str(doc.meta.get("title", doc.meta.get("id", "circuito"))))}" '
+        f'viewBox="{min_x:g} {min_y:g} {width:g} {height:g}" '
+        f'width="{width:g}" height="{height:g}">',
+        f'<rect x="{min_x:g}" y="{min_y:g}" width="{width:g}" '
+        f'height="{height:g}" fill="#ffffff"/>',
+        '<g fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" '
+        'stroke-linejoin="round">',
+    ]
+    if schematic.rail:
+        x0, x1, y = schematic.rail
+        lines.append(f'<path d="M{x0:g} {y:g} H{x1:g}" stroke="#2563eb" stroke-width="3"/>')
+    for _name, x0, x1, y in schematic.buses:
+        lines.append(f'<path d="M{x0:g} {y:g} H{x1:g}"/>')
+    for path in schematic.paths:
+        for i, (a, b) in enumerate(zip(path.poly, path.poly[1:])):
+            splits = schematic.cross.get((path.key, i), [])
+            if splits and abs(a[0] - b[0]) < 1e-9:
+                x = a[0]
+                y0, y1 = sorted((a[1], b[1]))
+                cur = y0
+                for _sx, cy in sorted(splits, key=lambda point: point[1]):
+                    top = max(y0, cy - 6)
+                    bot = min(y1, cy + 6)
+                    if top > cur:
+                        lines.append(f'<path d="M{x:g} {cur:g} V{top:g}"/>')
+                    cur = max(cur, bot)
+                if cur < y1:
+                    lines.append(f'<path d="M{x:g} {cur:g} V{y1:g}"/>')
+            else:
+                lines.append(f'<path d="M{a[0]:g} {a[1]:g} L{b[0]:g} {b[1]:g}"/>')
+    lines.append("</g>")
+    lines.append('<g fill="#1f2937" stroke="none">')
+    for x, y in schematic.junctions:
+        lines.append(f'<circle cx="{x:g}" cy="{y:g}" r="3"/>')
+    lines.append("</g>")
+    lines.append('<g font-family="sans-serif" text-anchor="middle">')
+    for net in doc.nets:
+        if net == doc.ground:
+            continue
+        path = next((item for item in schematic.paths if item.net == net), None)
+        if path and len(path.poly) > 1:
+            x, y = path.at(path.total / 2)
+            lines.append(f'<text x="{x:g}" y="{y-7:g}" font-size="9" '
+                         f'fill="#0a5bd3">{html.escape(net)}</text>')
+    for pid in doc.parts:
+        part = doc.part(pid)
+        x, y, _rot = doc.position(pid)
+        x0, y0, x1, y1 = schematic.part_bbox(pid)
+        lines.append(f'<rect x="{x0:g}" y="{y0:g}" width="{x1-x0:g}" '
+                     f'height="{y1-y0:g}" rx="6" fill="#f8fafc" '
+                     'stroke="#1f2937" stroke-width="2"/>')
+        lines.append(f'<text x="{x:g}" y="{y-3:g}" font-size="14" '
+                     f'font-weight="bold" fill="#1f2937">{html.escape(pid)}</text>')
+        lines.append(f'<text x="{x:g}" y="{y+15:g}" font-size="10" '
+                     f'fill="#64748b">{html.escape(part.name)}</text>')
+        for pin in part.spec.pins:
+            px, py = schematic.pin_position(pid, pin)
+            lines.append(f'<circle cx="{px:g}" cy="{py:g}" r="3.5" '
+                         'fill="#ffffff" stroke="#1f2937" stroke-width="1.5"/>')
+            dx = -6 if px < x else 6
+            anchor = "end" if px < x else "start"
+            lines.append(f'<text x="{px+dx:g}" y="{py-5:g}" text-anchor="{anchor}" '
+                         f'font-size="9" fill="#475569">{html.escape(pin)}</text>')
+    lines.append("</g></svg>")
+    return {"ok": True, "format": "image/svg+xml", "svg": "".join(lines),
+            "parts": len(doc.parts), "nets": len(doc.nets), "warnings": warnings}
+
+
 def _compile(circuit: dict):
     try:
         doc = _document(circuit)
@@ -238,6 +339,25 @@ def simulate(circuit: dict, include_waveforms: bool = False, max_points: int = 2
         payload = e.as_dict() if hasattr(e, "as_dict") else _error("solve", str(e))
         return {"ok": False, "errors": [payload]}
     return _result(circ, res, include_waveforms, max_points)
+
+
+def ac_sweep(circuit: dict, source: str, probe: str, fstart: float = 1.0,
+             fstop: float = 1e6, points: int = 101) -> dict:
+    circ, errors = _compile(circuit)
+    if circ is None:
+        return {"ok": False, "errors": errors}
+    try:
+        result = solve_ac_sweep(circ, source, probe, fstart, fstop, points)
+    except SolveError as e:
+        return {"ok": False, "errors": [e.as_dict()]}
+    return {
+        "ok": True,
+        "source": source,
+        "probe": probe,
+        "frequency": [float(v) for v in result["frequency"]],
+        "magnitude_db": [float(v) for v in result["magnitude_db"]],
+        "phase_deg": [float(v) for v in result["phase_deg"]],
+    }
 
 
 def check(circuit: Optional[dict] = None, cid: Optional[str] = None) -> dict:

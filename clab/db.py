@@ -37,6 +37,11 @@ class PartType:
         self.learn = data.get("learn", "")
         self.numeric = set(data.get("numeric", []))
         self.optional = list(data.get("optional", []))
+        self.pin_sides = {side: list(pins) for side, pins in data.get("pin_sides", {}).items()}
+        self.symbol = data.get("symbol", "")
+        self.footprint = data.get("footprint")
+        self.unit_cost = data.get("unit_cost")
+        self.currency = data.get("currency", "EUR")
 
     def numeric_keys(self):
         out = set(self.numeric)
@@ -52,7 +57,8 @@ class PartType:
     def validate_instance(self, values):
         errors = []
         for key in values:
-            if key in ("type", "id") or key in self.allowed_params:
+            if key in ("type", "id", "footprint", "unit_cost", "currency",
+                       "simulation_only") or key in self.allowed_params:
                 continue
             errors.append({"code": "unknown_parameter", "parameter": key,
                            "message": f"parametro non dichiarato per {self.id}: {key}"})

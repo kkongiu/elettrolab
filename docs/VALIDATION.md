@@ -22,6 +22,8 @@ I test ngspice vengono saltati automaticamente se `ngspice` non e' nel `PATH`.
 | Test | Cosa controlla |
 |---|---|
 | `test_document.py` | reti, merge, layout, salvataggio |
+| `test_ac.py` | risposta RLC in frequenza, punto di taglio e modelli non supportati |
+| `test_gui_features.py` | cattura attese e modifica dei percorsi dei fili |
 | `test_physics.py` | residuo MNA, RC/RLC, NPN, PUT, violazioni |
 | `test_ngspice.py` | confronto con SPICE su LED, RC, NPN |
 | `test_breadboard.py` | breadboard: generator, jumper, editing, corti, fili mancanti |
@@ -38,7 +40,7 @@ Tolleranze usate:
 
 ## Risultati attuali
 
-Tutti i test passano: 40 test core e 9 MCP (2 di trasporto MCP vengono
+La suite contiene 49 test core e 11 MCP (2 di trasporto MCP vengono
 saltati se si usa il Python di sistema senza SDK; i 3 test SPICE se manca
 `ngspice`). I numeri principali sono in
 `docs/MODELS.md`.

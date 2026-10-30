@@ -10,7 +10,7 @@ database sono generici e non legati a un corso specifico.
 
 ## Stato
 
-- Motore MNA: DC e transitorio (backward Euler)
+- Motore MNA: DC, transitorio (backward Euler) e analisi AC lineare con Bode
 - Componenti: R, C, L, V, LED, diodo, lampadina, trasformatore, interruttore/PWM, potenziometro, rele', NPN, PUT, MOSFET, altoparlante, pannello solare, batteria, controller di carica, LM2596
 - Violazioni didattiche: LED bruciato, resistenza in sovrapotenza, condensatore
   in sovratensione, cortocircuito della sorgente
@@ -41,7 +41,8 @@ database sono generici e non legati a un corso specifico.
 - anteprima PCB (footprint THT, rame, serigrafia, router con clearance/DRC)
   con export SVG: `./lab pcb exp03 -o exp03.svg`
 - 29 esercizi verificati automaticamente
-- 40 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio, 2 PCB) e 9 test MCP
+- 49 test core e 11 test MCP: documenti, AC, fisica, breadboard, SPICE, audio,
+  PCB e funzionalità GUI
 - Server MCP con strumenti di catalogo, validazione, simulazione, check e scrittura protetta
 
 ## Avvio rapido
@@ -97,7 +98,8 @@ Codici di uscita: `0` successo, `1` controlli falliti (solo con `--strict` o
 
 ![Editor grafico](docs/gui-editor.png)
 
-`./lab gui` apre il laboratorio e l'editor: esercizi e progetti a sinistra,
+`./lab gui` propone di creare un progetto o aprire un esercizio/progetto; poi
+apre il laboratorio e l'editor: esercizi e progetti a sinistra,
 palette componenti, schema al centro, proprietà e problemi a destra, JSON,
 grafico e dati sotto.
 
@@ -120,6 +122,8 @@ grafico e dati sotto.
   incrocio senza collegamento
 - **progetti**: "Nuovo", "Salva", "Salva copia"; gli esercizi integrati restano
   protetti, i progetti finiscono in `data/projects/`
+- **Bode**: dal menu Simulazione si sceglie sorgente, rete d'uscita e intervallo
+  di frequenza; sono supportate reti lineari RLC e componenti resistivi
 
 I layout dei circuiti nuovi stanno nel file affiancato `.layout.json`; il JSON
 del circuito resta senza coordinate. Dettagli in `docs/GUI.md`.
@@ -224,7 +228,8 @@ python3 -m venv .venv
 
 Tool disponibili: `list_components`, `get_component`, `list_exercises`,
 `get_circuit`, `validate_circuit`, `simulate_circuit`, `check_circuit`,
-`sweep_parameter`, `add_component`, `add_exercise`.
+`sweep_parameter`, `ac_sweep`, `render_schematic`, `add_component`,
+`add_exercise`.
 
 ```json
 {
@@ -245,8 +250,8 @@ Specifica e stato in `docs/MCP-SERVER.md`.
 ## Test
 
 ```bash
-./lab test                 # 40 test core (documento, fisica, audio, breadboard, PCB)
-.venv/bin/python -m unittest discover -s tests -v   # + 9 test MCP
+./lab test                 # test core, MCP e confronti SPICE disponibili
+.venv/bin/python -m unittest discover -s tests -v
 ./lab selftest             # 7 test numerici del solver
 ./lab check                # 29 esercizi contro le attese
 ```
@@ -255,9 +260,9 @@ I test coprono partitore, LED, RC, RLC, NPN (cutoff/attivo/saturazione), PUT,
 la bruciatura in transitorio, il merge delle reti, il layout, la breadboard,
 il confronto con ngspice e il server MCP (tool, risorse, trasporto stdio,
 scrittura protetta).
-I test SPICE vengono saltati se `ngspice` non e' installato; i test MCP se
-`mcp` non e' nel Python usato. Totale: 49 test, 2 di trasporto MCP saltati nel
-Python di sistema.
+Sono 49 test core e 11 MCP. I 3 test SPICE vengono saltati se `ngspice` non e'
+installato; 2 test di trasporto MCP vengono saltati se `mcp` non e' nel Python
+usato.
 
 ## Documentazione
 

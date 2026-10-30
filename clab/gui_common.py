@@ -41,6 +41,8 @@ KIND_LABELS = {
     "SPK": "Altoparlanti",
     "LAMP": "Lampadine",
     "XFMR": "Trasformatori",
+    "IC": "Integrati e moduli",
+    "PORT": "Connettori",
 }
 
 

@@ -1,0 +1,13 @@
+{
+  "id": "bq24074",
+  "kind": "IC",
+  "symbol": "ic",
+  "name": "BQ24074 caricatore 1S",
+  "pins": ["IN", "OUT", "BAT", "TS", "ISET", "ITERM", "TMR", "ILIM", "EN1", "EN2", "CE", "CHG", "PGOOD", "GND"],
+  "pin_sides": {
+    "left": ["IN", "BAT", "TS", "CE", "EN2", "EN1", "GND"],
+    "right": ["OUT", "ISET", "ITERM", "TMR", "ILIM", "CHG", "PGOOD"]
+  },
+  "optional": ["ITERM", "ILIM", "CHG", "PGOOD"],
+  "learn": "Modello didattico Elettrolab: path IN-OUT resistivo e corrente di carica costante calcolata da ISET, abilitata da CE. Non modella il loop CC/CV completo, input current limit, NTC, timer, power-path dinamico o comportamento termico del BQ24074."
+}

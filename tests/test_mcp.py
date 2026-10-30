@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from xml.etree import ElementTree
 from pathlib import Path
 
 try:
@@ -60,6 +61,33 @@ class MCPServiceTests(unittest.TestCase):
         self.assertLessEqual(len(tr["time"]), 30)
         self.assertIn("V(m)", tr["waves"])
         self.assertAlmostEqual(tr["summary"]["V(m)"]["max"], 8.55, delta=0.1)
+
+    def test_render_schematic_svg(self):
+        result = service.render_schematic(cid="exp03")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["format"], "image/svg+xml")
+        self.assertIn("<svg", result["svg"])
+        self.assertIn("V1", result["svg"])
+        self.assertIn("D1", result["svg"])
+        self.assertEqual(ElementTree.fromstring(result["svg"]).tag,
+                         "{http://www.w3.org/2000/svg}svg")
+
+    def test_ac_sweep_service(self):
+        circuit = {
+            "id": "rc_low_pass",
+            "parts": {
+                "V1": {"type": "battery_9v"},
+                "R1": {"type": "resistor", "r": 1000},
+                "C1": {"type": "capacitor", "c": 1e-6},
+            },
+            "nets": {"in": ["V1.+", "R1.1"],
+                     "out": ["R1.2", "C1.+"],
+                     "gnd": ["V1.-", "C1.-"]},
+        }
+        result = service.ac_sweep(circuit, "V1", "out", 10, 1000, 51)
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["frequency"]), 51)
+        self.assertLess(result["magnitude_db"][-1], result["magnitude_db"][0])
 
     def test_check_and_sweep(self):
         self.assertTrue(service.check(cid="exp03")["ok"])

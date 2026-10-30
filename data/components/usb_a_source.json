@@ -1,0 +1,13 @@
+{
+  "id": "usb_a_source",
+  "kind": "PORT",
+  "symbol": "connector",
+  "name": "USB-A uscita 5 V",
+  "pins": ["VBUS", "GND", "D+", "D-", "SHIELD"],
+  "footprint": "USB_A_GENERIC",
+  "pin_sides": {
+    "left": ["VBUS", "D+", "D-"],
+    "right": ["GND", "SHIELD"]
+  },
+  "learn": "Connettore USB-A passivo. L'uscita dipende dal convertitore e dall'interruttore limitatore; il modello non negozia profili di carica USB su D+/D-."
+}

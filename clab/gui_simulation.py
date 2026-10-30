@@ -1,8 +1,26 @@
+import math
 import queue
 import threading
 
-from .solver import check, simulate
+from .solver import ac_sweep, check, simulate
 from .gui_common import FAIL, MUTED, OK, WARN
+
+
+def expectations_from_result(doc, result, tolerance=0.05):
+    tolerance = float(tolerance)
+    if not math.isfinite(tolerance) or not 0 < tolerance <= 1:
+        raise ValueError("la tolleranza deve essere compresa tra 0 e 1")
+    expected = {}
+    for net, raw_value in result.nodes.items():
+        value = float(raw_value)
+        if net != doc.ground and math.isfinite(value) and abs(value) > 1e-12:
+            expected[f"V({net})"] = {"approx": value, "tol": tolerance}
+    for pid, raw_value in result.currents.items():
+        value = float(raw_value)
+        if math.isfinite(value) and abs(value) > 1e-12:
+            expected[f"I({pid})"] = {"approx": value, "tol": tolerance}
+    expected["violations"] = sorted({v["part"] for v in result.violations})
+    return expected
 
 
 class SimulationMixin:
@@ -44,6 +62,10 @@ class SimulationMixin:
         generation = self._sim_generation
         self.problems_list = self.doc.problems()
         self.res = None
+        if self.doc.meta.get("analysis") == "schematic":
+            self.status.configure(text="SCHEMA", foreground=WARN)
+            self._hint("Progetto schematico: i modelli integrati non sono simulabili in Elettrolab.")
+            return
         if any(p["severity"] == "error" for p in self.problems_list):
             return
         try:
@@ -82,12 +104,34 @@ class SimulationMixin:
                 "message": getattr(e, "message", str(e))})
         self._async_queue.put(("simulation", generation, result, problems))
 
+    def _ac_worker(self, generation, circ, source, probe, fstart, fstop, points):
+        try:
+            result = ac_sweep(circ, source, probe, fstart, fstop, points)
+            self._async_queue.put(("ac", generation, result, None))
+        except Exception as e:
+            self._async_queue.put(("ac", generation, None, str(e)))
+
     def _poll_async_results(self):
         while True:
             try:
                 item = self._async_queue.get_nowait()
             except queue.Empty:
                 break
+            if item[0] == "ac":
+                _, generation, result, error = item
+                if generation != self._ac_generation:
+                    continue
+                if error:
+                    self.status.configure(text="ERRORE AC", foreground=FAIL)
+                    self._hint(f"Analisi AC non riuscita: {error}")
+                    continue
+                self.ac_result = result
+                self.status.configure(text="BODE PRONTO", foreground=OK)
+                self._show_ac_table(result)
+                self.nb.select(3)
+                self._plot()
+                self._hint("Analisi AC completata: guadagno e fase in funzione della frequenza.")
+                continue
             _, generation, result, problems = item
             if generation != self._sim_generation:
                 continue
@@ -128,6 +172,8 @@ class SimulationMixin:
         if errors:
             self.status.configure(text=f"INCOMPLETO  ({len(errors)} errori)",
                                   foreground=FAIL)
+        elif self.doc.meta.get("analysis") == "schematic":
+            self.status.configure(text="SCHEMA NON SIMULABILE", foreground=WARN)
         elif self.res is not None and self.res.checks:
             if self.res.ok:
                 self.status.configure(text="TEST SUPERATO", foreground=OK)

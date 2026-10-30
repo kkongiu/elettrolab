@@ -11,7 +11,8 @@ LLM, poi quella per gli umani, infine i modelli avanzati.
 - [x] LED, interruttore, potenziometro, rele', RLC
 - [x] Violazioni didattiche e controlli automatici
 - [x] CLI, menu, grafico ASCII, CSV, sweep
-- [x] 29 esercizi; 40 test core (7 motore, 11 fisica, 13 breadboard, 3 ngspice, 4 audio, 2 PCB) e 9 test MCP
+- [x] 29 esercizi; 49 test core e 11 test MCP per documenti, AC, fisica,
+  breadboard, SPICE, audio, PCB e GUI
 - [x] Documentazione di progetto e licenza MIT
 
 ## Fase 1 - Server MCP (fatta)
@@ -24,6 +25,8 @@ il codice.
 - [x] `validate_circuit` con errori strutturati
 - [x] `simulate_circuit` con output limitato e riassunto delle forme d'onda
 - [x] `check_circuit` e `sweep_parameter`
+- [x] `render_schematic` con SVG deterministico
+- [x] `ac_sweep` per reti lineari con diagramma di Bode
 - [x] Risorse MCP per catalogo, esercizi e documentazione
 - [x] Prompt `progetta_circuito` e `debug_circuito`
 - [x] Tool di scrittura dietro `CLAB_MCP_ALLOW_WRITE=1`
@@ -31,7 +34,7 @@ il codice.
 
 Criterio di accettazione: un LLM riceve un obiettivo, genera un circuito,
 sbaglia, legge l'errore, corregge e ottiene `check` superato. Implementato e
-verificato con test sul trasporto `stdio`. Manca solo `render_schematic`.
+verificato con test sul trasporto `stdio`.
 
 Specifica: `docs/MCP-SERVER.md`.
 
@@ -53,6 +56,7 @@ Fatto:
 - [x] Undo/redo, scorciatoie, problemi del circuito
 - [x] Pannello Codice con vista circuito/layout, modifica e applicazione
 - [x] Progetti in `data/projects/` con file di layout affiancato
+- [x] Schermata iniziale per creare un progetto o aprire un esercizio/progetto
 - [x] Simbolo di massa e rele' a due poli con pin opzionali
 - [x] NPN a tre stati e PUT a due stati (comportamentali)
 - [x] Validazione fisica: residuo MNA, RC/RLC, NPN, PUT, ngspice
@@ -69,12 +73,15 @@ Fatto:
 - [x] Riproduzione del suono (WAV, paplay/aplay) e pulsante Ascolta
 - [x] Step 3 dell'esercizio 11: amplificazione con 2N2222 e altoparlante sul collettore
 
+Completato in questa fase:
+
+- [x] Trascinamento dei punti di piega dei fili ortogonali
+- [x] Rinomina delle reti dall'interfaccia
+- [x] "Fissa i valori attuali come attesi" per generare `expect`
+
 Da fare:
 
-- [ ] Trascinamento dei punti di piega dei fili
-- [ ] Rinomina delle reti dall'interfaccia
 - [ ] Creazione di un nuovo tipo di componente dall'editor
-- [ ] "Fissa i valori attuali come attesi" per generare `expect`
 
 Tecnologia attuale: Tkinter + Matplotlib, senza dipendenze di sistema.
 Un frontend web resta possibile; il motore e il formato non cambiano.
@@ -93,8 +100,8 @@ Un frontend web resta possibile; il motore e il formato non cambiano.
 - [ ] Controllo in corrente, limitatore e protezioni attive
 - [ ] Timer 555 comportamentale
 - [ ] Porte logiche 74xx
-- [ ] Analisi AC e diagrammi di Bode
 - [x] Confronto con ngspice per circuiti lineari e NPN
+- [x] Analisi AC lineare e diagrammi di Bode per reti RLC supportate
 - [ ] Fallback a ngspice via subprocess per subcircuiti e modelli non primitivi
 - [ ] Import/export del formato CircuitJS
 

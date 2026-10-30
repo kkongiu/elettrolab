@@ -54,7 +54,106 @@ def simulate(circ):
         return _dc(circ)
     if circ.analysis == "transient":
         return _tran(circ)
+    if circ.analysis == "schematic":
+        raise SolveError("schematic_only", "questo progetto contiene modelli schematici non simulabili")
     raise SolveError("bad_analysis", f"analisi non supportata: {circ.analysis!r}")
+
+
+def ac_sweep(circ, source, probe, fstart=1.0, fstop=1e6, points=101):
+    """Small-signal sweep for supported linear networks, normalized to a 1 V source."""
+    if source not in circ.parts or circ.part(source).kind != "V":
+        raise SolveError("bad_source", f"sorgente AC non valida: {source!r}")
+    if probe not in circ.nets:
+        raise SolveError("bad_probe", f"rete di uscita non valida: {probe!r}")
+    try:
+        fstart, fstop = to_float(fstart), to_float(fstop)
+        points = int(points)
+    except (TypeError, ValueError):
+        raise SolveError("bad_frequency", "intervallo di frequenza o numero di punti non valido")
+    if (not math.isfinite(fstart) or not math.isfinite(fstop) or
+            fstart <= 0 or fstop <= fstart or not 2 <= points <= 301):
+        raise SolveError("bad_frequency", "usa 0 < fstart < fstop e 2..301 punti")
+
+    supported = {"R", "SPK", "LAMP", "V", "C", "L", "POT", "SW", "XFMR", "GND"}
+    for pid, part in circ.parts.items():
+        if part.kind not in supported:
+            raise SolveError("unsupported_ac",
+                             f"{pid} ({part.type}) non supportato nell'analisi AC", part=pid)
+        if part.kind == "SW" and any(k in part.params for k in (
+                "freq", "period", "ki", "t_close", "t_open", "t_soft")):
+            raise SolveError("unsupported_ac",
+                             f"{pid}: il convertitore switching non ha un modello AC linearizzato",
+                             part=pid)
+
+    branch_pids = [pid for pid, p in circ.parts.items() if p.kind in ("V", "XFMR")]
+    if circ.n + len(branch_pids) > 80:
+        raise SolveError("too_large", "l'analisi AC supporta al massimo 80 incognite")
+    branch = {pid: circ.n + i for i, pid in enumerate(branch_pids)}
+    frequencies = np.geomspace(fstart, fstop, points)
+    gain = np.empty(points, dtype=complex)
+    for fi, frequency in enumerate(frequencies):
+        size = circ.n + len(branch_pids)
+        A = np.zeros((size, size), dtype=complex)
+        b = np.zeros(size, dtype=complex)
+        omega = 2 * math.pi * frequency
+        for pid, part in circ.parts.items():
+            kind = part.kind
+            if kind in ("R", "SPK", "LAMP"):
+                pins = ("+", "-") if kind == "SPK" else ("1", "2")
+                a, c = (circ.node(pid, pin) for pin in pins)
+                _stamp_g(A, a, c, 1.0 / part.num("r"))
+            elif kind == "C":
+                _stamp_g(A, circ.node(pid, "+"), circ.node(pid, "-"),
+                         1j * omega * part.num("c"))
+            elif kind == "L":
+                _stamp_g(A, circ.node(pid, "1"), circ.node(pid, "2"),
+                         1.0 / (1j * omega * part.num("l")))
+            elif kind == "POT":
+                r1, r2, w = (circ.node(pid, pin) for pin in ("1", "2", "W"))
+                total = part.num("rtotal")
+                pos = min(max(part.num("pos"), 0.0), 1.0)
+                _stamp_g(A, r1, w, 1.0 / max(total * pos, 1e-6))
+                if part.get("mode", "divider") != "rheostat" and circ.connected(pid, "2"):
+                    _stamp_g(A, w, r2, 1.0 / max(total * (1 - pos), 1e-6))
+            elif kind == "SW":
+                a, c = circ.node(pid, "1"), circ.node(pid, "2")
+                resistance = part.num("ron") if part.get("closed", True) else part.num("roff")
+                _stamp_g(A, a, c, 1.0 / max(resistance, 1e-6))
+            elif kind == "V":
+                a, c = circ.node(pid, "+"), circ.node(pid, "-")
+                k = branch[pid]
+                if a >= 0:
+                    A[k, a] += 1
+                    A[a, k] += 1
+                if c >= 0:
+                    A[k, c] -= 1
+                    A[c, k] -= 1
+                b[k] = 1.0 if pid == source else 0.0
+            elif kind == "XFMR":
+                pp, pm = circ.node(pid, "P+"), circ.node(pid, "P-")
+                sp, sm = circ.node(pid, "S+"), circ.node(pid, "S-")
+                ratio = part.num("n")
+                k = branch[pid]
+                if sp >= 0:
+                    A[k, sp] += 1
+                    A[sp, k] += 1
+                if sm >= 0:
+                    A[k, sm] -= 1
+                    A[sm, k] -= 1
+                if pp >= 0:
+                    A[k, pp] -= ratio
+                    A[pp, k] -= ratio
+                if pm >= 0:
+                    A[k, pm] += ratio
+                    A[pm, k] += ratio
+        x = _solve(A, b)
+        node = circ.node_index[probe]
+        gain[fi] = x[node] if node >= 0 else 0.0
+    magnitude_db = 20.0 * np.log10(np.maximum(np.abs(gain), 1e-15))
+    phase_deg = np.angle(gain, deg=True)
+    return {"frequency": frequencies, "gain": gain,
+            "magnitude_db": magnitude_db, "phase_deg": phase_deg,
+            "source": source, "probe": probe}
 
 
 def _stamp_g(A, a, c, g):
@@ -83,6 +182,164 @@ def _branch(circ, A, b, k, a, c, v, req=0.0, hist=0.0):
         A[c, k] -= 1.0
     A[k, k] -= req
     b[k] = v - req * hist
+
+
+def _pin_voltage(circ, x, pid, pin):
+    node = circ.node(pid, pin)
+    return float(x[node]) if node >= 0 else 0.0
+
+
+def _bq24074_charge_current(circ, pid):
+    iset = circ.node(pid, "ISET")
+    for rid, resistor in circ.by_kind("R"):
+        r1, r2 = circ.node(rid, "1"), circ.node(rid, "2")
+        if iset in (r1, r2) and circ.ground in (
+                circ.net_of(rid, "1"), circ.net_of(rid, "2")):
+            return min(1.5, 890.0 / resistor.num("r"))
+    return 0.0
+
+
+def _feedback_target(circ, pid, default=5.0):
+    fb = circ.node(pid, "FB")
+    out = circ.node(pid, "VOUT")
+    rtop = rbottom = None
+    for rid, resistor in circ.by_kind("R"):
+        n1, n2 = circ.node(rid, "1"), circ.node(rid, "2")
+        if fb not in (n1, n2):
+            continue
+        other = n2 if n1 == fb else n1
+        if other == out:
+            rtop = resistor.num("r")
+        elif circ.net_of(rid, "1" if n1 == other else "2") == circ.ground:
+            rbottom = resistor.num("r")
+    if not rtop or not rbottom:
+        return default
+    return 0.595 * (1.0 + rtop / rbottom)
+
+
+def _tps2553_limit(circ, pid):
+    ilim = circ.node(pid, "ILIM")
+    for rid, resistor in circ.by_kind("R"):
+        n1, n2 = circ.node(rid, "1"), circ.node(rid, "2")
+        if ilim in (n1, n2) and circ.ground in (
+                circ.net_of(rid, "1"), circ.net_of(rid, "2")):
+            r_kohm = resistor.num("r") / 1000.0
+            if r_kohm > 0:
+                return 23.950 / (r_kohm ** 0.977)
+    return 1.0
+
+
+def _resistive_load_current(circ, x, node, excluded):
+    current = 0.0
+    if node < 0:
+        return current
+    for pid, part in circ.parts.items():
+        if pid == excluded or part.kind not in ("R", "SPK", "LAMP"):
+            continue
+        if part.kind == "SPK":
+            pins = ("+", "-")
+        else:
+            pins = ("1", "2")
+        n1, n2 = (circ.node(pid, pin) for pin in pins)
+        resistance = part.num("r")
+        if n1 == node and n2 != node:
+            current += (_pin_voltage(circ, x, pid, pins[0]) -
+                        _pin_voltage(circ, x, pid, pins[1])) / resistance
+        elif n2 == node and n1 != node:
+            current += (_pin_voltage(circ, x, pid, pins[1]) -
+                        _pin_voltage(circ, x, pid, pins[0])) / resistance
+    return max(0.0, current)
+
+
+def _update_power_models(circ, x, old):
+    state = dict(old)
+    for pid, part in circ.parts.items():
+        if part.type == "bq24074":
+            input_ok = _pin_voltage(circ, x, pid, "IN") >= 4.35
+            ce_enabled = _pin_voltage(circ, x, pid, "CE") < 0.8
+            battery_needs_charge = _pin_voltage(circ, x, pid, "BAT") < 4.2
+            state[f"{pid}:input"] = input_ok
+            state[f"{pid}:charge"] = input_ok and ce_enabled and battery_needs_charge
+        elif part.type == "tps61023":
+            enabled = (
+                _pin_voltage(circ, x, pid, "VIN") >= 1.8 and
+                _pin_voltage(circ, x, pid, "EN") >= 1.2)
+            state[f"{pid}:enabled"] = enabled
+            if enabled:
+                nominal = _feedback_target(circ, pid)
+                vfb = _pin_voltage(circ, x, pid, "FB")
+                ratio = 0.595 / nominal
+                target = state.get(f"{pid}:target", nominal)
+                target += (0.595 - vfb) / ratio
+                state[f"{pid}:target"] = min(5.5, max(2.2, target))
+                vout = _pin_voltage(circ, x, pid, "VOUT")
+                vin = max(0.1, _pin_voltage(circ, x, pid, "VIN"))
+                iout = max(0.0, (state[f"{pid}:target"] - vout) / 0.12)
+                state[f"{pid}:iin"] = iout * max(vout, 0.0) / (0.9 * vin)
+        elif part.type == "tps2553":
+            enabled = (
+                _pin_voltage(circ, x, pid, "IN") >= 2.5 and
+                _pin_voltage(circ, x, pid, "EN") >= 1.1)
+            state[f"{pid}:enabled"] = enabled
+            if enabled:
+                out = circ.node(pid, "OUT")
+                limit = _tps2553_limit(circ, pid)
+                load = _resistive_load_current(circ, x, out, pid)
+                state[f"{pid}:limited"] = load >= limit * 0.999
+            else:
+                state[f"{pid}:limited"] = False
+        elif part.type == "protection_liion_1s":
+            vcell = (_pin_voltage(circ, x, pid, "B+") -
+                     _pin_voltage(circ, x, pid, "B-"))
+            state[f"{pid}:enabled"] = 2.5 <= vcell <= 4.3
+    return state
+
+
+def _model_states_equal(a, b):
+    if a.keys() != b.keys():
+        return False
+    return all(math.isclose(a[key], b[key], rel_tol=1e-8, abs_tol=1e-9)
+               if isinstance(a[key], float) and isinstance(b[key], float)
+               else a[key] == b[key] for key in a)
+
+
+def _stamp_ic(circ, A, b, pid, part, state):
+    if part.type == "bq24074":
+        if state.get(f"{pid}:input", False):
+            _stamp_g(A, circ.node(pid, "IN"), circ.node(pid, "OUT"), 1.0 / 0.08)
+        else:
+            _stamp_g(A, circ.node(pid, "BAT"), circ.node(pid, "OUT"), 1.0 / 0.12)
+        if state.get(f"{pid}:charge", False):
+            _stamp_i(b, circ.node(pid, "OUT"), circ.node(pid, "BAT"),
+                     _bq24074_charge_current(circ, pid))
+    elif part.type == "tps61023":
+        if state.get(f"{pid}:enabled", False):
+            out = circ.node(pid, "VOUT")
+            conductance = 1.0 / 0.12
+            _stamp_g(A, out, -1, conductance)
+            if out >= 0:
+                target = state.get(f"{pid}:target", _feedback_target(circ, pid))
+                b[out] += conductance * target
+            _stamp_i(b, circ.node(pid, "VIN"), -1, state.get(f"{pid}:iin", 0.0))
+    elif part.type == "tps2553":
+        input_node, output_node = circ.node(pid, "IN"), circ.node(pid, "OUT")
+        if state.get(f"{pid}:enabled", False) and state.get(f"{pid}:limited", False):
+            _stamp_g(A, input_node, output_node, 1e-9)
+            _stamp_i(b, input_node, output_node, _tps2553_limit(circ, pid))
+        else:
+            resistance = 0.08 if state.get(f"{pid}:enabled", False) else 1e9
+            _stamp_g(A, input_node, output_node, 1.0 / resistance)
+    elif part.type == "protection_liion_1s":
+        resistance = 0.01 if state.get(f"{pid}:enabled", False) else 1e9
+        _stamp_g(A, circ.node(pid, "B+"), circ.node(pid, "P+"), 1.0 / resistance)
+        _stamp_g(A, circ.node(pid, "B-"), circ.node(pid, "P-"), 1.0 / resistance)
+    elif part.type in ("usb_esd_array", "usb_vbus_tvs"):
+        # Nominally open protection devices get tiny leakage paths for DC convergence.
+        for pin in part.spec.pins:
+            _stamp_g(A, circ.node(pid, pin), -1, 1e-9)
+        return
+    else:
+        raise SolveError("unsupported", f"{pid}: componente non simulabile ({part.type})", part=pid)
 
 
 DIODES = ("LED", "D")
@@ -285,6 +542,13 @@ def _build(circ, mode, t, dt, vprev, iprev, led_on, relay_on, q_on, mos_on, ctrl
             _stamp_g(A, g, s, 1e-9)
             r = p.num("ron") if mos_on.get(pid) else p.num("roff")
             _stamp_g(A, d, s, 1.0 / max(r, 1e-6))
+        elif kind == "IC":
+            _stamp_ic(circ, A, b, pid, p, ctrl or {})
+        elif kind == "PORT":
+            # Connectors are net labels; leakage avoids singular floating data pins.
+            for pin in p.spec.pins:
+                _stamp_g(A, circ.node(pid, pin), -1, 1e-9)
+            continue
         elif kind == "GND":
             continue
         else:
@@ -489,6 +753,36 @@ def _extract(circ, res, x, br, mode, dt, vprev, led_on, relay_on, q_on, mos_on, 
             r = p.num("ron") if mos_on.get(pid) else p.num("roff")
             i = vds / max(r, 1e-6)
             pw = abs(vds * i)
+        elif kind == "IC":
+            state = ctrl or {}
+            if p.type == "bq24074":
+                if state.get(f"{pid}:input", False):
+                    i = (_pin_v(x, circ.node(pid, "IN")) -
+                         _pin_v(x, circ.node(pid, "OUT"))) / 0.08
+                else:
+                    i = (_pin_v(x, circ.node(pid, "BAT")) -
+                         _pin_v(x, circ.node(pid, "OUT"))) / 0.12
+                pw = abs(i * _pin_v(x, circ.node(pid, "IN")))
+            elif p.type == "tps61023":
+                if state.get(f"{pid}:enabled", False):
+                    i = state.get(f"{pid}:iin", 0.0)
+                    pw = i * _pin_v(x, circ.node(pid, "VIN"))
+            elif p.type == "tps2553":
+                if state.get(f"{pid}:enabled", False) and state.get(f"{pid}:limited", False):
+                    i = _tps2553_limit(circ, pid)
+                else:
+                    resistance = 0.08 if state.get(f"{pid}:enabled", False) else 1e9
+                    i = (_pin_v(x, circ.node(pid, "IN")) -
+                         _pin_v(x, circ.node(pid, "OUT"))) / resistance
+                pw = abs(i * (_pin_v(x, circ.node(pid, "IN")) -
+                              _pin_v(x, circ.node(pid, "OUT"))))
+            elif p.type == "protection_liion_1s" and state.get(f"{pid}:enabled", False):
+                i = (_pin_v(x, circ.node(pid, "B+")) -
+                     _pin_v(x, circ.node(pid, "P+"))) / 0.01
+                pw = i * i * 0.01
+        elif kind == "PORT":
+            i = 0.0
+            pw = 0.0
         elif kind == "GND":
             i = 0.0
             pw = 0.0
@@ -591,29 +885,35 @@ def _dc(circ):
     relay = {pid: False for pid, p in circ.parts.items() if p.kind in ("RELAY", "RELAY2")}
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     mos = {pid: False for pid, p in circ.parts.items() if p.kind == "MOS"}
+    models = {}
     seen = set()
     x = None
     br = None
     for it in range(40):
-        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {}, led, relay, q, mos, {})
+        A, b, br = _build(circ, "dc", 0.0, None, np.zeros(circ.n), {},
+                          led, relay, q, mos, models)
         x = _solve(A, b)
         nl = _update_leds(circ, x, led)
         nr = _update_relays(circ, x, relay)
         nq = _update_transistors(circ, x, q)
         nq = _update_puts(circ, x, nq)
         nm = _update_mosfets(circ, x, mos)
-        if nl == led and nr == relay and nq == q and nm == mos:
+        npower = _update_power_models(circ, x, models)
+        if (nl == led and nr == relay and nq == q and nm == mos and
+                _model_states_equal(npower, models)):
             break
         key = (tuple(sorted((k, v) for k, v in nl.items())),
                tuple(sorted((k, v) for k, v in nr.items())),
                tuple(sorted((k, v) for k, v in nq.items())),
-               tuple(sorted((k, v) for k, v in nm.items())))
+               tuple(sorted((k, v) for k, v in nm.items())),
+               tuple(sorted(npower.items())))
         if key in seen:
             res.notes.append("nessun punto di riposo stabile: il circuito oscilla, usa analysis 'transient'")
             break
         seen.add(key)
         led, relay, q, mos = nl, nr, nq, nm
-    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q, mos, {})
+        models = npower
+    _extract(circ, res, x, br, "dc", None, np.zeros(circ.n), led, relay, q, mos, models)
     res.relay_states = dict(relay)
     res.residual = float(np.max(np.abs(A @ x - b)))
     return res
@@ -680,6 +980,7 @@ def _tran(circ):
     relay_last = {pid: -1e9 for pid, _ in relays}
     q = {pid: 0 for pid, p in circ.parts.items() if p.kind in ("NPN", "PUT")}
     mos = {pid: False for pid, p in circ.parts.items() if p.kind == "MOS"}
+    models = {}
     ctrl = {pid: (p.num("duty") if "duty" in p.params else 0.5)
             for pid, p in circ.parts.items()
             if p.kind == "SW" and p.get("vref", 0) > 0 and circ.connected(pid, "FB")}
@@ -699,20 +1000,27 @@ def _tran(circ):
         t = (step + 1) * dt
         for pid in relay_hist:
             relay_hist[pid][step] = 1.0 if relay[pid] else 0.0
-        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos, ctrl)
+        model_ctrl = {**ctrl, **models}
+        A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay,
+                          q, mos, model_ctrl)
         x = _solve(A, b)
-        for _ in range(4):
+        for _ in range(8):
             nl = _update_leds(circ, x, led)
             nq = _update_transistors(circ, x, q)
             nq = _update_puts(circ, x, nq)
             nm = _update_mosfets(circ, x, mos)
-            if nl == led and nq == q and nm == mos:
+            npower = _update_power_models(circ, x, models)
+            if nl == led and nq == q and nm == mos and _model_states_equal(npower, models):
                 break
             led, q, mos = nl, nq, nm
-            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay, q, mos, ctrl)
+            models = npower
+            model_ctrl = {**ctrl, **models}
+            A, b, br = _build(circ, "transient", t, dt, vprev, iprev, led, relay,
+                              q, mos, model_ctrl)
             x = _solve(A, b)
         res.residual = max(res.residual, float(np.max(np.abs(A @ x - b))))
-        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay, q, mos, ctrl, t)
+        v = _extract(circ, res, x, br, "transient", dt, vprev, led, relay,
+                     q, mos, model_ctrl, t)
         for pid in ctrl:
             p = circ.part(pid)
             soft = p.num("t_soft") if "t_soft" in p.params else 0.0

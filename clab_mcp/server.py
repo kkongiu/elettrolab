@@ -42,6 +42,13 @@ def get_circuit(id: str) -> dict:
 
 
 @mcp.tool()
+def render_schematic(circuit: Optional[dict] = None, id: Optional[str] = None,
+                     layout: Optional[dict] = None) -> dict:
+    """Genera uno schema SVG da un circuito o dall'id di un esercizio/progetto."""
+    return service.render_schematic(circuit=circuit, cid=id, layout=layout)
+
+
+@mcp.tool()
 def validate_circuit(circuit: dict) -> dict:
     """Valida un circuito senza simularlo. Restituisce errori e avvisi strutturati."""
     return service.validate(circuit)
@@ -53,6 +60,14 @@ def simulate_circuit(circuit: dict, include_waveforms: bool = False,
     """Simula DC o transitorio. Le forme d'onda sono campionate a max_points."""
     return service.simulate(circuit, include_waveforms=include_waveforms,
                             max_points=max_points)
+
+
+@mcp.tool()
+def ac_sweep(circuit: dict, source: str, probe: str, fstart: float = 1.0,
+             fstop: float = 1e6, points: int = 101) -> dict:
+    """Calcola il diagramma di Bode lineare, con sorgente normalizzata a 1 V AC."""
+    return service.ac_sweep(circuit, source, probe, fstart=fstart,
+                            fstop=fstop, points=points)
 
 
 @mcp.tool()
@@ -113,7 +128,8 @@ def progetta_circuito(obiettivo: str) -> str:
         "1. Usa list_components e get_component per i pezzi disponibili.\n"
         "2. Scrivi solo parts, nets, analysis e expect; nessuna coordinata.\n"
         "3. Usa validate_circuit, poi simulate_circuit, poi check_circuit.\n"
-        "4. Correggi in base agli errori strutturati e mostra il JSON finale."
+        "4. Chiama render_schematic per produrre l'anteprima SVG.\n"
+        "5. Correggi in base agli errori strutturati e mostra il JSON finale."
     )
 
 

@@ -1,0 +1,1 @@
+{"id":"USB_A_GENERIC","pads":{"VBUS":[-1.5,-1.5],"GND":[1.5,-1.5],"D+":[-0.5,-1.5],"D-":[0.5,-1.5],"SHIELD":[0,3.0]},"pad_shapes":{"VBUS":{"shape":"rect","w":0.9,"h":1.8},"GND":{"shape":"rect","w":0.9,"h":1.8},"D+":{"shape":"rect","w":0.6,"h":1.8},"D-":{"shape":"rect","w":0.6,"h":1.8},"SHIELD":{"shape":"rect","w":4.0,"h":1.5}},"body":{"type":"rect","w":12.0,"h":7.0}}
