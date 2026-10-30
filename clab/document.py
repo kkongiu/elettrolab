@@ -1,5 +1,6 @@
 import copy
 import json
+import math
 import re
 from pathlib import Path
 
@@ -301,6 +302,33 @@ class Document:
 
     def problems(self):
         out = []
+        analysis = self.meta.get("analysis", "dc")
+        if analysis not in ("dc", "transient"):
+            out.append({"severity": "error", "code": "bad_analysis",
+                        "message": f"analisi non supportata: {analysis!r}"})
+        timing = {}
+        for key in ("dt", "tstop"):
+            if key not in self.meta or self.meta[key] is None:
+                continue
+            try:
+                value = to_float(self.meta[key])
+            except (ValueError, TypeError) as e:
+                out.append({"severity": "error", "code": "bad_value",
+                            "message": f"{key}: valore numerico non valido ({e})"})
+                continue
+            if not math.isfinite(value) or value <= 0:
+                out.append({"severity": "error", "code": "out_of_range",
+                            "message": f"{key}: deve essere un numero finito > 0"})
+                continue
+            timing[key] = value
+        if analysis == "transient" and "dt" in timing and "tstop" in timing:
+            ratio = timing["tstop"] / timing["dt"]
+            if not math.isfinite(ratio) or ratio > 300000:
+                out.append({"severity": "error", "code": "too_long",
+                            "message": "tstop/dt supera il limite di 300000 passi"})
+            elif round(ratio) < 2:
+                out.append({"severity": "error", "code": "bad_value",
+                            "message": "tstop troppo breve rispetto a dt"})
         seen = {}
         for name, refs in self.nets.items():
             for ref in refs:
@@ -318,20 +346,14 @@ class Document:
             if pid not in self.layout["parts"]:
                 out.append({"severity": "warning", "code": "no_layout",
                             "message": f"{pid}: posizione mancante", "part": pid})
+            for issue in p.validation_errors:
+                out.append({"severity": "error", **issue, "part": pid})
             optional = set(p.spec.optional)
             for pin in p.spec.pins:
                 if self.net_of(pid, pin) is None and pin not in optional:
                     out.append({"severity": "error", "code": "floating_pin",
                                 "message": f"{pid} ({p.type}): pin {pin} scollegato",
                                 "part": pid, "pin": pin})
-            for key in p.spec.numeric_keys():
-                if key in self.parts[pid]:
-                    try:
-                        to_float(self.parts[pid][key])
-                    except Exception:
-                        out.append({"severity": "error", "code": "bad_value",
-                                    "message": f"{pid}.{key}: valore non numerico",
-                                    "part": pid})
         if self.ground is None:
             out.append({"severity": "error", "code": "no_ground",
                         "message": "manca la massa: aggiungi un simbolo Massa"})

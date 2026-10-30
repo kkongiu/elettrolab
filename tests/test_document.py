@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from clab.circuit import CircuitError, from_dict
 from clab.db import DB
 from clab.document import Document
 from clab.layouts import LAYOUTS
@@ -55,6 +56,63 @@ class DocumentTests(unittest.TestCase):
         r = doc.add_part("resistor", 200, 200)
         doc.connect(r, "1", g, "1")
         self.assertEqual(doc.net_of(r, "1"), "gnd")
+
+    def test_parameter_validation(self):
+        doc = new_doc()
+        r = doc.add_part("resistor")
+        doc.set_param(r, "pmax", 10)
+        sw = doc.add_part("switch_spst")
+        doc.set_param(sw, "t_close", 0.02)
+        doc.set_param(sw, "t_open", 0.04)
+        self.assertFalse([p for p in doc.problems() if p["code"] == "unknown_parameter"])
+
+        doc.set_param(r, "rr", "470")
+        errors = [p for p in doc.problems() if p["code"] == "unknown_parameter"]
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0]["part"], r)
+        self.assertEqual(errors[0]["parameter"], "rr")
+
+    def test_numeric_values_and_ranges(self):
+        doc = new_doc()
+        r = doc.add_part("resistor")
+        doc.set_param(r, "r", "not-a-value")
+        sw = doc.add_part("switch_spst")
+        doc.set_param(sw, "t_close", "later")
+        pot = doc.add_part("potentiometer")
+        doc.set_param(pot, "pos", 1.1)
+        doc.set_param(sw, "closed", "false")
+
+        errors = [p for p in doc.problems()
+                  if p.get("parameter") in {"r", "t_close", "pos", "closed"}]
+        self.assertEqual({(p["code"], p.get("parameter")) for p in errors}, {
+            ("bad_value", "r"), ("bad_value", "t_close"),
+            ("out_of_range", "pos"), ("bad_value", "closed"),
+        })
+
+    def test_timing_values_are_positive_and_bounded(self):
+        doc = new_doc()
+        doc.meta.update({"analysis": "transient", "dt": 0, "tstop": 100})
+        errors = [p for p in doc.problems() if p["severity"] == "error"]
+        self.assertTrue(any(p["code"] == "out_of_range" and "dt" in p["message"]
+                            for p in errors))
+        doc.meta["dt"] = 0.001
+        doc.meta["tstop"] = 301
+        errors = [p for p in doc.problems() if p["severity"] == "error"]
+        self.assertTrue(any(p["code"] == "too_long" for p in errors))
+
+    def test_circuit_rejects_invalid_parameter_values(self):
+        raw = {
+            "parts": {
+                "V1": {"type": "battery_9v"},
+                "R1": {"type": "resistor", "r": 0},
+            },
+            "nets": {
+                "p": ["V1.+", "R1.1"],
+                "gnd": ["V1.-", "R1.2"],
+            },
+        }
+        with self.assertRaisesRegex(CircuitError, "R1.r: r: deve essere > 0"):
+            from_dict(raw, DB_)
 
     def test_roundtrip(self):
         doc = new_doc()

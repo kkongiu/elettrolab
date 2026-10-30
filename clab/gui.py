@@ -5,7 +5,7 @@ import re
 import time
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import filedialog, messagebox, ttk
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -18,108 +18,17 @@ from .breadboards import (LayoutError, RAIL_Y, ROWS, derive_nets, generate, hole
                           validate_layout, wire_at)
 from .circuit import CircuitError
 from .db import DB
-from .document import Document, slugify
-from .layouts import LAYOUTS
+from .document import Document
+from .gui_common import (ACCENT, AMBER, BG, CARD, DATA, FAIL, KIND_LABELS, MUTED,
+                         OK, PROJECTS, SLIDERS, TEXT, UNIT, WARN, Tooltip)
+from .gui_projects import ProjectMixin
+from .gui_simulation import SimulationMixin
 from .pcb import Pcb, PcbError, PcbLayout
 from .schematic import Schematic
-from .solver import SolveError, check, simulate
 from .units import fmt, to_float
 
-DATA = Path(__file__).resolve().parent.parent / "data"
-PROJECTS = DATA / "projects"
-BG = "#eef1f6"
-CARD = "#ffffff"
-TEXT = "#1d2433"
-MUTED = "#6b7280"
-OK = "#137a3f"
-FAIL = "#b42318"
-WARN = "#b45309"
-ACCENT = "#0a5bd3"
-SLOW_EXERCISES = {"exp11", "exp11b", "exp11c", "exp11d", "buck", "buck_reg", "buck_5a", "alimentatore", "carica_solare"}
-SLIDERS = {
-    "v": ("lin", 0.0, 24.0),
-    "pos": ("lin", 0.0, 1.0),
-    "r": ("log", 1.0, 1e6),
-    "rtotal": ("log", 10.0, 1e6),
-    "c": ("log", 1e-9, 1e-2),
-    "l": ("log", 1e-6, 10.0),
-}
-UNIT = {"v": "V", "r": "Ω", "rtotal": "Ω", "c": "F", "l": "H"}
-AMBER = "#f59e0b"
 
-KIND_LABELS = {
-    "R": "Resistenze",
-    "V": "Alimentazioni",
-    "C": "Condensatori",
-    "L": "Induttori",
-    "LED": "LED",
-    "D": "Diodi",
-    "SW": "Interruttori",
-    "POT": "Potenziometri",
-    "RELAY": "Relè",
-    "RELAY2": "Relè",
-    "GND": "Massa",
-    "NPN": "Transistor",
-    "PUT": "Transistor",
-    "MOS": "Transistor",
-    "SPK": "Altoparlanti",
-    "LAMP": "Lampadine",
-    "XFMR": "Trasformatori",
-}
-
-
-class Tooltip:
-    """Piccolo tooltip che appare al passaggio del mouse su un widget."""
-
-    def __init__(self, widget, text, delay=450):
-        self.widget = widget
-        self.text = text
-        self.delay = delay
-        self._after = None
-        self._tip = None
-        widget.bind("<Enter>", self._schedule, add="+")
-        widget.bind("<Leave>", self._hide, add="+")
-        widget.bind("<ButtonPress>", self._hide, add="+")
-
-    def _schedule(self, _event=None):
-        self._cancel()
-        self._after = self.widget.after(self.delay, self._show)
-
-    def _cancel(self):
-        if self._after is not None:
-            try:
-                self.widget.after_cancel(self._after)
-            except Exception:
-                pass
-            self._after = None
-
-    def _show(self):
-        if self._tip is not None or not self.text:
-            return
-        try:
-            x = self.widget.winfo_rootx() + 8
-            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
-        except Exception:
-            return
-        tip = tk.Toplevel(self.widget)
-        tip.wm_overrideredirect(True)
-        tip.wm_geometry(f"+{x}+{y}")
-        tk.Label(tip, text=self.text, bg=TEXT, fg="#ffffff",
-                 padx=8, pady=3, font=("DejaVu Sans", 9),
-                 relief="flat", bd=0).pack()
-        self._tip = tip
-
-    def _hide(self, _event=None):
-        self._cancel()
-        if self._tip is not None:
-            try:
-                self._tip.destroy()
-            except Exception:
-                pass
-            self._tip = None
-
-
-class App:
+class App(SimulationMixin, ProjectMixin):
     def __init__(self, root, start=None):
         self.root = root
         self.db = DB(DATA / "components")
@@ -133,6 +42,7 @@ class App:
             except Exception:
                 self.titles[eid] = eid
         self.results = {}
+        self._init_simulation()
         self.doc = None
         self.res = None
         self.schem = None
@@ -150,6 +60,7 @@ class App:
         self.future = []
         self.dirty = False
         self._loading = False
+        self._closing = False
         self.sim_cache = {}
         self._slide_after = None
         self._bb_drag = None
@@ -176,14 +87,14 @@ class App:
         root.configure(bg=BG)
         root.minsize(1020, 720)
         self._build()
-        self._check_all()
+        self._initialize_exercise_list()
         self._refresh_projects()
-        idx = self.ids.index(start) if start in self.ids else 0
-        if self.ids:
-            self.ex_list.selection_set(idx)
-            self.ex_list.activate(idx)
-            self._select_exercise()
-        root.after(33, self._tick)
+        if start in self.ids:
+            self._choose_exercise(self.ids.index(start))
+        else:
+            self._show_start_dialog()
+        if not self._closing:
+            root.after(33, self._tick)
 
     def _build(self):
         style = ttk.Style()
@@ -638,106 +549,11 @@ class App:
         if iid in self.db.types:
             self._arm(iid)
 
-    def _update_summary(self):
-        done = [v for v in self.results.values() if v is not None]
-        passed = sum(1 for v in done if v)
-        total = len(self.ids)
-        if len(done) < total:
-            self.summary.configure(text=f"{passed}/{total} test superati ({total - len(done)} da eseguire)")
-        else:
-            self.summary.configure(text=f"{passed}/{total} test superati")
 
-    def _check_all(self):
-        previous = dict(self.results)
-        self.results = {}
-        self.ex_list.delete(0, "end")
-        for eid in self.ids:
-            if eid in SLOW_EXERCISES:
-                ok = previous.get(eid)
-                self.results[eid] = ok
-                if ok is None:
-                    self.ex_list.insert("end", f"   —     {eid}")
-                    self.ex_list.itemconfig("end", foreground=MUTED)
-                else:
-                    self.ex_list.insert("end", f"  {'PASS' if ok else 'FAIL'}   {eid}")
-                    self.ex_list.itemconfig("end", foreground=OK if ok else FAIL)
-                continue
-            try:
-                raw = json.loads((DATA / "exercises" / f"{eid}.json").read_text(encoding="utf-8"))
-                circ = Document(raw, self.db, layout=LAYOUTS.get(eid)).to_circuit()
-                res = simulate(circ)
-                check(circ, res)
-                ok = res.ok
-            except Exception:
-                ok = False
-            self.results[eid] = ok
-            self.ex_list.insert("end", f"  {'PASS' if ok else 'FAIL'}   {eid}")
-            self.ex_list.itemconfig("end", foreground=OK if ok else FAIL)
-        self._update_summary()
 
-    def _confirm_discard(self):
-        if not self.dirty:
-            return True
-        return messagebox.askyesno("Modifiche non salvate",
-                                   "Scartare le modifiche al circuito corrente?",
-                                   parent=self.root)
 
-    def _select_exercise(self):
-        if getattr(self, "_loading", False):
-            return
-        sel = self.ex_list.curselection()
-        if not sel:
-            return
-        eid = self.ids[sel[0]]
-        if not self._confirm_discard():
-            cur = self.doc.meta.get("id") if self.doc else None
-            self.ex_list.selection_clear(0, "end")
-            if cur in self.ids:
-                i = self.ids.index(cur)
-                self.ex_list.selection_set(i)
-                self.ex_list.activate(i)
-            return
-        raw = json.loads((DATA / "exercises" / f"{eid}.json").read_text(encoding="utf-8"))
-        doc = Document(raw, self.db, layout=LAYOUTS.get(eid), builtin=True)
-        self.proj_list.selection_clear(0, "end")
-        self.status.configure(text="SIMULAZIONE...", foreground=MUTED)
-        self.root.update_idletasks()
-        cached = self.sim_cache.get(eid)
-        self._load_doc(doc, res=cached)
-        if cached is None and self.res is not None:
-            self.sim_cache[eid] = self.res
-        if self.res is not None:
-            self.results[eid] = self.res.ok
-            i = self.ids.index(eid)
-            self._loading = True
-            self.ex_list.delete(i)
-            self.ex_list.insert(i, f"  {'PASS' if self.res.ok else 'FAIL'}   {eid}")
-            self.ex_list.itemconfig(i, foreground=OK if self.res.ok else FAIL)
-            self.ex_list.selection_set(i)
-            self._loading = False
-        self._update_summary()
-        self._hint(f"Esercizio {eid} caricato. Salva una copia per modificarlo.")
 
-    def _load_doc(self, doc, res=None):
-        self.doc = doc
-        self.schem = None
-        self.selected = None
-        self.selected_wire = None
-        self.wire_from = None
-        self.bb_wire_from = None
-        self.armed = None
-        self.drag = None
-        self.mode = "select"
-        self.history = []
-        self.future = []
-        self.dirty = False
-        self.t_anim = 0.0
-        self.code_editing = False
-        self.code_btn.configure(text="Modifica")
-        self.code_text.configure(state="disabled")
-        self.code_view.configure(state="readonly")
-        self.res = res
-        self._after_change(simulate=res is None)
+
 
     def _new_schem(self):
         old = self.schem
@@ -754,8 +570,9 @@ class App:
             return
         self.doc.ensure_layout()
         if simulate:
-            self._simulate()
+            self._schedule_simulation()
         else:
+            self._invalidate_simulation()
             self.problems_list = self.doc.problems()
         self.schem = self._new_schem()
         if self.doc.board is None or set(self.doc.board.get("parts", {})) != set(self.doc.parts):
@@ -904,6 +721,7 @@ class App:
             self.sound_btn.configure(text="\u266a")
 
     def _on_close(self):
+        self._closing = True
         if self.sound_proc is not None and self.sound_proc.poll() is None:
             self.sound_proc.terminate()
         self.root.destroy()
@@ -1114,57 +932,12 @@ class App:
         else:
             self._after_board_change()
 
-    def _simulate(self):
-        self.problems_list = self.doc.problems()
-        self.res = None
-        if self.doc.errors():
-            return
-        try:
-            circ = self.doc.to_circuit()
-            self.res = simulate(circ)
-            check(circ, self.res)
-        except (CircuitError, SolveError) as e:
-            self.problems_list.append({
-                "severity": "error", "code": getattr(e, "code", "error"),
-                "message": getattr(e, "message", str(e))})
 
-    def _update_header(self):
-        if self.doc is None:
-            return
-        title = self.doc.meta.get("title") or self.doc.meta.get("id", "circuito")
-        star = " *" if self.dirty else ""
-        self.title.configure(text=f"{title}{star}")
-        self.notes.configure(text=self.doc.meta.get("notes", ""))
-        errors = [p for p in self.problems_list if p["severity"] == "error"]
-        warnings = [p for p in self.problems_list if p["severity"] == "warning"]
-        if errors:
-            self.status.configure(text=f"INCOMPLETO  ({len(errors)} errori)",
-                                  foreground=FAIL)
-        elif self.res is not None and self.res.checks:
-            if self.res.ok:
-                self.status.configure(text="TEST SUPERATO", foreground=OK)
-            else:
-                self.status.configure(text="TEST FALLITO", foreground=FAIL)
-        elif self.res is not None:
-            self.status.configure(text="SIMULAZIONE OK", foreground=OK)
-        else:
-            self.status.configure(text=f"PRONTO  ({len(warnings)} avvisi)",
-                                  foreground=WARN)
-        self.viol.configure(text=" | ".join(v["message"] for v in
-                                            (self.res.violations if self.res else [])))
 
-    def _update_problems(self):
-        items = self.problems_list
-        lines = []
-        for p in items[:20]:
-            mark = "x" if p["severity"] == "error" else "!"
-            lines.append(f"{mark} {p['message']}")
-        if not lines:
-            lines = ["Nessun problema."]
-        self.problems.configure(state="normal")
-        self.problems.delete("1.0", "end")
-        self.problems.insert("1.0", "\n".join(lines))
-        self.problems.configure(state="disabled")
+
+
+
+
 
     def _update_code(self):
         if self.doc is None or self.code_editing:
@@ -1629,101 +1402,13 @@ class App:
         else:
             self._hint(f"Connessione {name} eliminata")
 
-    def _new(self):
-        if not self._confirm_discard():
-            return
-        doc = Document({"id": "nuovo", "title": "Nuovo circuito", "analysis": "dc",
-                        "parts": {}, "nets": {}}, self.db,
-                       layout={"parts": {}, "gnd_y": 330})
-        self.proj_list.selection_clear(0, "end")
-        self.ex_list.selection_clear(0, "end")
-        self._load_doc(doc)
-        self._hint("Nuovo circuito. Aggiungi componenti dalla palette.")
 
-    def _save(self):
-        if self.doc is None:
-            return
-        if self.doc.source and not self.doc.builtin:
-            self.doc.save(self.doc.source, self.doc.source.with_suffix(".layout.json"),
-                          self.doc.source.with_suffix(".board.json"))
-            self.dirty = False
-            self._update_header()
-            self._refresh_projects()
-            return
-        self._save_as()
 
-    def _save_as(self):
-        if self.doc is None:
-            return
-        name = simpledialog.askstring("Salva progetto", "Nome del progetto:",
-                                      initialvalue=self.doc.meta.get("title", "circuito"),
-                                      parent=self.root)
-        if not name:
-            return
-        slug = slugify(name)
-        path = PROJECTS / f"{slug}.json"
-        layout = PROJECTS / f"{slug}.layout.json"
-        board = PROJECTS / f"{slug}.board.json"
-        if path.exists() and not messagebox.askyesno(
-                "Esiste già", f"{slug}.json esiste. Sovrascrivere?", parent=self.root):
-            return
-        self.doc.meta["id"] = slug
-        self.doc.meta["title"] = name
-        self.doc.save(path, layout, board)
-        self.dirty = False
-        self._refresh_projects(select=slug)
-        self._update_header()
-        self._hint(f"Salvato in {path}")
 
-    def _exercise_label(self, eid):
-        state = self.results.get(eid)
-        mark = "" if state is None else ("PASS  " if state else "FAIL  ")
-        title = self.titles.get(eid, "")
-        return f"{mark}{eid}  {title}" if title else f"{mark}{eid}"
 
-    def _project_names(self):
-        return sorted(p.stem for p in PROJECTS.glob("*.json")
-                      if not p.name.endswith((".layout.json", ".board.json")))
 
-    def _choose_exercise(self, index):
-        if not 0 <= index < len(self.ids):
-            return
-        self.ex_list.selection_clear(0, "end")
-        self.ex_list.selection_set(index)
-        self.ex_list.activate(index)
-        self._select_exercise()
 
-    def _refresh_projects(self, select=None):
-        self.proj_list.delete(0, "end")
-        names = self._project_names()
-        for name in names:
-            self.proj_list.insert("end", name)
-        if select in names:
-            i = names.index(select)
-            self.proj_list.selection_set(i)
-            self.proj_list.activate(i)
-        self._build_menu()
 
-    def _open_project(self, name=None):
-        if name is None:
-            sel = self.proj_list.curselection()
-            if not sel:
-                return
-            name = self.proj_list.get(sel[0])
-        if not self._confirm_discard():
-            self.proj_list.selection_clear(0, "end")
-            return
-        path = PROJECTS / f"{name}.json"
-        layout = PROJECTS / f"{name}.layout.json"
-        board = PROJECTS / f"{name}.board.json"
-        try:
-            doc = Document.from_file(path, layout, self.db, board_path=board)
-        except Exception as e:
-            self._hint(f"Errore apertura: {e}")
-            return
-        self.ex_list.selection_clear(0, "end")
-        self._load_doc(doc)
-        self._hint(f"Progetto {name} aperto.")
 
     def _fill(self):
         for item in self.table.get_children():
@@ -1867,6 +1552,7 @@ class App:
         now = time.perf_counter()
         d = min(0.1, now - self.last)
         self.last = now
+        self._poll_async_results()
         if self.doc is not None and self.schem is not None:
             t = None
             if self.res is not None and self.res.time is not None:

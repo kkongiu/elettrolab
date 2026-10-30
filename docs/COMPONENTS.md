@@ -26,14 +26,23 @@ indicizza per `id`.
 | `pins` | si | elenco ordinato dei pin |
 | `params` | no | valori di default |
 | `limits` | no | soglie per le violazioni |
+| `instance_params` | no | parametri d'istanza ammessi senza un valore predefinito |
 | `learn` | no | nota didattica mostrata da `show` |
-| `numeric` | no | forza quali parametri sono numerici |
+| `numeric` | no | parametri d'istanza numerici, anche senza default |
 | `optional` | no | pin che possono restare scollegati |
 
-I parametri di istanza nel circuito sovrascrivono i default:
+I parametri di istanza ammessi sono quelli in `params`, `limits` e
+`instance_params`. I valori in `params` forniscono i default; `instance_params`
+dichiara chiavi valide senza valore iniziale, per esempio i tempi di
+commutazione di un interruttore:
 
 ```json
-"R1": {"type": "resistor", "r": "470"}
+{
+  "parts": {
+    "R1": {"type": "resistor", "r": "470"},
+    "SW1": {"type": "switch_spst", "t_close": 0.02}
+  }
+}
 ```
 
 ## Tipi supportati
@@ -200,8 +209,14 @@ I parametri numerici accettano stringhe con suffisso SI (`4.7k`, `1000u`,
 `1meg`). Vedi `docs/CIRCUIT-FORMAT.md` per la tabella completa.
 
 Un parametro e' considerato numerico se il suo valore di default e' convertibile
-con il parser SI. Per forzare il comportamento si puo' usare la lista
-`"numeric": ["parametro"]` nel file del componente.
+con il parser SI, o se compare in `limits`. La lista `numeric` aggiunge le
+chiavi numeriche senza default dichiarate in `instance_params`. I valori devono
+essere finiti. Sono inoltre controllati gli intervalli: valori strettamente
+positivi per resistenze, capacita', induttanze, rapporti, frequenze, potenze e
+correnti massime; `pos` e `duty` sono compresi tra 0 e 1; i tempi e le soglie
+non negative non possono essere negativi. `mode` accetta `divider` o
+`rheostat`, `wave` accetta `sin` o `dc` e i parametri booleani devono contenere
+`true` o `false` JSON.
 
 ## Convenzioni di corrente
 

@@ -31,7 +31,10 @@ circuito.json ──> Circuit ──> MNA ──> Result ──> report / GUI / 
 | `clab_mcp/server.py` | registrazione tool, risorse e prompt MCP |
 | `clab/report.py` | tabelle testuali, grafico ASCII, CSV |
 | `clab/cli.py` | comandi, overrides, sweep, selftest |
-| `clab/gui.py` | finestra Tk, elenco esercizi, controlli, animazione |
+| `clab/gui.py` | finestra Tk, editor e coordinamento dei pannelli |
+| `clab/gui_projects.py` | apertura, selezione e salvataggio di esercizi e progetti |
+| `clab/gui_simulation.py` | simulazioni in background e stato dei controlli |
+| `clab/gui_common.py` | palette, costanti e tooltip condivisi dalla GUI |
 | `clab/schematic.py` | simboli, fili, puntini di corrente, LED |
 | `clab/layouts.py` | posizioni e rotazioni dei componenti per esercizio |
 | `clab/pcb.py` | anteprima PCB (footprint, piste, serigrafia) e SVG |
@@ -179,8 +182,9 @@ nella rete `gnd`; il motore lo ignora elettricamente.
 
 La GUI e' un consumatore del `Result`, non un secondo motore.
 
-- `clab/gui.py` costruisce la finestra, esegue i controlli, gestisce il tempo
-  dell'animazione e incorpora Matplotlib per il grafico.
+- `clab/gui.py` costruisce la finestra, gestisce l'editor e incorpora Matplotlib
+  per il grafico; `gui_projects.py` gestisce i file e `gui_simulation.py` i
+  calcoli in background e il loro aggiornamento sul thread Tk.
 - `clab/schematic.py` disegna su un `tk.Canvas`: simboli, fili, giunzioni,
   puntini di corrente e alone dei LED.
 - `clab/layouts.py` contiene solo geometria: centro, rotazione e, se serve,

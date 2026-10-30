@@ -1,7 +1,9 @@
 import json
+import math
 from pathlib import Path
 
 from .db import DB
+from .units import to_float
 
 
 class CircuitError(Exception):
@@ -81,7 +83,31 @@ class Circuit:
                 self.pin_net[(pid, pin)] = net
 
     def _validate(self):
+        if self.analysis not in ("dc", "transient"):
+            raise CircuitError("bad_analysis", f"analisi non supportata: {self.analysis!r}")
+        for key in ("dt", "tstop"):
+            value = getattr(self, key)
+            if value is None:
+                continue
+            try:
+                number = to_float(value)
+            except (ValueError, TypeError) as e:
+                raise CircuitError("bad_value", f"{key}: valore numerico non valido ({e})",
+                                   parameter=key)
+            if not math.isfinite(number) or number <= 0:
+                raise CircuitError("out_of_range", f"{key}: deve essere un numero finito > 0",
+                                   parameter=key)
+        if self.analysis == "transient" and self.dt is not None and self.tstop is not None:
+            ratio = to_float(self.tstop) / to_float(self.dt)
+            if not math.isfinite(ratio) or ratio > 300000:
+                raise CircuitError("too_long", "tstop/dt supera il limite di 300000 passi")
+            if round(ratio) < 2:
+                raise CircuitError("bad_value", "tstop troppo breve rispetto a dt")
         for pid, p in self.parts.items():
+            if p.validation_errors:
+                issue = p.validation_errors[0]
+                raise CircuitError(issue["code"], f"{pid}.{issue['parameter']}: {issue['message']}",
+                                   part=pid, parameter=issue["parameter"])
             missing = [pin for pin in p.spec.pins if (pid, pin) not in self.pin_net]
             missing = [m for m in missing if m not in p.spec.optional]
             if missing:

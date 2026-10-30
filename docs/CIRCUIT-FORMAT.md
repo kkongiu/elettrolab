@@ -18,6 +18,9 @@ attese. Non contiene coordinate, misure in pixel o informazioni di disegno.
 | `nets` | oggetto | si | reti, chiave = nome della rete |
 | `expect` | oggetto | no | attese verificate automaticamente |
 
+`dt` e `tstop`, se presenti, devono essere finiti e maggiori di zero. In
+transitorio `tstop / dt` non può superare 300.000 passi.
+
 ## Parti
 
 ```json
@@ -31,7 +34,9 @@ attese. Non contiene coordinate, misure in pixel o informazioni di disegno.
 - La chiave (`V1`, `R1`, ...) e' l'identificatore usato nelle reti e nei
   risultati.
 - `type` deve esistere in `data/components/`.
-- Ogni altra chiave sovrascrive il parametro omonimo del catalogo.
+- Ogni altra chiave deve essere dichiarata in `params`, `limits` o
+  `instance_params` nel catalogo del componente. I valori numerici devono
+  rispettare gli intervalli descritti in `docs/COMPONENTS.md`.
 
 Gli identificatori devono essere stabili: un LLM che rigenera un circuito deve
 riusare gli stessi nomi, altrimenti i riferimenti nelle reti si rompono.

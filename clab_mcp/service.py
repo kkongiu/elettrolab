@@ -66,6 +66,7 @@ def catalog() -> dict:
             "pins": list(spec.pins),
             "params": copy.deepcopy(spec.params),
             "limits": copy.deepcopy(spec.limits),
+            "instance_params": sorted(spec.instance_params),
             "optional": list(spec.optional),
             "learn": spec.learn,
         })
@@ -85,6 +86,7 @@ def component(cid: str) -> dict:
             "pins": list(spec.pins),
             "params": copy.deepcopy(spec.params),
             "limits": copy.deepcopy(spec.limits),
+            "instance_params": sorted(spec.instance_params),
             "optional": list(spec.optional),
             "learn": spec.learn,
         },

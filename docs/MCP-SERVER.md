@@ -60,7 +60,8 @@ Output:
 {
   "components": [
     {"id": "resistor", "name": "Resistenza", "kind": "R",
-     "pins": ["1", "2"], "params": {"r": "1k"}, "limits": {"pmax": 0.25}}
+     "pins": ["1", "2"], "params": {"r": "1k"}, "limits": {"pmax": 0.25},
+     "instance_params": []}
   ]
 }
 ```
